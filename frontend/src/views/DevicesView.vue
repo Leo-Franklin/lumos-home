@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -9,10 +9,9 @@ import DeviceCard from '@/components/DeviceCard.vue'
 
 const devicesStore = useDevicesStore()
 
+// ── 编辑 ──────────────────────────────────────────────
 const editDialog = ref(false)
 const editForm = ref({})
-
-onMounted(() => devicesStore.fetchDevices())
 
 function openEdit(row) {
   editForm.value = { ...row }
@@ -34,6 +33,7 @@ async function saveEdit() {
   }
 }
 
+// ── 删除 ──────────────────────────────────────────────
 async function handleDelete(row) {
   await ElMessageBox.confirm(`确定删除设备 ${row.alias || row.mac}？`, '确认删除', { type: 'warning' })
   await deleteDevice(row.mac)
@@ -41,7 +41,39 @@ async function handleDelete(row) {
   devicesStore.fetchDevices()
 }
 
+// ── 详情 ──────────────────────────────────────────────
+const detailDialog = ref(false)
+const detailDevice = ref(null)
+
+function openDetail(row) {
+  detailDevice.value = row
+  detailDialog.value = true
+}
+
+function parsePorts(raw) {
+  if (!raw) return '—'
+  try {
+    const ports = JSON.parse(raw)
+    return ports.length ? ports.join(', ') : '—'
+  } catch {
+    return raw
+  }
+}
+
+function formatTime(val) {
+  if (!val) return '—'
+  return new Date(val).toLocaleString('zh-CN', { hour12: false })
+}
+
+const detailTypeLabel = computed(() => {
+  const map = { camera: '摄像头', computer: '电脑', phone: '手机', iot: 'IoT 设备', unknown: '未知' }
+  return map[detailDevice.value?.device_type] ?? detailDevice.value?.device_type ?? '—'
+})
+
+// ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
+
+onMounted(() => devicesStore.fetchDevices())
 </script>
 
 <template>
@@ -72,6 +104,7 @@ const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
         v-for="device in devicesStore.items"
         :key="device.mac"
         :device="device"
+        @detail="openDetail"
         @edit="openEdit"
         @delete="handleDelete"
       />
@@ -80,6 +113,20 @@ const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
       </div>
     </div>
 
+    <!-- 分页 -->
+    <div class="pagination-bar" v-if="devicesStore.total > 0">
+      <el-pagination
+        v-model:current-page="devicesStore.page"
+        v-model:page-size="devicesStore.pageSize"
+        :total="devicesStore.total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="devicesStore.changePage"
+        @size-change="devicesStore.changePageSize"
+      />
+    </div>
+
+    <!-- 编辑弹窗 -->
     <el-dialog v-model="editDialog" title="编辑设备" width="440px">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="MAC">
@@ -100,6 +147,54 @@ const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
       <template #footer>
         <el-button @click="editDialog = false">取消</el-button>
         <el-button type="primary" @click="saveEdit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailDialog" title="设备详情" width="500px" v-if="detailDevice">
+      <div class="detail-header">
+        <span class="detail-status-dot" :class="detailDevice.is_online ? 'online' : 'offline'" />
+        <span class="detail-title">{{ detailDevice.alias || detailDevice.mac }}</span>
+        <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
+          {{ detailDevice.is_online ? '在线' : '离线' }}
+        </el-tag>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">基本信息</div>
+        <div class="detail-grid">
+          <div class="detail-row"><span class="detail-label">MAC 地址</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
+          <div class="detail-row"><span class="detail-label">IP 地址</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">主机名</span><span class="detail-value mono">{{ detailDevice.hostname || '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">设备类型</span><span class="detail-value">{{ detailTypeLabel }}</span></div>
+          <div class="detail-row"><span class="detail-label">厂商</span><span class="detail-value">{{ detailDevice.vendor || '—' }}</span></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">网络信息</div>
+        <div class="detail-grid">
+          <div class="detail-row"><span class="detail-label">开放端口</span><span class="detail-value mono">{{ parsePorts(detailDevice.open_ports) }}</span></div>
+          <div class="detail-row"><span class="detail-label">响应时间</span><span class="detail-value mono">{{ detailDevice.response_time_ms != null ? detailDevice.response_time_ms + ' ms' : '—' }}</span></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">记录信息</div>
+        <div class="detail-grid">
+          <div class="detail-row"><span class="detail-label">首次发现</span><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span></div>
+          <div class="detail-row"><span class="detail-label">最后在线</span><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span></div>
+        </div>
+      </div>
+
+      <div class="detail-section" v-if="detailDevice.notes">
+        <div class="detail-section-title">备注</div>
+        <div class="detail-notes">{{ detailDevice.notes }}</div>
+      </div>
+
+      <template #footer>
+        <el-button @click="detailDialog = false">关闭</el-button>
+        <el-button type="primary" @click="detailDialog = false; openEdit(detailDevice)">编辑</el-button>
       </template>
     </el-dialog>
   </div>
@@ -141,5 +236,78 @@ const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
   text-align: center;
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+/* 分页 */
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* 详情弹窗 */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.detail-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(38,194,129,.5); }
+.detail-status-dot.offline { background: var(--color-offline); }
+.detail-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+.detail-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.detail-label {
+  min-width: 80px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.detail-value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+.detail-value.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.detail-notes {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 </style>

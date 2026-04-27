@@ -2,7 +2,7 @@
 defineProps({
   device: { type: Object, required: true },
 })
-defineEmits(['edit', 'delete'])
+defineEmits(['edit', 'delete', 'detail'])
 
 const TYPE_CONFIG = {
   camera:   { label: 'Camera',   color: 'var(--color-type-camera)',   hex: '#5E5CE6' },
@@ -53,6 +53,7 @@ function typeIconStyle(t) {
     </span>
 
     <div class="device-actions">
+      <button class="btn-ghost" @click="$emit('detail', device)">详情</button>
       <button class="btn-ghost" @click="$emit('edit', device)">编辑</button>
       <button class="btn-ghost btn-danger" @click="$emit('delete', device)">删除</button>
     </div>
