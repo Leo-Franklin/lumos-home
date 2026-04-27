@@ -73,6 +73,14 @@ const detailTypeLabel = computed(() => {
 // ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
 
+const filterOptions = [
+  { value: 'camera',   label: 'Camera',   hex: '#5E5CE6' },
+  { value: 'computer', label: 'Computer', hex: '#26C281' },
+  { value: 'phone',    label: 'Phone',    hex: '#F2C94C' },
+  { value: 'iot',      label: 'IoT',      hex: '#F07D38' },
+  { value: 'unknown',  label: 'Unknown',  hex: '#8B8B96' },
+]
+
 onMounted(() => devicesStore.fetchDevices())
 </script>
 
@@ -99,6 +107,33 @@ onMounted(() => devicesStore.fetchDevices())
       </div>
     </div>
 
+    <div class="filter-bar">
+      <button
+        class="filter-btn"
+        :class="{ active: devicesStore.filterTypes.length === 0 }"
+        @click="devicesStore.toggleFilter('')"
+      >
+        全部
+      </button>
+      <button
+        v-for="opt in filterOptions"
+        :key="opt.value"
+        class="filter-btn"
+        :class="{ active: devicesStore.filterTypes.includes(opt.value) }"
+        :style="devicesStore.filterTypes.includes(opt.value) ? { color: opt.hex, borderColor: opt.hex + '66', background: opt.hex + '18' } : {}"
+        @click="devicesStore.toggleFilter(opt.value)"
+      >
+        {{ opt.label }}
+      </button>
+      <button
+        v-if="devicesStore.filterTypes.length > 0"
+        class="filter-btn filter-btn--clear"
+        @click="devicesStore.toggleFilter('')"
+      >
+        清除
+      </button>
+    </div>
+
     <div class="device-list" v-loading="devicesStore.loading">
       <DeviceCard
         v-for="device in devicesStore.items"
@@ -109,7 +144,7 @@ onMounted(() => devicesStore.fetchDevices())
         @delete="handleDelete"
       />
       <div v-if="!devicesStore.loading && devicesStore.items.length === 0" class="empty-state">
-        暂无设备，请点击「扫描网络」
+        {{ devicesStore.filterTypes.length > 0 ? '当前类型下暂无设备' : '暂无设备，请点击「扫描网络」' }}
       </div>
     </div>
 
@@ -222,6 +257,44 @@ onMounted(() => devicesStore.fetchDevices())
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 过滤栏 */
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  line-height: 1.5;
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out,
+              border-color var(--duration-fast) ease-out;
+}
+.filter-btn:hover:not(.active) {
+  background: var(--color-surface-overlay);
+  color: var(--color-text-primary);
+}
+.filter-btn.active {
+  font-weight: 500;
+}
+.filter-btn--clear {
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+.filter-btn--clear:hover {
+  color: var(--color-error, #f05252);
+  border-color: rgba(240, 82, 82, 0.3);
+  background: rgba(240, 82, 82, 0.08);
 }
 
 .device-list {

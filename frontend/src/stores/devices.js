@@ -9,11 +9,14 @@ export const useDevicesStore = defineStore('devices', () => {
   const pageSize = ref(20)
   const loading = ref(false)
   const scanning = ref(false)
+  const filterTypes = ref([])
 
   async function fetchDevices(params = {}) {
     loading.value = true
     try {
-      const { data } = await listDevices({ page: page.value, page_size: pageSize.value, ...params })
+      const query = { page: page.value, page_size: pageSize.value, ...params }
+      if (filterTypes.value.length > 0) query.device_type = filterTypes.value.join(',')
+      const { data } = await listDevices(query)
       items.value = data.items
       total.value = data.total
     } finally {
@@ -32,15 +35,40 @@ export const useDevicesStore = defineStore('devices', () => {
     fetchDevices()
   }
 
+  function toggleFilter(type) {
+    if (type === '') {
+      filterTypes.value = []
+    } else {
+      const idx = filterTypes.value.indexOf(type)
+      filterTypes.value = idx === -1
+        ? [...filterTypes.value, type]
+        : filterTypes.value.filter((t) => t !== type)
+    }
+    page.value = 1
+    fetchDevices()
+  }
+
+  let scanTimeoutId = null
+
   async function scan() {
     scanning.value = true
-    await triggerScan()
+    clearTimeout(scanTimeoutId)
+    scanTimeoutId = setTimeout(() => {
+      scanning.value = false
+    }, 60000)
+    try {
+      await triggerScan()
+    } catch {
+      scanning.value = false
+      clearTimeout(scanTimeoutId)
+    }
   }
 
   function onScanCompleted() {
+    clearTimeout(scanTimeoutId)
     scanning.value = false
     fetchDevices()
   }
 
-  return { items, total, page, pageSize, loading, scanning, fetchDevices, changePage, changePageSize, scan, onScanCompleted }
+  return { items, total, page, pageSize, loading, scanning, filterTypes, fetchDevices, changePage, changePageSize, toggleFilter, scan, onScanCompleted }
 })
