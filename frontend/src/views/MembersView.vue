@@ -17,7 +17,7 @@ const allDevices = ref([])
 
 onMounted(async () => {
   await membersStore.fetchMembers()
-  const { data } = await listDevices({ page: 1, page_size: 200 })
+  const { data } = await listDevices({ page: 1, page_size: 100 })
   allDevices.value = data.items
 })
 

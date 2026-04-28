@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import * as d3 from 'd3'
 import api from '@/api/index'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Histogram } from '@element-plus/icons-vue'
+import { useDevicesStore } from '@/stores/devices'
+
+const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -17,10 +20,12 @@ const TYPE_CONFIG = {
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown
 
 // ── State ────────────────────────────────────────────────
-const svgEl   = ref(null)
-const loading = ref(false)
-const nodes   = ref([])
-const selected = ref(null)
+const svgEl      = ref(null)
+const loading    = ref(false)
+const nodes      = ref([])
+const selected   = ref(null)
+const activeTypes = ref([])   // empty = show all
+const tooltip    = ref({ visible: false, x: 0, y: 0, node: null })
 
 let zoomBehavior = null
 
@@ -28,6 +33,11 @@ const stats = computed(() => ({
   total:  nodes.value.length,
   online: nodes.value.filter(n => n.is_online).length,
 }))
+
+// React to scan completion: reload topology when scan finishes
+watch(() => devicesStore.scanning, (isScanning, wasScanning) => {
+  if (wasScanning && !isScanning) loadTopology()
+})
 
 // ── Data ─────────────────────────────────────────────────
 async function loadTopology() {
@@ -44,46 +54,31 @@ async function loadTopology() {
   }
 }
 
-// ── Layout ───────────────────────────────────────────────
-function computePositions(allNodes) {
-  const byType = {}
-  allNodes.forEach(n => {
-    const t = n.device_type || 'unknown'
-    ;(byType[t] = byType[t] || []).push(n)
-  })
+// ── Type filter ───────────────────────────────────────────
+function toggleType(type) {
+  const idx = activeTypes.value.indexOf(type)
+  activeTypes.value = idx === -1
+    ? [...activeTypes.value, type]
+    : activeTypes.value.filter(t => t !== type)
+  updateNodeOpacity()
+}
 
-  const types = Object.keys(byType)
-  const N = types.length || 1
-  const R1 = Math.max(210, N * 80)  // ring radius for group centers
-  const R2 = 85                      // sub-ring radius for devices in a group
-
-  const pos = new Map()
-  const groupMeta = []
-
-  types.forEach((type, i) => {
-    const a  = (2 * Math.PI * i) / N - Math.PI / 2
-    const gx = R1 * Math.cos(a)
-    const gy = R1 * Math.sin(a)
-    groupMeta.push({ type, x: gx, y: gy, a })
-
-    const devs = byType[type]
-    const M    = devs.length
-
-    devs.forEach((dev, j) => {
-      if (M === 1) {
-        pos.set(dev.mac, { x: gx, y: gy })
-      } else {
-        const span = Math.min(Math.PI * 0.85, 0.5 * M)
-        const da   = a - span / 2 + span * j / (M - 1)
-        pos.set(dev.mac, {
-          x: gx + R2 * Math.cos(da),
-          y: gy + R2 * Math.sin(da),
-        })
-      }
+function updateNodeOpacity() {
+  if (!svgEl.value) return
+  const active = activeTypes.value
+  d3.select(svgEl.value).selectAll('g.dev')
+    .transition().duration(180)
+    .attr('opacity', d => {
+      if (active.length === 0) return 1
+      return active.includes(d.device_type ?? 'unknown') ? 1 : 0.1
     })
-  })
-
-  return { pos, groupMeta }
+  d3.select(svgEl.value).selectAll('line')
+    .transition().duration(180)
+    .attr('opacity', d => {
+      const baseOpacity = d.is_online ? 0.22 : 0.09
+      if (active.length === 0) return baseOpacity
+      return active.includes(d.device_type ?? 'unknown') ? baseOpacity : 0.03
+    })
 }
 
 // ── Render ───────────────────────────────────────────────
@@ -101,8 +96,8 @@ function renderGraph() {
   // Glow filter
   const defs = svg.append('defs')
   const flt  = defs.append('filter').attr('id', 'topo-glow')
-    .attr('x', '-60%').attr('y', '-60%').attr('width', '220%').attr('height', '220%')
-  flt.append('feGaussianBlur').attr('stdDeviation', 3.5).attr('result', 'blur')
+    .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%')
+  flt.append('feGaussianBlur').attr('stdDeviation', 2.5).attr('result', 'blur')
   const fm = flt.append('feMerge')
   fm.append('feMergeNode').attr('in', 'blur')
   fm.append('feMergeNode').attr('in', 'SourceGraphic')
@@ -118,7 +113,85 @@ function renderGraph() {
 
   if (!nodes.value.length) return
 
-  const { pos, groupMeta } = computePositions(nodes.value)
+  // Build type groups
+  const typeGroups = {}
+  nodes.value.forEach(n => {
+    const t = n.device_type || 'unknown'
+    ;(typeGroups[t] = typeGroups[t] || []).push(n)
+  })
+  const typeKeys = Object.keys(typeGroups)
+  const nTypes = typeKeys.length
+
+  const typeAngle = Object.fromEntries(
+    typeKeys.map((t, i) => [t, (2 * Math.PI * i) / nTypes - Math.PI / 2])
+  )
+
+  // Radial ring distance, scales gently with total node count
+  const RADIAL_R = Math.max(220, Math.min(340, nodes.value.length * 5))
+  const SLOT = 34  // px per node slot (diameter + gap)
+
+  // ── Structured warm-start positions ──
+  // Each type group is spread across one or more concentric arcs
+  // within its sector, so the force simulation starts without overlap.
+  const initPos = new Map()
+  typeKeys.forEach(type => {
+    const devs  = typeGroups[type]
+    const M     = devs.length
+    const angle = typeAngle[type]
+    const sectorSpan = Math.min((2 * Math.PI / nTypes) * 0.72, Math.PI * 1.25)
+
+    let placed = 0, ring = 0
+    while (placed < M) {
+      const r   = RADIAL_R + ring * 46
+      const cap = Math.max(1, Math.floor((sectorSpan * r) / SLOT))
+      const n   = Math.min(cap, M - placed)
+      const span = n === 1 ? 0 : sectorSpan * (n / cap)
+      for (let j = 0; j < n; j++) {
+        const da = n === 1 ? angle : angle - span / 2 + span * j / (n - 1)
+        initPos.set(devs[placed + j].mac, { x: r * Math.cos(da), y: r * Math.sin(da) })
+      }
+      placed += n
+      ring++
+    }
+  })
+
+  // ── Force simulation for collision resolution ──
+  const simNodes = nodes.value.map(n => {
+    const p = initPos.get(n.mac)
+    return { id: n.mac, data: n, group: n.device_type || 'unknown',
+             targetAngle: typeAngle[n.device_type || 'unknown'] ?? 0,
+             x: p.x, y: p.y, vx: 0, vy: 0 }
+  })
+  const gwNode = { id: '__gw__', fx: 0, fy: 0 }
+  const allSimNodes = [gwNode, ...simNodes]
+  const simLinks = simNodes.map(n => ({ source: '__gw__', target: n.id }))
+
+  function makeAngularForce() {
+    let ns = []
+    function force(alpha) {
+      ns.forEach(n => {
+        if (n.fx !== undefined) return
+        const tx = RADIAL_R * Math.cos(n.targetAngle)
+        const ty = RADIAL_R * Math.sin(n.targetAngle)
+        n.vx += (tx - n.x) * 0.06 * alpha
+        n.vy += (ty - n.y) * 0.06 * alpha
+      })
+    }
+    force.initialize = nodes => { ns = nodes }
+    return force
+  }
+
+  const simulation = d3.forceSimulation(allSimNodes)
+    .force('link',     d3.forceLink(simLinks).id(d => d.id).distance(RADIAL_R).strength(0.03))
+    .force('charge',   d3.forceManyBody().strength(-45))
+    .force('collision', d3.forceCollide(16).strength(1))
+    .force('radial',   d3.forceRadial(RADIAL_R, 0, 0).strength(0.18))
+    .force('angular',  makeAngularForce())
+    .stop()
+
+  for (let i = 0; i < 300; i++) simulation.tick()
+
+  const pos = new Map(simNodes.map(n => [n.id, { x: n.x, y: n.y }]))
 
   // ── Connection lines ──
   g.append('g').selectAll('line')
@@ -128,29 +201,32 @@ function renderGraph() {
     .attr('x2', d => pos.get(d.mac).x)
     .attr('y2', d => pos.get(d.mac).y)
     .attr('stroke', d => typeOf(d).color)
-    .attr('stroke-width', 1)
-    .attr('stroke-dasharray', d => d.is_online ? 'none' : '5,4')
-    .attr('opacity',           d => d.is_online ? 0.22 : 0.09)
+    .attr('stroke-width', 0.7)
+    .attr('stroke-dasharray', d => d.is_online ? 'none' : '4,3')
+    .attr('opacity',           d => d.is_online ? 0.14 : 0.06)
 
-  // ── Group labels ──
-  groupMeta.forEach(grp => {
-    const dist     = Math.hypot(grp.x, grp.y)
-    const labelDist = dist + 58
-    const lx = labelDist * Math.cos(grp.a)
-    const ly = labelDist * Math.sin(grp.a)
-    const cfg = TYPE_CONFIG[grp.type] || TYPE_CONFIG.unknown
+  // ── Group labels (at cluster centroid) ──
+  typeKeys.forEach(type => {
+    const group = simNodes.filter(n => n.group === type)
+    if (!group.length) return
+    const cx    = d3.mean(group, n => n.x)
+    const cy    = d3.mean(group, n => n.y)
+    const angle = Math.atan2(cy, cx)
+    const dist  = Math.hypot(cx, cy)
+    const cfg   = TYPE_CONFIG[type] || TYPE_CONFIG.unknown
 
     g.append('text')
-      .attr('x', lx).attr('y', ly)
+      .attr('x', (dist + 40) * Math.cos(angle))
+      .attr('y', (dist + 40) * Math.sin(angle))
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .attr('font-size', '10px')
+      .attr('font-size', '11px')
       .attr('font-weight', 700)
-      .attr('letter-spacing', '0.08em')
+      .attr('letter-spacing', '0.07em')
       .attr('fill', cfg.color)
-      .attr('opacity', 0.75)
+      .attr('opacity', 0.65)
       .attr('pointer-events', 'none')
-      .text(cfg.label.toUpperCase())
+      .text(`${cfg.label.toUpperCase()} · ${group.length}`)
   })
 
   // ── Device nodes ──
@@ -161,92 +237,49 @@ function renderGraph() {
     .attr('transform', d => { const p = pos.get(d.mac); return `translate(${p.x},${p.y})` })
     .style('cursor', 'pointer')
     .on('click', (_, d) => { selected.value = d })
+    .on('mouseover', (_, d) => {
+      const p  = pos.get(d.mac)
+      const xf = d3.zoomTransform(svgEl.value)
+      tooltip.value = { visible: true, x: xf.applyX(p.x) + 16, y: xf.applyY(p.y) - 10, node: d }
+    })
+    .on('mouseout', () => { tooltip.value = { ...tooltip.value, visible: false } })
 
-  // Glow halo (online)
+  // Glow halo (online only — small, won't bleed into neighbours)
   nodeG.filter(d => d.is_online)
     .append('circle')
-    .attr('r', 24)
+    .attr('r', 14)
     .attr('fill', d => typeOf(d).color)
-    .attr('opacity', 0.12)
+    .attr('opacity', 0.1)
     .attr('filter', 'url(#topo-glow)')
 
-  // Pulse ring (online)
-  nodeG.filter(d => d.is_online)
-    .append('circle')
-    .attr('r', 18)
-    .attr('fill', 'none')
-    .attr('stroke', d => typeOf(d).color)
-    .attr('stroke-width', 1.5)
-    .attr('opacity', 0.4)
-
-  // Main body
+  // Main circle
   nodeG.append('circle')
-    .attr('r', 13)
-    .attr('fill',   d => d.is_online ? typeOf(d).color : '#252535')
+    .attr('r', d => d.is_online ? 7 : 5)
+    .attr('fill',   d => d.is_online ? typeOf(d).color : 'transparent')
     .attr('stroke', d => typeOf(d).color)
     .attr('stroke-width', d => d.is_online ? 0 : 1.5)
-    .attr('opacity', d => d.is_online ? 1 : 0.55)
-
-  // Type icon
-  nodeG.append('text')
-    .attr('text-anchor', 'middle')
-    .attr('dominant-baseline', 'central')
-    .attr('font-size', '11px')
-    .attr('pointer-events', 'none')
-    .text(d => typeOf(d).icon)
-
-  // Device name
-  nodeG.append('text')
-    .attr('y', 26)
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
-    .attr('fill', '#c8c8d8')
-    .attr('font-weight', 500)
-    .attr('pointer-events', 'none')
-    .text(d => (d.alias || d.hostname || d.ip || d.mac.slice(-5)).slice(0, 13))
-
-  // Latency badge
-  nodeG.filter(d => d.is_online && d.response_time_ms != null)
-    .append('text')
-    .attr('y', 38)
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '9px')
-    .attr('pointer-events', 'none')
-    .attr('fill', d => {
-      const ms = d.response_time_ms
-      return ms < 5 ? '#26C281' : ms < 30 ? '#F2C94C' : '#F07D38'
-    })
-    .text(d => `${Math.round(d.response_time_ms)}ms`)
-
-  // Owner label (above node)
-  nodeG.filter(d => d.owners?.length > 0)
-    .append('text')
-    .attr('y', -23)
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '9px')
-    .attr('fill', '#8888a8')
-    .attr('pointer-events', 'none')
-    .text(d => d.owners.map(o => o.name).join('/').slice(0, 10))
+    .attr('opacity', d => d.is_online ? 0.9 : 0.4)
 
   // ── Gateway node (center) ──
   const gwG = g.append('g').attr('class', 'gateway')
-
   gwG.append('circle')
-    .attr('r', 36).attr('fill', '#5E5CE6').attr('opacity', 0.08)
+    .attr('r', 38).attr('fill', '#5E5CE6').attr('opacity', 0.07)
     .attr('filter', 'url(#topo-glow)')
   gwG.append('circle')
-    .attr('r', 28).attr('fill', '#1a1a2e')
+    .attr('r', 24).attr('fill', '#1a1a2e')
     .attr('stroke', '#5E5CE6').attr('stroke-width', 2)
   gwG.append('circle')
-    .attr('r', 34).attr('fill', 'none')
-    .attr('stroke', '#5E5CE6').attr('stroke-width', 1).attr('opacity', 0.25)
+    .attr('r', 30).attr('fill', 'none')
+    .attr('stroke', '#5E5CE6').attr('stroke-width', 1).attr('opacity', 0.2)
   gwG.append('text')
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-    .attr('font-size', '20px').attr('pointer-events', 'none').text('🏠')
+    .attr('font-size', '18px').attr('pointer-events', 'none').text('🏠')
   gwG.append('text')
-    .attr('y', 46).attr('text-anchor', 'middle')
+    .attr('y', 40).attr('text-anchor', 'middle')
     .attr('font-size', '11px').attr('fill', '#9898b8').attr('font-weight', 600)
     .attr('pointer-events', 'none').text('家庭网关')
+
+  if (activeTypes.value.length > 0) updateNodeOpacity()
 }
 
 // ── Zoom controls ─────────────────────────────────────────
@@ -262,8 +295,16 @@ function resetZoom() {
 }
 
 // ── Helpers ───────────────────────────────────────────────
+function latencyColor(ms) {
+  return ms < 5 ? '#26C281' : ms < 30 ? '#F2C94C' : '#F07D38'
+}
+
 function formatTime(v) {
   return v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '—'
+}
+
+function avatarInitial(name) {
+  return name ? name.slice(0, 1).toUpperCase() : '?'
 }
 
 onMounted(loadTopology)
@@ -277,17 +318,50 @@ onMounted(loadTopology)
         <h2 class="page-title">网络拓扑</h2>
         <span class="page-sub">
           在线 {{ stats.online }} / 共 {{ stats.total }} 台设备
+          <span v-if="devicesStore.scanning" class="scanning-tag">● 扫描中…</span>
         </span>
       </div>
-      <el-button :loading="loading" :icon="Refresh" @click="loadTopology" size="small">
-        刷新
-      </el-button>
+      <div class="header-actions">
+        <el-button
+          :loading="devicesStore.scanning"
+          :icon="Histogram"
+          size="small"
+          @click="devicesStore.scan()"
+        >
+          扫描网络
+        </el-button>
+        <el-button :loading="loading" :icon="Refresh" size="small" @click="loadTopology">
+          刷新
+        </el-button>
+      </div>
     </div>
 
     <!-- Canvas + Detail panel -->
     <div class="topo-body">
       <div class="canvas-wrap" v-loading="loading">
         <svg ref="svgEl" />
+
+        <!-- Hover tooltip -->
+        <transition name="tt-fade">
+          <div
+            v-if="tooltip.visible && tooltip.node"
+            class="node-tooltip"
+            :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
+          >
+            <span class="tt-name">{{ tooltip.node.alias || tooltip.node.hostname || tooltip.node.ip || tooltip.node.mac }}</span>
+            <span class="tt-sep">·</span>
+            <span
+              class="tt-status"
+              :class="tooltip.node.is_online ? 'tt-online' : 'tt-offline'"
+            >{{ tooltip.node.is_online ? '在线' : '离线' }}</span>
+            <template v-if="tooltip.node.is_online && tooltip.node.response_time_ms != null">
+              <span class="tt-sep">·</span>
+              <span class="tt-lat" :style="{ color: latencyColor(tooltip.node.response_time_ms) }">
+                {{ Math.round(tooltip.node.response_time_ms) }}ms
+              </span>
+            </template>
+          </div>
+        </transition>
 
         <!-- Zoom controls -->
         <div class="zoom-controls">
@@ -296,30 +370,40 @@ onMounted(loadTopology)
           <button class="zoom-btn" @click="zoomOut">−</button>
         </div>
 
-        <!-- Legend -->
+        <!-- Legend (interactive filter) -->
         <div class="legend">
-          <div v-for="(cfg, key) in TYPE_CONFIG" :key="key" class="legend-item">
+          <div
+            v-for="(cfg, key) in TYPE_CONFIG"
+            :key="key"
+            class="legend-item"
+            :class="{ active: activeTypes.includes(key), dimmed: activeTypes.length > 0 && !activeTypes.includes(key) }"
+            @click="toggleType(key)"
+          >
             <span class="legend-dot" :style="{ background: cfg.color }" />
             <span>{{ cfg.label }}</span>
+          </div>
+          <div
+            v-if="activeTypes.length > 0"
+            class="legend-item legend-clear"
+            @click="activeTypes = []; updateNodeOpacity()"
+          >
+            ✕ 清除
           </div>
         </div>
 
         <!-- Empty state -->
         <div v-if="!loading && nodes.length === 0" class="empty-hint">
-          暂无设备数据，请先在「设备列表」页面扫描网络
+          暂无设备数据，请点击「扫描网络」发现局域网设备
         </div>
       </div>
 
-      <!-- Detail panel (slide in on node click) -->
+      <!-- Detail panel -->
       <transition name="panel-slide">
         <div v-if="selected" class="detail-panel">
           <div class="panel-head">
             <span
               class="type-badge"
-              :style="{
-                background: typeOf(selected).color + '20',
-                color: typeOf(selected).color,
-              }"
+              :style="{ background: typeOf(selected).color + '20', color: typeOf(selected).color }"
             >
               {{ typeOf(selected).icon }} {{ typeOf(selected).label }}
             </span>
@@ -336,11 +420,7 @@ onMounted(loadTopology)
             <span
               v-if="selected.is_online && selected.response_time_ms != null"
               class="latency"
-              :style="{
-                color: selected.response_time_ms < 5 ? '#26C281'
-                  : selected.response_time_ms < 30 ? '#F2C94C'
-                  : '#F07D38',
-              }"
+              :style="{ color: latencyColor(selected.response_time_ms) }"
             >
               {{ Math.round(selected.response_time_ms) }}ms
             </span>
@@ -357,9 +437,15 @@ onMounted(loadTopology)
           <div v-if="selected.owners?.length" class="info-section">
             <div class="section-title">归属成员</div>
             <div v-for="owner in selected.owners" :key="owner.id" class="owner-row">
-              <span class="owner-dot" :class="owner.is_home ? 'home' : 'away'" />
+              <!-- Avatar -->
+              <div class="owner-avatar" :class="owner.is_home ? 'home' : 'away'">
+                <img v-if="owner.avatar_url" :src="owner.avatar_url" :alt="owner.name" class="avatar-img" />
+                <span v-else class="avatar-initial">{{ avatarInitial(owner.name) }}</span>
+              </div>
               <span class="owner-name">{{ owner.name }}</span>
-              <span class="owner-tag">{{ owner.is_home ? '在家' : '外出' }}</span>
+              <span class="owner-tag" :class="owner.is_home ? 'tag-home' : 'tag-away'">
+                {{ owner.is_home ? '在家' : '外出' }}
+              </span>
             </div>
           </div>
         </div>
@@ -393,6 +479,19 @@ onMounted(loadTopology)
   font-size: 12px;
   color: var(--color-text-muted);
 }
+.scanning-tag {
+  color: #F2C94C;
+  animation: blink 1.2s ease-in-out infinite;
+  margin-left: 6px;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1 }
+  50% { opacity: 0.35 }
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
 
 /* ── Body ───────────────────────────────── */
 .topo-body {
@@ -417,6 +516,34 @@ onMounted(loadTopology)
   width: 100%;
   height: 100%;
 }
+
+/* ── Tooltip ────────────────────────────── */
+.node-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(20, 20, 36, 0.92);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.tt-name   { color: var(--color-text-primary); font-weight: 500; }
+.tt-sep    { color: var(--color-text-muted); }
+.tt-online { color: var(--color-online); }
+.tt-offline{ color: var(--color-offline); }
+.tt-lat    { font-family: var(--font-mono); font-weight: 600; }
+
+.tt-fade-enter-active,
+.tt-fade-leave-active { transition: opacity 0.1s ease; }
+.tt-fade-enter-from,
+.tt-fade-leave-to  { opacity: 0; }
 
 /* Zoom controls */
 .zoom-controls {
@@ -454,7 +581,8 @@ onMounted(loadTopology)
   left: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
 }
 .legend-item {
   display: flex;
@@ -462,6 +590,28 @@ onMounted(loadTopology)
   gap: 5px;
   font-size: 11px;
   color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.legend-item:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+.legend-item.active {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+.legend-item.dimmed {
+  opacity: 0.4;
+}
+.legend-clear {
+  color: var(--color-text-muted);
+  font-size: 10px;
 }
 .legend-dot {
   width: 8px;
@@ -494,14 +644,9 @@ onMounted(loadTopology)
 }
 
 .panel-slide-enter-active,
-.panel-slide-leave-active {
-  transition: all 0.2s ease;
-}
+.panel-slide-leave-active { transition: all 0.2s ease; }
 .panel-slide-enter-from,
-.panel-slide-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
+.panel-slide-leave-to { opacity: 0; transform: translateX(20px); }
 
 .panel-head {
   display: flex;
@@ -561,9 +706,7 @@ onMounted(loadTopology)
   font-weight: 600;
 }
 
-.info-section {
-  margin-bottom: 14px;
-}
+.info-section { margin-bottom: 14px; }
 .section-title {
   font-size: 10px;
   font-weight: 700;
@@ -596,20 +739,41 @@ onMounted(loadTopology)
   font-size: 11px;
 }
 
+/* ── Member card ────────────────────────── */
 .owner-row {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-bottom: 7px;
+  gap: 8px;
+  margin-bottom: 9px;
 }
-.owner-dot {
-  width: 7px;
-  height: 7px;
+.owner-avatar {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   flex-shrink: 0;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
 }
-.owner-dot.home { background: var(--color-online); }
-.owner-dot.away { background: var(--color-offline); }
+.owner-avatar.home {
+  border-color: var(--color-online);
+  background: rgba(38, 194, 129, 0.1);
+  color: var(--color-online);
+}
+.owner-avatar.away {
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .owner-name {
   font-size: 13px;
   color: var(--color-text-primary);
@@ -617,7 +781,17 @@ onMounted(loadTopology)
 }
 .owner-tag {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+.tag-home {
+  background: rgba(38, 194, 129, 0.12);
+  color: var(--color-online);
+}
+.tag-away {
+  background: var(--color-surface-raised);
   color: var(--color-text-muted);
 }
 </style>
