@@ -22,9 +22,12 @@ onMounted(async () => {
   fetchRecordings()
 })
 
-watch(() => notifications.lastRecordingEvent, () => {
-  fetchRecordings()
-})
+watch(
+  () => notifications.lastRecordingEvent,
+  () => {
+    fetchRecordings()
+  },
+)
 
 async function fetchRecordings() {
   loading.value = true
@@ -67,7 +70,8 @@ function formatSize(bytes) {
 }
 function formatDuration(s) {
   if (!s) return '-'
-  const m = Math.floor(s / 60), sec = s % 60
+  const m = Math.floor(s / 60),
+    sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 function statusType(s) {
@@ -84,12 +88,7 @@ function statusType(s) {
     <el-form :inline="true" :model="filter" class="filter-bar">
       <el-form-item label="摄像头">
         <el-select v-model="filter.camera_mac" placeholder="全部" clearable style="width: 200px">
-          <el-option
-            v-for="c in cameras"
-            :key="c.device_mac"
-            :label="c.onvif_host"
-            :value="c.device_mac"
-          />
+          <el-option v-for="c in cameras" :key="c.device_mac" :label="c.onvif_host" :value="c.device_mac" />
         </el-select>
       </el-form-item>
       <el-form-item label="日期">
@@ -100,8 +99,8 @@ function statusType(s) {
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="recordings" stripe border>
-      <el-table-column prop="camera_mac" label="摄像头 MAC" width="160" />
+    <el-table v-loading="loading" :data="recordings" stripe border style="width: 100%">
+      <el-table-column prop="camera_mac" label="摄像头 MAC" min-width="160" />
       <el-table-column label="开始时间" width="170">
         <template #default="{ row }">{{ new Date(row.started_at).toLocaleString('zh-CN') }}</template>
       </el-table-column>
@@ -116,27 +115,17 @@ function statusType(s) {
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" align="center">
+      <el-table-column label="操作" width="160" align="center">
         <template #default="{ row }">
-          <el-tooltip
-            :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : ''"
-            :disabled="row.status !== 'recording' && row.status !== 'failed'"
-          >
+          <el-tooltip :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : ''" :disabled="row.status !== 'recording' && row.status !== 'failed'">
             <el-button size="small" type="primary" :disabled="row.status === 'recording' || row.status === 'failed'" @click="playRecording(row)">播放</el-button>
           </el-tooltip>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button size="small" type="danger" style="margin-left: 6px" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="filter.page"
-      :page-size="filter.page_size"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="pagination"
-      @current-change="fetchRecordings"
-    />
+    <el-pagination v-model:current-page="filter.page" :page-size="filter.page_size" :total="total" layout="total, prev, pager, next" class="pagination-bar" @current-change="fetchRecordings" />
 
     <el-dialog v-model="playDialog" title="录像回放" width="720px" destroy-on-close>
       <CameraPlayer :src="playUrl" />
@@ -145,6 +134,7 @@ function statusType(s) {
 </template>
 
 <style scoped>
-.filter-bar { margin-bottom: 16px }
-.pagination { margin-top: 16px; justify-content: flex-end; display: flex }
+.filter-bar {
+  margin-bottom: 16px;
+}
 </style>
