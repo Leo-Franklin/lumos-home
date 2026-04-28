@@ -69,6 +69,9 @@ function logout() {
         <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
           <el-icon :size="16"><UserFilled /></el-icon><span>家庭成员</span>
         </RouterLink>
+        <RouterLink to="/dlna" class="nav-item" :class="{ active: $route.path === '/dlna' }">
+          <el-icon :size="16"><Promotion /></el-icon><span>超级遥控器</span>
+        </RouterLink>
         <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
           <el-icon :size="16"><Setting /></el-icon><span>系统设置</span>
         </RouterLink>

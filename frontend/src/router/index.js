@@ -15,6 +15,7 @@ const routes = [
       { path: 'recordings', component: () => import('@/views/RecordingsView.vue') },
       { path: 'schedule', component: () => import('@/views/ScheduleView.vue') },
       { path: 'members', component: () => import('@/views/MembersView.vue') },
+      { path: 'dlna', component: () => import('@/views/DLNAView.vue') },
       { path: 'settings', component: () => import('@/views/SettingsView.vue') },
     ],
   },
