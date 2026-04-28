@@ -77,7 +77,7 @@ async function handleRecord(cam) {
 <template>
   <div>
     <div class="page-header">
-      <h3>摄像头管理</h3>
+      <h2 class="page-title">摄像头管理</h2>
       <el-button type="primary" :icon="Plus" @click="openAdd">添加摄像头</el-button>
     </div>
 
@@ -171,17 +171,4 @@ async function handleRecord(cam) {
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.page-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-}
 </style>

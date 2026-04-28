@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -65,7 +67,7 @@
   --content-max-width:       1400px;
 
   /* 字体 */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont,
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont,
                "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
 
@@ -142,10 +144,58 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── El Menu ─────────────────────────────── */
-.el-menu {
-  border-right: none !important;
+/* ── Page structure ──────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ── Page transition ─────────────────────── */
+.page-enter-active {
+  transition: opacity var(--duration-base) ease-out,
+              transform var(--duration-base) var(--easing-snap);
+}
+.page-leave-active {
+  transition: opacity var(--duration-fast) ease-in;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-leave-to {
+  opacity: 0;
+}
+
+/* ── WebSocket pulse ─────────────────────── */
+@keyframes ws-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(38, 194, 129, 0.55); }
+  50%       { box-shadow: 0 0 0 4px rgba(38, 194, 129, 0);    }
+}
+
+/* ── El Menu ─────────────────────────────── */
 
 /* ── El Table ────────────────────────────── */
 .el-table {

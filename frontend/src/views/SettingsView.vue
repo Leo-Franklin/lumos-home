@@ -31,7 +31,7 @@ onMounted(fetchHealth)
 <template>
   <div>
     <div class="page-header">
-      <h3>系统设置</h3>
+      <h2 class="page-title">系统设置</h2>
       <el-button :icon="Refresh" :loading="loading" @click="fetchHealth">刷新</el-button>
     </div>
 
@@ -66,18 +66,5 @@ onMounted(fetchHealth)
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.page-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-}
 .mb { margin-bottom: 16px }
 </style>

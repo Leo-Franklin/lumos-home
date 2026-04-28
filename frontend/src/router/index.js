@@ -10,9 +10,11 @@ const routes = [
     redirect: '/devices',
     children: [
       { path: 'devices', component: () => import('@/views/DevicesView.vue') },
+      { path: 'topology', component: () => import('@/views/TopologyView.vue') },
       { path: 'cameras', component: () => import('@/views/CameraView.vue') },
       { path: 'recordings', component: () => import('@/views/RecordingsView.vue') },
       { path: 'schedule', component: () => import('@/views/ScheduleView.vue') },
+      { path: 'members', component: () => import('@/views/MembersView.vue') },
       { path: 'settings', component: () => import('@/views/SettingsView.vue') },
     ],
   },

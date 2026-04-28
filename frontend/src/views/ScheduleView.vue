@@ -76,7 +76,7 @@ async function handleDelete(row) {
 <template>
   <div>
     <div class="page-header">
-      <h3>录制计划</h3>
+      <h2 class="page-title">录制计划</h2>
       <el-button type="primary" :icon="Plus" @click="openAdd">新建计划</el-button>
     </div>
 
@@ -137,19 +137,6 @@ async function handleDelete(row) {
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.page-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-}
 .cron-hint {
   font-size: 12px;
   color: var(--color-text-muted);

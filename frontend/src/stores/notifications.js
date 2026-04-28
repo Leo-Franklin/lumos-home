@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useDevicesStore } from './devices'
 import { useCamerasStore } from './cameras'
+import { useMembersStore } from './members'
 
 export const useNotificationsStore = defineStore('notifications', () => {
   const messages = ref([])
@@ -13,6 +14,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     const devicesStore = useDevicesStore()
     const camerasStore = useCamerasStore()
+    const membersStore = useMembersStore()
 
     switch (msg.event) {
       case 'scan_completed':
@@ -29,6 +31,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
       case 'recording_failed':
         camerasStore.onRecordingStopped(msg.data?.camera_mac)
         lastRecordingEvent.value = { event: msg.event, ...msg.data, _t: Date.now() }
+        break
+      case 'member_arrived':
+      case 'member_left':
+        membersStore.onPresenceEvent(msg.data?.member_id, msg.event)
         break
     }
   }

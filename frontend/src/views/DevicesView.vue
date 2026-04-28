@@ -236,29 +236,6 @@ onMounted(() => devicesStore.fetchDevices())
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-  margin: 0 0 2px;
-}
-.page-sub {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* 过滤栏 */
 .filter-bar {
   display: flex;
@@ -309,13 +286,6 @@ onMounted(() => devicesStore.fetchDevices())
   text-align: center;
   font-size: 13px;
   color: var(--color-text-muted);
-}
-
-/* 分页 */
-.pagination-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
 }
 
 /* 详情弹窗 */

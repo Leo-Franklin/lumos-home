@@ -32,10 +32,13 @@ async function handleLogin() {
   <div class="login-page">
     <div class="login-box">
       <div class="login-logo">
-        <el-icon :size="36" class="logo-icon"><House /></el-icon>
+        <div class="logo-icon-wrap">
+          <el-icon :size="22" class="logo-icon"><House /></el-icon>
+        </div>
         <h2 class="logo-title">智能家居管理</h2>
         <p class="logo-sub">Smart Home Control Panel</p>
       </div>
+      <div class="login-divider" />
       <el-form @submit.prevent="handleLogin" :model="form" label-width="0">
         <el-form-item>
           <el-input
@@ -77,33 +80,66 @@ async function handleLogin() {
   justify-content: center;
   height: 100vh;
   background: var(--color-bg);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 .login-box {
   width: 380px;
-  padding: 40px;
+  padding: 36px 40px 40px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+.login-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(94, 92, 230, 0.55), transparent);
 }
 
 .login-logo {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+}
+.logo-icon-wrap {
+  width: 50px;
+  height: 50px;
+  background: rgba(94, 92, 230, 0.1);
+  border: 1px solid rgba(94, 92, 230, 0.22);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  box-shadow: 0 0 18px rgba(94, 92, 230, 0.14);
 }
 .logo-icon {
   color: var(--color-primary);
 }
 .logo-title {
-  margin: 12px 0 4px;
-  font-size: 18px;
-  font-weight: 600;
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--color-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 .logo-sub {
   font-size: 12px;
   color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.login-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  margin: 0 0 24px;
 }
 </style>

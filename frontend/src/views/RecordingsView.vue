@@ -78,7 +78,7 @@ function statusType(s) {
 <template>
   <div>
     <div class="page-header">
-      <h3>录像库</h3>
+      <h2 class="page-title">录像库</h2>
     </div>
 
     <el-form :inline="true" :model="filter" class="filter-bar">
@@ -145,18 +145,6 @@ function statusType(s) {
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.page-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  letter-spacing: -0.02em;
-}
 .filter-bar { margin-bottom: 16px }
 .pagination { margin-top: 16px; justify-content: flex-end; display: flex }
 </style>

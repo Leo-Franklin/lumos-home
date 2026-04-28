@@ -21,7 +21,9 @@ function logout() {
   <div class="app-layout">
     <header class="app-header">
       <div class="header-brand">
-        <el-icon :size="18" class="brand-icon"><House /></el-icon>
+        <div class="brand-icon-wrap">
+          <el-icon :size="16" class="brand-icon"><House /></el-icon>
+        </div>
         <span class="brand-name">智能家居</span>
       </div>
       <div class="header-right">
@@ -29,7 +31,7 @@ function logout() {
           <span
             class="ws-dot"
             :class="connected ? 'connected' : 'disconnected'"
-          />
+        />
           <span class="ws-label">{{ connected ? '已连接' : '未连接' }}</span>
         </div>
         <el-dropdown @command="(cmd) => cmd === 'logout' && logout()">
@@ -52,6 +54,9 @@ function logout() {
         <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
           <el-icon :size="16"><Monitor /></el-icon><span>设备列表</span>
         </RouterLink>
+        <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
+          <el-icon :size="16"><Share /></el-icon><span>网络拓扑</span>
+        </RouterLink>
         <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
           <el-icon :size="16"><VideoCameraFilled /></el-icon><span>摄像头</span>
         </RouterLink>
@@ -60,6 +65,9 @@ function logout() {
         </RouterLink>
         <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
           <el-icon :size="16"><Clock /></el-icon><span>录制计划</span>
+        </RouterLink>
+        <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
+          <el-icon :size="16"><UserFilled /></el-icon><span>家庭成员</span>
         </RouterLink>
         <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
           <el-icon :size="16"><Setting /></el-icon><span>系统设置</span>
@@ -97,7 +105,18 @@ function logout() {
 .header-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+.brand-icon-wrap {
+  width: 30px;
+  height: 30px;
+  background: rgba(94, 92, 230, 0.12);
+  border: 1px solid rgba(94, 92, 230, 0.22);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .brand-icon {
   color: var(--color-primary);
@@ -126,7 +145,7 @@ function logout() {
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.ws-dot.connected    { background: var(--color-online); }
+.ws-dot.connected    { background: var(--color-online); animation: ws-pulse 2.5s ease-in-out infinite; }
 .ws-dot.disconnected { background: var(--color-offline); }
 .ws-label {
   font-size: 12px;
@@ -197,6 +216,9 @@ function logout() {
 .nav-item.active {
   background: var(--color-primary-subtle);
   color: var(--color-text-primary);
+}
+.nav-item.active :deep(.el-icon) {
+  color: var(--color-primary);
 }
 .nav-item.active::before {
   content: '';
