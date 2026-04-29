@@ -11,6 +11,7 @@ const routes = [
     children: [
       { path: 'dashboard', component: () => import('@/views/DashboardView.vue') },
       { path: 'devices', component: () => import('@/views/DevicesView.vue') },
+      { path: 'analytics', component: () => import('@/views/AnalyticsView.vue') },
       { path: 'topology', component: () => import('@/views/TopologyView.vue') },
       { path: 'cameras', component: () => import('@/views/CameraView.vue') },
       { path: 'recordings', component: () => import('@/views/RecordingsView.vue') },

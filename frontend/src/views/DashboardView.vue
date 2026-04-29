@@ -2,10 +2,39 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getDashboard } from '@/api/system'
 import { Refresh } from '@element-plus/icons-vue'
+import LineChart  from '@/components/charts/LineChart.vue'
+import BarChart   from '@/components/charts/BarChart.vue'
+import DonutChart from '@/components/charts/DonutChart.vue'
+import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS } from '@/components/charts/chartColors'
+import { getOnlineTrend, getDeviceTypeStats, getNewDevices } from '@/api/analytics'
 
 const data = ref(null)
 const loading = ref(false)
 const error = ref('')
+const sparkData   = ref([])
+const donutData   = ref([])
+const weekBarData = ref([])
+
+async function fetchMiniCharts() {
+  try {
+    const [trend, types, newDev] = await Promise.all([
+      getOnlineTrend({ range: '7d' }),
+      getDeviceTypeStats(),
+      getNewDevices({ range: '90d', group_by: 'week' }),
+    ])
+    sparkData.value = (trend.data.data || [])
+      .map((d) => ({ x: new Date(d.timestamp), y: d.count }))
+    donutData.value = (types.data.data || []).map((d) => ({
+      label: DEVICE_TYPE_LABELS[d.type] || d.type,
+      value: d.count,
+      color: DEVICE_TYPE_COLORS[d.type] || '#8B8B96',
+    }))
+    weekBarData.value = (newDev.data.data || []).slice(-7).map((d) => ({
+      label: d.period.slice(-2),
+      value: d.count,
+    }))
+  } catch { /* mini charts are non-critical */ }
+}
 let timer = null
 
 async function fetchDashboard() {
@@ -30,6 +59,7 @@ function formatDuration(seconds) {
 
 onMounted(() => {
   fetchDashboard()
+  fetchMiniCharts()
   timer = setInterval(fetchDashboard, 30000)
 })
 
@@ -91,6 +121,21 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
         </div>
 
       </div>
+
+      <div v-if="sparkData.length || donutData.length" class="mini-charts">
+        <div class="mini-card">
+          <div class="mini-label">24H 在线趋势</div>
+          <LineChart :data="sparkData" color="#5E5CE6" :height="60" :mini="true" />
+        </div>
+        <div class="mini-card">
+          <div class="mini-label">设备类型</div>
+          <DonutChart :data="donutData" :size="80" :mini="true" />
+        </div>
+        <div class="mini-card">
+          <div class="mini-label">近期新设备</div>
+          <BarChart :data="weekBarData" mode="vertical" :height="60" :mini="true" />
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -145,5 +190,26 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .tag-recording {
   color: var(--color-danger, #f05252);
   font-weight: 600;
+}
+
+.mini-charts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.mini-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.mini-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
 }
 </style>
