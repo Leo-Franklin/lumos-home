@@ -143,7 +143,7 @@ function renderGrouped(svg, w, h) {
     })
 }
 
-watch(() => [props.data, props.height, props.mode], renderChart, { deep: true })
+watch(() => [props.data, props.height, props.mode, props.groups], renderChart, { deep: true })
 onMounted(() => {
   ro = new ResizeObserver(renderChart)
   ro.observe(containerRef.value)

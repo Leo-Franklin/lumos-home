@@ -43,7 +43,7 @@ function renderChart() {
     .text(d3.sum(props.data, (d) => d.value))
 }
 
-watch(() => props.data, renderChart, { deep: true })
+watch(() => [props.data, props.size, props.mini], renderChart, { deep: true })
 onMounted(renderChart)
 </script>
 

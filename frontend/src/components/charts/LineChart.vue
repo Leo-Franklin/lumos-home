@@ -82,7 +82,7 @@ function renderChart() {
     })
 }
 
-watch(() => [props.data, props.height], renderChart, { deep: true })
+watch(() => [props.data, props.height, props.color], renderChart, { deep: true })
 onMounted(() => {
   ro = new ResizeObserver(renderChart)
   ro.observe(containerRef.value)

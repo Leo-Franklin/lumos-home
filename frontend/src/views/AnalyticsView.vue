@@ -134,8 +134,8 @@ async function fetchStability() {
     stabilityData.value = (data.data || []).map((d) => ({
       label:      d.name || d.mac,
       value:      d.uptime_pct,
-      valueLabel: `${d.uptime_pct.toFixed(1)}%`,
-      color:      stabilityColor(d.uptime_pct),
+      valueLabel: `${(d.uptime_pct ?? 0).toFixed(1)}%`,
+      color:      stabilityColor(d.uptime_pct ?? 0),
     }))
   } catch { ElMessage.error('稳定性加载失败') }
   finally { stabilityLoading.value = false }
