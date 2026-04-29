@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { listRecordings, deleteRecording, streamUrl } from '@/api/recordings'
+import { listRecordings, deleteRecording, streamUrl, downloadUrl } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CameraPlayer from '@/components/CameraPlayer.vue'
@@ -64,6 +64,15 @@ async function handleDelete(rec) {
   }
 }
 
+function downloadRecording(rec) {
+  const token = localStorage.getItem('token')
+  const url = downloadUrl(rec.id) + `?token=${token}`
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `recording_${rec.id}.mp4`
+  a.click()
+}
+
 function formatSize(bytes) {
   if (!bytes) return '-'
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -115,11 +124,12 @@ function statusType(s) {
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center">
+      <el-table-column label="操作" width="220" align="center">
         <template #default="{ row }">
           <el-tooltip :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : ''" :disabled="row.status !== 'recording' && row.status !== 'failed'">
             <el-button size="small" type="primary" :disabled="row.status === 'recording' || row.status === 'failed'" @click="playRecording(row)">播放</el-button>
           </el-tooltip>
+          <el-button size="small" :disabled="row.status === 'recording' || row.status === 'failed'" @click="downloadRecording(row)" style="margin-left: 6px">下载</el-button>
           <el-button size="small" type="danger" style="margin-left: 6px" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>

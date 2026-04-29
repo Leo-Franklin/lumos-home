@@ -26,5 +26,15 @@ export const useCamerasStore = defineStore('cameras', () => {
     if (cam) cam.is_recording = false
   }
 
-  return { items, loading, fetchCameras, onRecordingStarted, onRecordingStopped }
+  function onCameraOffline(mac) {
+    const cam = items.value.find((c) => c.device_mac === mac)
+    if (cam) cam.is_online = false
+  }
+
+  function onCameraOnline(mac) {
+    const cam = items.value.find((c) => c.device_mac === mac)
+    if (cam) cam.is_online = true
+  }
+
+  return { items, loading, fetchCameras, onRecordingStarted, onRecordingStopped, onCameraOffline, onCameraOnline }
 })

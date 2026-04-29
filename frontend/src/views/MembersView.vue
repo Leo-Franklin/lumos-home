@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useMembersStore } from '@/stores/members'
 import { listDevices } from '@/api/devices'
+import { listCameras } from '@/api/cameras'
 import {
   createMember, updateMember, deleteMember,
   listMemberDevices, bindDevice, unbindDevice,
@@ -14,30 +15,40 @@ const membersStore = useMembersStore()
 
 // ── Devices pool for bind selector ────────────────────────
 const allDevices = ref([])
+const allCameras = ref([])
 
 onMounted(async () => {
   await membersStore.fetchMembers()
-  const { data } = await listDevices({ page: 1, page_size: 100 })
-  allDevices.value = data.items
+  const [devRes, camRes] = await Promise.all([
+    listDevices({ page: 1, page_size: 100 }),
+    listCameras(),
+  ])
+  allDevices.value = devRes.data.items
+  allCameras.value = camRes.data
 })
 
 // ── Member CRUD ────────────────────────────────────────────
 const memberDialog = ref(false)
 const isEditMember = ref(false)
-const memberForm = ref({ name: '', avatar_url: '', webhook_url: '' })
+const memberForm = ref({ name: '', avatar_url: '', webhook_url: '', auto_record_cameras: [] })
 const editMemberId = ref(null)
 
 function openAddMember() {
   isEditMember.value = false
   editMemberId.value = null
-  memberForm.value = { name: '', avatar_url: '', webhook_url: '' }
+  memberForm.value = { name: '', avatar_url: '', webhook_url: '', auto_record_cameras: [] }
   memberDialog.value = true
 }
 
 function openEditMember(row) {
   isEditMember.value = true
   editMemberId.value = row.id
-  memberForm.value = { name: row.name, avatar_url: row.avatar_url || '', webhook_url: row.webhook_url || '' }
+  memberForm.value = {
+    name: row.name,
+    avatar_url: row.avatar_url || '',
+    webhook_url: row.webhook_url || '',
+    auto_record_cameras: row.auto_record_cameras ? [...row.auto_record_cameras] : [],
+  }
   memberDialog.value = true
 }
 
@@ -47,6 +58,7 @@ async function submitMember() {
       name: memberForm.value.name,
       avatar_url: memberForm.value.avatar_url || null,
       webhook_url: memberForm.value.webhook_url || null,
+      auto_record_cameras: memberForm.value.auto_record_cameras,
     }
     if (isEditMember.value) {
       await updateMember(editMemberId.value, payload)
@@ -196,6 +208,15 @@ const unboundDevices = () =>
         </template>
       </el-table-column>
 
+      <el-table-column label="自动录制" min-width="120">
+        <template #default="{ row }">
+          <span v-if="row.auto_record_cameras?.length" class="text-muted">
+            {{ row.auto_record_cameras.length }} 台
+          </span>
+          <span v-else class="text-muted">—</span>
+        </template>
+      </el-table-column>
+
       <el-table-column label="操作" width="220" align="center">
         <template #default="{ row }">
           <el-button size="small" @click="openDevices(row)">绑定设备</el-button>
@@ -207,8 +228,8 @@ const unboundDevices = () =>
     </el-table>
 
     <!-- Member create/edit dialog -->
-    <el-dialog v-model="memberDialog" :title="isEditMember ? '编辑成员' : '添加成员'" width="440px">
-      <el-form :model="memberForm" label-width="90px">
+    <el-dialog v-model="memberDialog" :title="isEditMember ? '编辑成员' : '添加成员'" width="460px">
+      <el-form :model="memberForm" label-width="110px">
         <el-form-item label="姓名" required>
           <el-input v-model="memberForm.name" placeholder="如：张三" />
         </el-form-item>
@@ -217,6 +238,22 @@ const unboundDevices = () =>
         </el-form-item>
         <el-form-item label="Webhook">
           <el-input v-model="memberForm.webhook_url" placeholder="到家/离家时推送，可选" />
+        </el-form-item>
+        <el-form-item label="自动录制摄像头">
+          <el-select
+            v-model="memberForm.auto_record_cameras"
+            multiple
+            clearable
+            placeholder="到家时自动启动录制（可选）"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="c in allCameras"
+              :key="c.device_mac"
+              :label="c.onvif_host"
+              :value="c.device_mac"
+            />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
