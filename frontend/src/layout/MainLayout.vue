@@ -57,6 +57,9 @@ function logout() {
         <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
           <el-icon :size="16"><Monitor /></el-icon><span>设备列表</span>
         </RouterLink>
+        <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
+          <el-icon :size="16"><TrendCharts /></el-icon><span>数据分析</span>
+        </RouterLink>
         <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
           <el-icon :size="16"><Share /></el-icon><span>网络拓扑</span>
         </RouterLink>
