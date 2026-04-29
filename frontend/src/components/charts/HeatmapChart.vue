@@ -1,6 +1,6 @@
 <!-- src/components/charts/HeatmapChart.vue -->
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
 import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS } from './chartColors'
 
@@ -17,6 +17,8 @@ const emit = defineEmits(['range-change', 'type-filter-change', 'cell-click'])
 
 const svgRef     = ref(null)
 const tooltipRef = ref(null)
+const containerRef = ref(null)
+let ro = null
 
 const RANGES = [
   { label: '今日',   value: '24h' },
@@ -105,7 +107,12 @@ function renderChart() {
 }
 
 watch(() => [props.data, props.range], renderChart, { deep: true })
-onMounted(renderChart)
+onMounted(() => {
+  ro = new ResizeObserver(renderChart)
+  ro.observe(containerRef.value)
+  renderChart()
+})
+onUnmounted(() => ro?.disconnect())
 </script>
 
 <template>
@@ -134,15 +141,17 @@ onMounted(renderChart)
       </div>
     </div>
 
-    <div class="hm-scroll" :style="{ height: height + 'px' }">
-      <div ref="svgRef" />
-    </div>
+    <div ref="containerRef">
+      <div class="hm-scroll" :style="{ height: height + 'px' }">
+        <div ref="svgRef" />
+      </div>
 
-    <div
-      ref="tooltipRef"
-      class="chart-tooltip"
-      style="display:none;position:fixed;z-index:9999;pointer-events:none"
-    />
+      <div
+        ref="tooltipRef"
+        class="chart-tooltip"
+        style="display:none;position:fixed;z-index:9999;pointer-events:none"
+      />
+    </div>
   </div>
 </template>
 
