@@ -13,3 +13,10 @@ export const mjpegStreamUrl = (mac) => {
   const token = localStorage.getItem('token')
   return `/api/v1/cameras/${mac}/stream/mjpeg?token=${encodeURIComponent(token)}`
 }
+
+export const takeSnapshot = (mac) =>
+  api.get(`/cameras/${mac}/snapshot`, { responseType: 'blob' })
+
+export const startLive = (mac) => api.post(`/cameras/${mac}/live/start`)
+export const stopLive = (mac) => api.delete(`/cameras/${mac}/live/stop`)
+export const hlsLiveUrl = (mac) => `/hls/${mac}/index.m3u8`

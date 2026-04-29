@@ -7,8 +7,9 @@ const routes = [
   {
     path: '/',
     component: MainLayout,
-    redirect: '/devices',
+    redirect: '/dashboard',
     children: [
+      { path: 'dashboard', component: () => import('@/views/DashboardView.vue') },
       { path: 'devices', component: () => import('@/views/DevicesView.vue') },
       { path: 'topology', component: () => import('@/views/TopologyView.vue') },
       { path: 'cameras', component: () => import('@/views/CameraView.vue') },

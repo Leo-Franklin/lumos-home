@@ -3,7 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useCamerasStore } from '@/stores/cameras'
 import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
-import { createCamera, updateCamera, deleteCamera, probeCamera, startRecord, stopRecord, mjpegStreamUrl } from '@/api/cameras'
+import {
+  createCamera, updateCamera, deleteCamera, probeCamera,
+  startRecord, stopRecord, mjpegStreamUrl,
+  takeSnapshot, startLive, stopLive, hlsLiveUrl,
+} from '@/api/cameras'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CameraPlayer from '@/components/CameraPlayer.vue'
@@ -116,7 +120,7 @@ async function handleRecord(cam) {
   }
 }
 
-// ── Live Preview ──────────────────────────────────────────────
+// ── Live Preview (MJPEG) ──────────────────────────────────────
 const liveDialog = ref(false)
 const liveUrl = ref('')
 const liveTitle = ref('')
@@ -132,8 +136,77 @@ function openLive(cam) {
 }
 
 function closeLive() {
-  // 清空 src 让浏览器断开 HTTP 连接，停止向后端拉流
   liveUrl.value = ''
+}
+
+// ── Snapshot (B1) ─────────────────────────────────────────────
+const snapshotDialog = ref(false)
+const snapshotUrl = ref('')
+const snapshotTitle = ref('')
+const snapshotLoading = ref(false)
+
+async function handleSnapshot(cam) {
+  if (!cam.rtsp_url) {
+    ElMessage.warning('该摄像头未配置 RTSP 地址')
+    return
+  }
+  snapshotLoading.value = true
+  snapshotTitle.value = `截图 — ${cam.onvif_host}`
+  try {
+    const { data } = await takeSnapshot(cam.device_mac)
+    if (snapshotUrl.value) URL.revokeObjectURL(snapshotUrl.value)
+    snapshotUrl.value = URL.createObjectURL(data)
+    snapshotDialog.value = true
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '截图失败，摄像头可能无信号')
+  } finally {
+    snapshotLoading.value = false
+  }
+}
+
+function closeSnapshot() {
+  if (snapshotUrl.value) { URL.revokeObjectURL(snapshotUrl.value); snapshotUrl.value = '' }
+}
+
+function downloadSnapshot() {
+  const a = document.createElement('a')
+  a.href = snapshotUrl.value
+  a.download = `snapshot_${Date.now()}.jpg`
+  a.click()
+}
+
+// ── HLS Live (B2) ─────────────────────────────────────────────
+const hlsDialog = ref(false)
+const hlsTitle = ref('')
+const hlsSrc = ref('')
+const hlsStarting = ref(false)
+let hlsMac = ''
+
+async function openHlsLive(cam) {
+  if (!cam.rtsp_url) {
+    ElMessage.warning('该摄像头未配置 RTSP 地址，请先点击「ONVIF 探测」自动获取')
+    return
+  }
+  hlsStarting.value = true
+  hlsMac = cam.device_mac
+  try {
+    await startLive(cam.device_mac)
+    hlsTitle.value = `HLS 直播 — ${cam.onvif_host}`
+    hlsSrc.value = hlsLiveUrl(cam.device_mac)
+    hlsDialog.value = true
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || 'HLS 直播启动失败')
+  } finally {
+    hlsStarting.value = false
+  }
+}
+
+async function closeHlsLive() {
+  hlsSrc.value = ''
+  if (hlsMac) {
+    try { await stopLive(hlsMac) } catch {}
+    hlsMac = ''
+  }
 }
 
 function fmtTime(iso) {
@@ -181,10 +254,12 @@ onMounted(async () => {
       <el-table-column label="上次探测" width="160">
         <template #default="{ row }">{{ fmtTime(row.last_probe_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="240" align="center">
+      <el-table-column label="操作" min-width="320" align="center">
         <template #default="{ row }">
-          <el-button size="small" @click="handleProbe(row)">ONVIF 探测</el-button>
-          <el-button size="small" @click="openLive(row)">实时预览</el-button>
+          <el-button size="small" @click="handleProbe(row)">探测</el-button>
+          <el-button size="small" @click="openLive(row)">预览</el-button>
+          <el-button size="small" :loading="snapshotLoading" @click="handleSnapshot(row)">截图</el-button>
+          <el-button size="small" :loading="hlsStarting" @click="openHlsLive(row)">HLS直播</el-button>
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
           <el-button
             size="small"
@@ -303,7 +378,7 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-    <!-- 实时预览 -->
+    <!-- MJPEG 实时预览 -->
     <el-dialog
       v-model="liveDialog"
       :title="liveTitle"
@@ -312,6 +387,32 @@ onMounted(async () => {
       @close="closeLive"
     >
       <CameraPlayer v-if="liveDialog && liveUrl" mode="live" :src="liveUrl" />
+    </el-dialog>
+
+    <!-- 截图预览 -->
+    <el-dialog
+      v-model="snapshotDialog"
+      :title="snapshotTitle"
+      width="720px"
+      :destroy-on-close="true"
+      @close="closeSnapshot"
+    >
+      <img v-if="snapshotUrl" :src="snapshotUrl" style="width:100%; display:block; border-radius:4px;" />
+      <template #footer>
+        <el-button @click="snapshotDialog = false">关闭</el-button>
+        <el-button type="primary" @click="downloadSnapshot">下载</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- HLS 直播 -->
+    <el-dialog
+      v-model="hlsDialog"
+      :title="hlsTitle"
+      width="720px"
+      :destroy-on-close="true"
+      @close="closeHlsLive"
+    >
+      <CameraPlayer v-if="hlsDialog && hlsSrc" mode="hls" :src="hlsSrc" />
     </el-dialog>
   </div>
 </template>

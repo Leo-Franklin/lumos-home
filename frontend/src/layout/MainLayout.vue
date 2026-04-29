@@ -51,6 +51,9 @@ function logout() {
     <div class="app-body">
       <nav class="app-sidebar">
         <div class="nav-section-label">控制中心</div>
+        <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
+          <el-icon :size="16"><DataAnalysis /></el-icon><span>仪表板</span>
+        </RouterLink>
         <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
           <el-icon :size="16"><Monitor /></el-icon><span>设备列表</span>
         </RouterLink>

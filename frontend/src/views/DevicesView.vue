@@ -1,11 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useDevicesStore } from '@/stores/devices'
-import { updateDevice, deleteDevice } from '@/api/devices'
+import { updateDevice, deleteDevice, getDeviceHeatmap } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
+import * as d3 from 'd3'
 
 const devicesStore = useDevicesStore()
 
@@ -70,6 +71,80 @@ const detailTypeLabel = computed(() => {
   return map[detailDevice.value?.device_type] ?? detailDevice.value?.device_type ?? '—'
 })
 
+// ── Heatmap (C4) ──────────────────────────────────────────
+const heatmapDialog = ref(false)
+const heatmapRange = ref('7d')
+const heatmapData = ref(null)
+const heatmapLoading = ref(false)
+const heatmapRef = ref(null)
+
+const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+async function openHeatmap() {
+  heatmapData.value = null
+  heatmapDialog.value = true
+  await fetchHeatmap()
+}
+
+async function fetchHeatmap() {
+  heatmapLoading.value = true
+  try {
+    const { data } = await getDeviceHeatmap({ range: heatmapRange.value })
+    heatmapData.value = data
+    // render after DOM update
+    setTimeout(() => renderHeatmap(data.matrix), 50)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '热力图加载失败')
+  } finally {
+    heatmapLoading.value = false
+  }
+}
+
+function renderHeatmap(matrix) {
+  if (!heatmapRef.value) return
+  const cell = 22, pad = 3, ml = 46, mt = 30
+  const width = ml + 24 * (cell + pad)
+  const height = mt + 7 * (cell + pad) + 10
+
+  d3.select(heatmapRef.value).selectAll('*').remove()
+  const svg = d3.select(heatmapRef.value)
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .style('overflow', 'visible')
+
+  const maxVal = d3.max(matrix.flat()) || 1
+  const colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0, maxVal])
+
+  // Day labels
+  svg.selectAll('.dl').data(DAYS).join('text')
+    .attr('x', ml - 5).attr('y', (_, i) => mt + i * (cell + pad) + cell / 2 + 4)
+    .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', '#888')
+    .text((d) => d)
+
+  // Hour labels (every 3h)
+  svg.selectAll('.hl').data(d3.range(0, 24, 3)).join('text')
+    .attr('x', (h) => ml + h * (cell + pad) + cell / 2)
+    .attr('y', mt - 7)
+    .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#888')
+    .text((h) => `${h}`)
+
+  // Cells
+  matrix.forEach((row, day) => {
+    row.forEach((val, hour) => {
+      const g = svg.append('g')
+      g.append('rect')
+        .attr('x', ml + hour * (cell + pad))
+        .attr('y', mt + day * (cell + pad))
+        .attr('width', cell).attr('height', cell)
+        .attr('rx', 3)
+        .attr('fill', val === 0 ? 'var(--color-surface-raised, #f5f5f5)' : colorScale(val))
+        .attr('stroke', 'var(--color-border, #e0e0e0)').attr('stroke-width', 0.5)
+      g.append('title').text(`${DAYS[day]} ${hour}:00 — ${val} 次`)
+    })
+  })
+}
+
 // ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
 
@@ -96,6 +171,7 @@ onMounted(() => devicesStore.fetchDevices())
       </div>
       <div class="header-actions">
         <ScanProgress />
+        <el-button @click="openHeatmap">活跃热力图</el-button>
         <el-button
           type="primary"
           :loading="devicesStore.scanning"
@@ -183,6 +259,19 @@ onMounted(() => devicesStore.fetchDevices())
         <el-button @click="editDialog = false">取消</el-button>
         <el-button type="primary" @click="saveEdit">保存</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 热力图 (C4) -->
+    <el-dialog v-model="heatmapDialog" title="设备活跃热力图" width="680px" destroy-on-close>
+      <div class="heatmap-toolbar">
+        <el-radio-group v-model="heatmapRange" @change="fetchHeatmap">
+          <el-radio-button value="7d">近 7 天</el-radio-button>
+          <el-radio-button value="30d">近 30 天</el-radio-button>
+        </el-radio-group>
+        <span class="heatmap-hint">颜色越深表示设备在该时段越活跃</span>
+      </div>
+      <el-skeleton v-if="heatmapLoading" :rows="4" animated />
+      <div v-show="!heatmapLoading" ref="heatmapRef" class="heatmap-container" />
     </el-dialog>
 
     <!-- 详情弹窗 -->
@@ -352,5 +441,23 @@ onMounted(() => devicesStore.fetchDevices())
   color: var(--color-text-secondary);
   white-space: pre-wrap;
   line-height: 1.6;
+}
+
+/* 热力图 */
+.heatmap-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.heatmap-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.heatmap-container {
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 </style>

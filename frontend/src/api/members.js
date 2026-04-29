@@ -10,3 +10,4 @@ export const bindDevice = (id, data) => api.post(`/members/${id}/devices`, data)
 export const unbindDevice = (id, mac) => api.delete(`/members/${id}/devices/${mac}`)
 
 export const listPresenceLogs = (id, params) => api.get(`/members/${id}/logs`, { params })
+export const getMemberStats = (id, params) => api.get(`/members/${id}/stats`, { params })

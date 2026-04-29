@@ -6,7 +6,7 @@ import { listCameras } from '@/api/cameras'
 import {
   createMember, updateMember, deleteMember,
   listMemberDevices, bindDevice, unbindDevice,
-  listPresenceLogs,
+  listPresenceLogs, getMemberStats,
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -154,6 +154,43 @@ function handleLogsPageChange(p) {
   loadLogs(logsMember.value.id)
 }
 
+// ── Stats (C1) ─────────────────────────────────────────────
+const statsDialog = ref(false)
+const statsMember = ref(null)
+const statsRange = ref('7d')
+const statsData = ref(null)
+const statsLoading = ref(false)
+
+async function openStats(member) {
+  statsMember.value = member
+  statsRange.value = '7d'
+  statsData.value = null
+  statsDialog.value = true
+  await fetchMemberStats(member.id)
+}
+
+async function fetchMemberStats(id) {
+  statsLoading.value = true
+  try {
+    const { data } = await getMemberStats(id, { range: statsRange.value })
+    statsData.value = data
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '统计加载失败')
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+function statsDailyMax() {
+  return Math.max(...(statsData.value?.daily || []).map((d) => d.minutes), 1)
+}
+
+function fmtMinutes(m) {
+  if (!m) return '0 分钟'
+  const h = Math.floor(m / 60), min = m % 60
+  return h > 0 ? `${h} 小时 ${min} 分钟` : `${min} 分钟`
+}
+
 // ── Helpers ────────────────────────────────────────────────
 function fmtTime(iso) {
   if (!iso) return '—'
@@ -217,10 +254,11 @@ const unboundDevices = () =>
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="220" align="center">
+      <el-table-column label="操作" width="280" align="center">
         <template #default="{ row }">
           <el-button size="small" @click="openDevices(row)">绑定设备</el-button>
           <el-button size="small" @click="openLogs(row)">日志</el-button>
+          <el-button size="small" @click="openStats(row)">统计</el-button>
           <el-button size="small" @click="openEditMember(row)">编辑</el-button>
           <el-button size="small" type="danger" @click="handleDeleteMember(row)">删除</el-button>
         </template>
@@ -335,6 +373,42 @@ const unboundDevices = () =>
         />
       </div>
     </el-dialog>
+
+    <!-- Stats dialog (C1) -->
+    <el-dialog
+      v-model="statsDialog"
+      :title="`在家统计 — ${statsMember?.name}`"
+      width="560px"
+      destroy-on-close
+    >
+      <div class="stats-toolbar">
+        <el-radio-group v-model="statsRange" @change="fetchMemberStats(statsMember.id)">
+          <el-radio-button value="7d">近 7 天</el-radio-button>
+          <el-radio-button value="30d">近 30 天</el-radio-button>
+        </el-radio-group>
+        <span v-if="statsData" class="stats-total">
+          累计在家：{{ fmtMinutes(statsData.total_minutes) }}
+        </span>
+      </div>
+
+      <el-skeleton v-if="statsLoading" :rows="4" animated style="margin-top:12px" />
+
+      <div v-if="statsData && !statsLoading" class="daily-chart">
+        <div
+          v-for="d in statsData.daily"
+          :key="d.date"
+          class="daily-bar-col"
+        >
+          <div
+            class="daily-bar"
+            :style="{ height: Math.max(4, (d.minutes / statsDailyMax()) * 80) + 'px' }"
+            :title="`${d.date}: ${fmtMinutes(d.minutes)}`"
+          />
+          <div class="daily-label">{{ d.date.slice(5) }}</div>
+        </div>
+        <div v-if="!statsData.daily?.length" class="empty-hint">暂无数据</div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -355,5 +429,57 @@ const unboundDevices = () =>
   font-size: 12px;
   color: var(--color-text-muted);
   word-break: break-all;
+}
+
+.stats-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.stats-total {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.daily-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100px;
+  padding-bottom: 20px;
+  overflow-x: auto;
+}
+
+.daily-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 28px;
+  flex: 1;
+}
+
+.daily-bar {
+  width: 100%;
+  background: var(--color-primary, #5e5ce6);
+  border-radius: 2px 2px 0 0;
+  cursor: default;
+  transition: opacity 0.15s;
+}
+
+.daily-bar:hover { opacity: 0.75; }
+
+.daily-label {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: auto;
 }
 </style>
