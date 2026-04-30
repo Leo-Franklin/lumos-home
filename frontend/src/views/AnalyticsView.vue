@@ -212,7 +212,7 @@ onMounted(fetchAll)
         :data="hmData"
         :range="hmRange"
         :device-types="hmTypes"
-        :height="200"
+        :height="250"
         @range-change="(r) => { hmRange = r; fetchHeatmap() }"
         @type-filter-change="(t) => { hmTypes = t; fetchHeatmap() }"
       />
