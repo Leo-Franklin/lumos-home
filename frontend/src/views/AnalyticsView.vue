@@ -1,6 +1,6 @@
 <!-- src/views/AnalyticsView.vue -->
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import BaseChart       from '@/components/charts/BaseChart.vue'
@@ -72,11 +72,13 @@ async function fetchResponseTime() {
   rtLoading.value = true
   try {
     const { data } = await getResponseTime()
-    rtData.value = (data.data || []).map((d) => ({
-      label:      d.name || d.mac,
-      value:      d.avg_ms,
-      valueLabel: `${Math.round(d.avg_ms)}ms`,
-    }))
+    rtData.value = (data.data || [])
+      .map((d) => ({
+        label:      d.name || d.mac,
+        value:      d.avg_ms,
+        valueLabel: `${Math.round(d.avg_ms)}ms`,
+      }))
+      .sort((a, b) => b.value - a.value) // slowest first — most actionable
   } catch { ElMessage.error('响应时延加载失败') }
   finally { rtLoading.value = false }
 }
@@ -103,7 +105,6 @@ async function fetchNewDevices() {
   try {
     const { data } = await getNewDevices({ range: '90d', group_by: 'week' })
     const items = data.data || []
-    // Anomaly: count > 2× avg of previous 4 weeks → orange bar
     const prev4Avg = items.length >= 5
       ? items.slice(-5, -1).reduce((s, d) => s + d.count, 0) / 4
       : Infinity
@@ -131,12 +132,14 @@ async function fetchStability() {
   stabilityLoading.value = true
   try {
     const { data } = await getDeviceStability({ range: stabilityRange.value })
-    stabilityData.value = (data.data || []).map((d) => ({
-      label:      d.name || d.mac,
-      value:      d.uptime_pct,
-      valueLabel: `${(d.uptime_pct ?? 0).toFixed(1)}%`,
-      color:      stabilityColor(d.uptime_pct ?? 0),
-    }))
+    stabilityData.value = (data.data || [])
+      .map((d) => ({
+        label:      d.name || d.mac,
+        value:      d.uptime_pct,
+        valueLabel: `${(d.uptime_pct ?? 0).toFixed(1)}%`,
+        color:      stabilityColor(d.uptime_pct ?? 0),
+      }))
+      .sort((a, b) => a.value - b.value) // least stable first — most actionable
   } catch { ElMessage.error('稳定性加载失败') }
   finally { stabilityLoading.value = false }
 }
@@ -149,14 +152,34 @@ const ACTIVITY_GROUPS = Object.entries(DEVICE_TYPE_COLORS).map(([key, color]) =>
   key, color, label: DEVICE_TYPE_LABELS[key],
 }))
 
+const TYPE_KEYS = Object.keys(DEVICE_TYPE_COLORS)
+
 async function fetchTypeActivity() {
   activityLoading.value = true
   try {
     const { data } = await getTypeActivity({ range: '7d' })
-    activityData.value = (data.data || []).map((d) => ({ label: String(d.hour), ...d }))
+    const items = data.data || []
+
+    // Normalize each device type to its own peak (0–100) so small-population types
+    // (e.g. 16 phones vs 178 computers) are visible on the same axis.
+    const peaks = {}
+    TYPE_KEYS.forEach((k) => {
+      peaks[k] = Math.max(...items.map((d) => d[k] ?? 0)) || 1
+    })
+
+    activityData.value = items.map((d) => ({
+      label: String(d.hour),
+      ...Object.fromEntries(
+        TYPE_KEYS.map((k) => [k, +((d[k] ?? 0) / peaks[k] * 100).toFixed(1)])
+      ),
+    }))
   } catch { ElMessage.error('类型活跃加载失败') }
   finally { activityLoading.value = false }
 }
+
+// ── Dynamic chart titles ─────────────────────────────────
+const rtTitle        = computed(() => rtData.value.length        ? `设备响应时延（共 ${rtData.value.length} 台）`        : '设备响应时延')
+const stabilityTitle = computed(() => stabilityData.value.length ? `设备在线稳定性（共 ${stabilityData.value.length} 台）` : '设备在线稳定性')
 
 async function fetchAll() {
   await Promise.all([
@@ -182,7 +205,7 @@ onMounted(fetchAll)
     <BaseChart
       title="设备活跃时段"
       :loading="hmLoading"
-      :empty="!hmLoading && !hmData.length"
+      :empty="false"
       style="margin-bottom:16px"
     >
       <HeatmapChart
@@ -227,15 +250,22 @@ onMounted(fetchAll)
         <BarChart :data="newDevData" mode="vertical" :height="180" />
       </BaseChart>
 
-      <BaseChart title="各类型活跃时段对比" :loading="activityLoading" :empty="!activityLoading && !activityData.length">
-        <BarChart :data="activityData" mode="grouped" :groups="ACTIVITY_GROUPS" :height="180" />
+      <BaseChart title="各类型活跃时段（相对活跃度）" :loading="activityLoading" :empty="!activityLoading && !activityData.length">
+        <BarChart :data="activityData" mode="grouped" :groups="ACTIVITY_GROUPS" :height="160" />
+        <!-- Inline legend -->
+        <div class="type-legend">
+          <span v-for="g in ACTIVITY_GROUPS" :key="g.key" class="type-legend-item">
+            <span class="type-legend-dot" :style="{ background: g.color }" />
+            {{ g.label }}
+          </span>
+        </div>
       </BaseChart>
     </div>
 
     <!-- Row 4: ④ 时延 + ⑦ 稳定性 -->
     <div class="row-2">
       <BaseChart
-        title="设备响应时延"
+        :title="rtTitle"
         :loading="rtLoading"
         :empty="!rtLoading && !rtData.length"
       >
@@ -243,19 +273,25 @@ onMounted(fetchAll)
           :data="rtData"
           mode="horizontal"
           :height="220"
+          :scroll-max-height="400"
           :color-fn="(v) => v < 50 ? '#26C281' : v < 200 ? '#F2C94C' : '#F07D38'"
         />
       </BaseChart>
 
       <BaseChart
-        title="设备在线稳定性"
+        :title="stabilityTitle"
         :loading="stabilityLoading"
         :empty="!stabilityLoading && !stabilityData.length"
         :range="stabilityRange"
         :ranges="[{ label: '近7天', value: '7d' }, { label: '近30天', value: '30d' }]"
         @range-change="(r) => { stabilityRange = r; fetchStability() }"
       >
-        <BarChart :data="stabilityData" mode="horizontal" :height="220" />
+        <BarChart
+          :data="stabilityData"
+          mode="horizontal"
+          :height="220"
+          :scroll-max-height="400"
+        />
       </BaseChart>
     </div>
   </div>
@@ -265,4 +301,27 @@ onMounted(fetchAll)
 .mb { margin-bottom: 16px; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 16px; }
+
+/* Inline legend for grouped bar chart */
+.type-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+.type-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+.type-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
 </style>

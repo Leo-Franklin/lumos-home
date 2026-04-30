@@ -33,10 +33,10 @@ const TYPE_OPTIONS = Object.entries(DEVICE_TYPE_LABELS).map(([value, label]) => 
 const DAYS_7 = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 function renderChart() {
-  if (!svgRef.value || !props.data.length) return
+  if (!svgRef.value) return
 
   const cell = 22, pad = 3
-  const isDay   = props.range === '24h'
+  const isDay    = props.range === '24h'
   const rowLabels = isDay
     ? ['00', '10', '20', '30', '40', '50']
     : DAYS_7
@@ -50,6 +50,11 @@ function renderChart() {
   const svg = d3.select(svgRef.value)
     .append('svg').attr('width', svgW).attr('height', svgH)
     .style('overflow', 'visible')
+
+  // Build a lookup map so missing positions can be filled as count=0
+  const cellMap = new Map(
+    props.data.map((d) => [`${isDay ? (d.minuteBlock ?? 0) : d.day}-${d.hour}`, d])
+  )
 
   const maxVal = d3.max(props.data, (d) => d.count) || 1
   const colorScale = d3.scaleSequential()
@@ -72,38 +77,46 @@ function renderChart() {
 
   const tooltip = d3.select(tooltipRef.value)
 
-  props.data.forEach((d) => {
-    const col = d.hour
-    const row = isDay ? (d.minuteBlock ?? 0) : d.day
-    const x   = ml + col * (cell + pad)
-    const y   = mt + row * (cell + pad)
+  // Always render the full grid; positions absent from data render as dark (count=0)
+  for (let row = 0; row < rowCount; row++) {
+    for (let col = 0; col < 24; col++) {
+      const d = cellMap.get(`${row}-${col}`) ?? {
+        day: isDay ? 0 : row,
+        hour: col,
+        minuteBlock: isDay ? row : undefined,
+        count: 0,
+        devices: [],
+      }
+      const x = ml + col * (cell + pad)
+      const y = mt + row * (cell + pad)
 
-    svg.append('rect')
-      .attr('x', x).attr('y', y)
-      .attr('width', cell).attr('height', cell)
-      .attr('rx', 3)
-      .attr('fill', d.count === 0
-        ? 'var(--color-surface-raised, #252528)'
-        : colorScale(d.count))
-      .attr('stroke', 'var(--color-border, #333)')
-      .attr('stroke-width', 0.5)
-      .style('cursor', 'pointer')
-      .on('mousemove', (event) => {
-        const timeLabel = isDay
-          ? `${d.hour}:${String((d.minuteBlock ?? 0) * 10).padStart(2, '0')}`
-          : `${DAYS_7[d.day]} ${d.hour}:00`
-        const list    = (d.devices || []).slice(0, 5).join('<br>')
-        const more    = (d.devices || []).length > 5
-          ? `<br><span style="color:#888">+${d.devices.length - 5} 台…</span>` : ''
-        tooltip
-          .style('display', 'block')
-          .style('left',  event.clientX + 14 + 'px')
-          .style('top',   event.clientY - 40 + 'px')
-          .html(`<strong>${timeLabel}</strong><br>${d.count} 台在线${list ? '<br>' + list + more : ''}`)
-      })
-      .on('mouseleave', () => tooltip.style('display', 'none'))
-      .on('click', () => emit('cell-click', { day: d.day, hour: d.hour, devices: d.devices || [] }))
-  })
+      svg.append('rect')
+        .attr('x', x).attr('y', y)
+        .attr('width', cell).attr('height', cell)
+        .attr('rx', 3)
+        .attr('fill', d.count === 0
+          ? 'var(--color-surface-raised, #252528)'
+          : colorScale(d.count))
+        .attr('stroke', 'var(--color-border, #333)')
+        .attr('stroke-width', 0.5)
+        .style('cursor', 'pointer')
+        .on('mousemove', (event) => {
+          const timeLabel = isDay
+            ? `${d.hour}:${String((d.minuteBlock ?? 0) * 10).padStart(2, '0')}`
+            : `${DAYS_7[d.day ?? row]} ${d.hour}:00`
+          const list    = (d.devices || []).slice(0, 5).join('<br>')
+          const more    = (d.devices || []).length > 5
+            ? `<br><span style="color:#888">+${d.devices.length - 5} 台…</span>` : ''
+          tooltip
+            .style('display', 'block')
+            .style('left',  event.clientX + 14 + 'px')
+            .style('top',   event.clientY - 40 + 'px')
+            .html(`<strong>${timeLabel}</strong><br>${d.count} 台在线${list ? '<br>' + list + more : ''}`)
+        })
+        .on('mouseleave', () => tooltip.style('display', 'none'))
+        .on('click', () => emit('cell-click', { day: d.day ?? row, hour: d.hour, devices: d.devices || [] }))
+    }
+  }
 }
 
 watch(() => [props.data, props.range], renderChart, { deep: true })

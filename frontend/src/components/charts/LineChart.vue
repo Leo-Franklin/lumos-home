@@ -33,7 +33,14 @@ function renderChart() {
   const g = rootSvg.append('g').attr('transform', `translate(${m.left},${m.top})`)
 
   const xVals = props.data.map((d) => (d.x instanceof Date ? d.x : new Date(d.x)))
-  const x = d3.scaleTime().domain(d3.extent(xVals)).range([0, w])
+  // When there's only one data point, extent returns [same, same] → zero-width domain.
+  // Pad by ±12 hours so the single point renders centered as a dot.
+  let [xMin, xMax] = d3.extent(xVals)
+  if (xMin.getTime() === xMax.getTime()) {
+    xMin = new Date(xMin.getTime() - 12 * 3600 * 1000)
+    xMax = new Date(xMax.getTime() + 12 * 3600 * 1000)
+  }
+  const x = d3.scaleTime().domain([xMin, xMax]).range([0, w])
   const y = d3.scaleLinear()
     .domain([0, (d3.max(props.data, (d) => d.y) || 1) * 1.1])
     .range([h, 0])
