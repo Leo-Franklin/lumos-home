@@ -28,7 +28,7 @@ async function fetchHeatmap() {
     const params = { range: hmRange.value }
     if (hmTypes.value.length) params.device_type = hmTypes.value.join(',')
     const { data } = await getDeviceHeatmap(params)
-    hmData.value = data.cells ?? []
+    hmData.value = (data.cells ?? []).map((c) => ({ day: c.day, hour: c.hour, count: c.value, devices: [] }))
   } catch { ElMessage.error('热力图加载失败') }
   finally { hmLoading.value = false }
 }
