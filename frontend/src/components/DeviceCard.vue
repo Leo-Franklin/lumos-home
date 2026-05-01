@@ -1,15 +1,28 @@
 <script setup>
+import {
+  VideoCameraFilled, Monitor, Iphone, Cpu, QuestionFilled,
+  Connection, Grid, Film, Printer, Microphone, Trophy, Box, Watch,
+} from '@element-plus/icons-vue'
+
 defineProps({
   device: { type: Object, required: true },
 })
 defineEmits(['edit', 'delete', 'detail'])
 
 const TYPE_CONFIG = {
-  camera:   { label: 'Camera',   color: 'var(--color-type-camera)',   hex: '#5E5CE6' },
-  computer: { label: 'Computer', color: 'var(--color-type-computer)', hex: '#26C281' },
-  phone:    { label: 'Phone',    color: 'var(--color-type-phone)',     hex: '#F2C94C' },
-  iot:      { label: 'IoT',      color: 'var(--color-type-iot)',       hex: '#F07D38' },
-  unknown:  { label: 'Unknown',  color: 'var(--color-type-unknown)',   hex: '#8B8B96' },
+  camera:        { label: 'Camera',        color: 'var(--color-type-camera)',        hex: '#5E5CE6' },
+  computer:      { label: 'Computer',      color: 'var(--color-type-computer)',      hex: '#26C281' },
+  phone:         { label: 'Phone',         color: 'var(--color-type-phone)',         hex: '#F2C94C' },
+  iot:           { label: 'IoT',           color: 'var(--color-type-iot)',           hex: '#F07D38' },
+  router:        { label: 'Router',        color: 'var(--color-type-router)',        hex: '#06B6D4' },
+  tablet:        { label: 'Tablet',        color: 'var(--color-type-tablet)',        hex: '#D946EF' },
+  tv:            { label: 'TV',            color: 'var(--color-type-tv)',            hex: '#7C3AED' },
+  printer:       { label: 'Printer',       color: 'var(--color-type-printer)',       hex: '#14B8A6' },
+  smart_speaker: { label: 'Smart Speaker', color: 'var(--color-type-smart-speaker)', hex: '#A3E635' },
+  game_console:  { label: 'Game Console',  color: 'var(--color-type-game-console)',  hex: '#EF4444' },
+  nas:           { label: 'NAS',           color: 'var(--color-type-nas)',           hex: '#60A5FA' },
+  wearable:      { label: 'Wearable',      color: 'var(--color-type-wearable)',      hex: '#FB7185' },
+  unknown:       { label: 'Unknown',       color: 'var(--color-type-unknown)',       hex: '#8B8B96' },
 }
 
 function typeConfig(t) {
@@ -34,10 +47,18 @@ function typeIconStyle(t) {
     <div class="type-icon" :style="typeIconStyle(device.device_type)">
       <el-icon :size="14">
         <VideoCameraFilled v-if="device.device_type === 'camera'" />
-        <Monitor v-else-if="device.device_type === 'computer'" />
-        <Iphone v-else-if="device.device_type === 'phone'" />
-        <Cpu v-else-if="device.device_type === 'iot'" />
-        <QuestionFilled v-else />
+        <Monitor          v-else-if="device.device_type === 'computer'" />
+        <Iphone           v-else-if="device.device_type === 'phone'" />
+        <Cpu              v-else-if="device.device_type === 'iot'" />
+        <Connection       v-else-if="device.device_type === 'router'" />
+        <Grid             v-else-if="device.device_type === 'tablet'" />
+        <Film             v-else-if="device.device_type === 'tv'" />
+        <Printer          v-else-if="device.device_type === 'printer'" />
+        <Microphone       v-else-if="device.device_type === 'smart_speaker'" />
+        <Trophy           v-else-if="device.device_type === 'game_console'" />
+        <Box              v-else-if="device.device_type === 'nas'" />
+        <Watch            v-else-if="device.device_type === 'wearable'" />
+        <QuestionFilled   v-else />
       </el-icon>
     </div>
 

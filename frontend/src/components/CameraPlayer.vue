@@ -39,7 +39,8 @@ function initVjs(src) {
     return
   }
   vjsPlayer = videojs(hlsRef.value, {
-    autoplay: true,
+    autoplay: 'muted',
+    muted: true,
     controls: true,
     fluid: true,
     sources: [{ src, type: 'application/x-mpegURL' }],

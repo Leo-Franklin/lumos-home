@@ -99,14 +99,26 @@ async function fetchHeatmap() {
 }
 
 // ── 其他 ─────────────────────────────────────────────
-const deviceTypeOptions = ['camera', 'computer', 'phone', 'iot', 'unknown']
+const deviceTypeOptions = [
+  'camera', 'computer', 'phone', 'iot',
+  'router', 'tablet', 'tv', 'printer', 'smart_speaker', 'game_console', 'nas', 'wearable',
+  'unknown',
+]
 
 const filterOptions = [
-  { value: 'camera',   label: 'Camera',   hex: '#5E5CE6' },
-  { value: 'computer', label: 'Computer', hex: '#26C281' },
-  { value: 'phone',    label: 'Phone',    hex: '#F2C94C' },
-  { value: 'iot',      label: 'IoT',      hex: '#F07D38' },
-  { value: 'unknown',  label: 'Unknown',  hex: '#8B8B96' },
+  { value: 'camera',        label: 'Camera',        hex: '#5E5CE6' },
+  { value: 'computer',      label: 'Computer',      hex: '#26C281' },
+  { value: 'phone',         label: 'Phone',         hex: '#F2C94C' },
+  { value: 'iot',           label: 'IoT',           hex: '#F07D38' },
+  { value: 'router',        label: 'Router',        hex: '#06B6D4' },
+  { value: 'tablet',        label: 'Tablet',        hex: '#D946EF' },
+  { value: 'tv',            label: 'TV',            hex: '#7C3AED' },
+  { value: 'printer',       label: 'Printer',       hex: '#14B8A6' },
+  { value: 'smart_speaker', label: 'Smart Speaker', hex: '#A3E635' },
+  { value: 'game_console',  label: 'Game Console',  hex: '#EF4444' },
+  { value: 'nas',           label: 'NAS',           hex: '#60A5FA' },
+  { value: 'wearable',      label: 'Wearable',      hex: '#FB7185' },
+  { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96' },
 ]
 
 onMounted(() => devicesStore.fetchDevices())

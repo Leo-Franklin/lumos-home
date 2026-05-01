@@ -10,11 +10,19 @@ const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
 const TYPE_CONFIG = {
-  phone:    { color: '#F2C94C', label: '手机',   icon: '📱' },
-  computer: { color: '#26C281', label: '电脑',   icon: '💻' },
-  camera:   { color: '#5E5CE6', label: '摄像头', icon: '📷' },
-  iot:      { color: '#F07D38', label: 'IoT',    icon: '🔌' },
-  unknown:  { color: '#8B8B96', label: '未知',   icon: '⬡'  },
+  phone:         { color: '#F2C94C', label: '手机',    icon: '📱' },
+  computer:      { color: '#26C281', label: '电脑',    icon: '💻' },
+  camera:        { color: '#5E5CE6', label: '摄像头',  icon: '📷' },
+  iot:           { color: '#F07D38', label: 'IoT',     icon: '🔌' },
+  router:        { color: '#06B6D4', label: '路由器',  icon: '📡' },
+  tablet:        { color: '#D946EF', label: '平板',    icon: '📋' },
+  tv:            { color: '#7C3AED', label: '电视',    icon: '📺' },
+  printer:       { color: '#14B8A6', label: '打印机',  icon: '🖨️' },
+  smart_speaker: { color: '#A3E635', label: '智能音箱', icon: '🔊' },
+  game_console:  { color: '#EF4444', label: '游戏机',  icon: '🎮' },
+  nas:           { color: '#60A5FA', label: 'NAS',     icon: '🗄️' },
+  wearable:      { color: '#FB7185', label: '可穿戴',  icon: '⌚' },
+  unknown:       { color: '#8B8B96', label: '未知',    icon: '⬡'  },
 }
 
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown

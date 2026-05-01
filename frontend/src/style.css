@@ -35,11 +35,19 @@
   --color-scanning: #F2C94C;
 
   /* 设备类型色 */
-  --color-type-camera:   #5E5CE6;
-  --color-type-computer: #26C281;
-  --color-type-phone:    #F2C94C;
-  --color-type-iot:      #F07D38;
-  --color-type-unknown:  #8B8B96;
+  --color-type-camera:        #5E5CE6;
+  --color-type-computer:      #26C281;
+  --color-type-phone:         #F2C94C;
+  --color-type-iot:           #F07D38;
+  --color-type-unknown:       #8B8B96;
+  --color-type-router:        #06B6D4;
+  --color-type-tablet:        #D946EF;
+  --color-type-tv:            #7C3AED;
+  --color-type-printer:       #14B8A6;
+  --color-type-smart-speaker: #A3E635;
+  --color-type-game-console:  #EF4444;
+  --color-type-nas:           #60A5FA;
+  --color-type-wearable:      #FB7185;
 
   /* 圆角 */
   --radius-xs:   3px;
