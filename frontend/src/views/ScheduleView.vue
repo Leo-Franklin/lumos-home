@@ -4,6 +4,7 @@ import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '@
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import CronSelector from '@/components/CronSelector.vue'
 
 const schedules = ref([])
 const cameras = ref([])
@@ -117,9 +118,8 @@ async function handleDelete(row) {
         <el-form-item label="计划名称">
           <el-input v-model="form.name" placeholder="如：夜间录制" />
         </el-form-item>
-        <el-form-item label="Cron 表达式">
-          <el-input v-model="form.cron_expr" placeholder="分 时 日 月 周，如 0 2 * * *" />
-          <div class="cron-hint">格式：分 小时 日 月 周几（5 字段）</div>
+        <el-form-item label="触发时间">
+          <CronSelector v-model="form.cron_expr" />
         </el-form-item>
         <el-form-item label="分段时长(秒)">
           <el-input-number v-model="form.segment_duration" :min="60" :step="300" />
@@ -137,9 +137,4 @@ async function handleDelete(row) {
 </template>
 
 <style scoped>
-.cron-hint {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-top: 4px;
-}
 </style>
