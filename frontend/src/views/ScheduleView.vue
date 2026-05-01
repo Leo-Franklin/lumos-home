@@ -103,7 +103,7 @@ async function handleDelete(row) {
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialog" :title="isEdit ? '编辑计划' : '新建计划'" width="480px">
+    <el-dialog v-model="dialog" :title="isEdit ? '编辑计划' : '新建计划'" width="680px">
       <el-form :model="form" label-width="110px">
         <el-form-item label="摄像头">
           <el-select v-model="form.camera_mac" placeholder="选择摄像头" style="width: 100%">
@@ -118,7 +118,7 @@ async function handleDelete(row) {
         <el-form-item label="计划名称">
           <el-input v-model="form.name" placeholder="如：夜间录制" />
         </el-form-item>
-        <el-form-item label="触发时间">
+        <el-form-item label="触发时间" style="width: 100%">
           <CronSelector v-model="form.cron_expr" />
         </el-form-item>
         <el-form-item label="分段时长(秒)">

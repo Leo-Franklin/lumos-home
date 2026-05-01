@@ -187,6 +187,8 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tab-bar {
@@ -217,7 +219,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 
 .preset-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -225,7 +227,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px 10px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -236,15 +238,21 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 }
 
 .preset-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .preset-cron {
   font-size: 11px;
   color: var(--color-text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .preset-card.selected .preset-cron { color: var(--color-primary); }
 

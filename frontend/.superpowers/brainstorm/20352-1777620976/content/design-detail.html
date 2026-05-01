@@ -1,0 +1,153 @@
+<h2>方案 C — 详细交互设计</h2>
+<p class="subtitle">这是「新建计划」对话框中 Cron 选择器的完整交互原型，点击 Tab 切换模式</p>
+
+<div class="mockup" style="max-width:520px;margin:0 auto;">
+  <div class="mockup-header">新建录制计划 — Cron 选择器区域</div>
+  <div class="mockup-body" style="padding:20px;">
+
+    <!-- Tab switcher -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">触发时间</div>
+      <div id="tabs" style="display:flex;border:1px solid #333;border-radius:8px;overflow:hidden;width:100%;">
+        <button onclick="switchTab('preset')" id="tab-preset"
+          style="flex:1;padding:8px;border:none;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;transition:.15s">
+          快速选择
+        </button>
+        <button onclick="switchTab('custom')" id="tab-custom"
+          style="flex:1;padding:8px;border:none;cursor:pointer;font-size:12px;background:transparent;color:#888;transition:.15s;border-left:1px solid #333;">
+          自定义时间
+        </button>
+        <button onclick="switchTab('advanced')" id="tab-advanced"
+          style="flex:1;padding:8px;border:none;cursor:pointer;font-size:12px;background:transparent;color:#888;transition:.15s;border-left:1px solid #333;">
+          高级 (Cron)
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab: 快速选择 -->
+    <div id="panel-preset">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div onclick="selectPreset(this,'0 2 * * *','每天凌晨 2:00')" class="preset-card selected-card"
+          style="background:#5E5CE614;border:1px solid #5E5CE6;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">每天凌晨 2:00</div>
+          <div style="font-size:11px;color:#5E5CE6;margin-top:2px;">0 2 * * *</div>
+        </div>
+        <div onclick="selectPreset(this,'0 8 * * 1-5','工作日早 8:00')" class="preset-card"
+          style="background:#2a2a3e;border:1px solid #333;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">工作日早 8:00</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">0 8 * * 1-5</div>
+        </div>
+        <div onclick="selectPreset(this,'0 22 * * *','每天晚上 22:00')" class="preset-card"
+          style="background:#2a2a3e;border:1px solid #333;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">每天晚上 22:00</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">0 22 * * *</div>
+        </div>
+        <div onclick="selectPreset(this,'*/30 * * * *','每 30 分钟')" class="preset-card"
+          style="background:#2a2a3e;border:1px solid #333;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">每 30 分钟</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">*/30 * * * *</div>
+        </div>
+        <div onclick="selectPreset(this,'0 0 * * 6,0','周末凌晨')" class="preset-card"
+          style="background:#2a2a3e;border:1px solid #333;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">周末凌晨</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">0 0 * * 6,0</div>
+        </div>
+        <div onclick="selectPreset(this,'0 * * * *','每小时整点')" class="preset-card"
+          style="background:#2a2a3e;border:1px solid #333;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s">
+          <div style="font-size:13px;font-weight:600;color:#fff;">每小时整点</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">0 * * * *</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 自定义时间 -->
+    <div id="panel-custom" style="display:none;">
+      <div style="display:flex;gap:12px;margin-bottom:14px;align-items:flex-end;">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">触发时间</div>
+          <input type="time" value="02:00" oninput="updateCustomCron()"
+            style="width:100%;background:#1e1e2e;border:1px solid #333;border-radius:6px;padding:8px;color:#fff;font-size:14px;">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">重复频率</div>
+          <select oninput="updateCustomCron()"
+            style="width:100%;background:#1e1e2e;border:1px solid #333;border-radius:6px;padding:8px;color:#fff;font-size:13px;">
+            <option value="daily">每天</option>
+            <option value="weekday">工作日</option>
+            <option value="weekend">周末</option>
+            <option value="custom">自选星期</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:#888;margin-bottom:6px;">选择星期（可多选）</div>
+        <div style="display:flex;gap:6px;">
+          <span onclick="toggleDay(this,'1')" class="day-btn active"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;border:1px solid #5E5CE6;transition:.15s">一</span>
+          <span onclick="toggleDay(this,'2')" class="day-btn active"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;border:1px solid #5E5CE6;transition:.15s">二</span>
+          <span onclick="toggleDay(this,'3')" class="day-btn active"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;border:1px solid #5E5CE6;transition:.15s">三</span>
+          <span onclick="toggleDay(this,'4')" class="day-btn active"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;border:1px solid #5E5CE6;transition:.15s">四</span>
+          <span onclick="toggleDay(this,'5')" class="day-btn active"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#5E5CE6;color:#fff;border:1px solid #5E5CE6;transition:.15s">五</span>
+          <span onclick="toggleDay(this,'6')" class="day-btn"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#1e1e2e;color:#666;border:1px solid #333;transition:.15s">六</span>
+          <span onclick="toggleDay(this,'0')" class="day-btn"
+            style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:#1e1e2e;color:#666;border:1px solid #333;transition:.15s">日</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 高级 Cron -->
+    <div id="panel-advanced" style="display:none;">
+      <input type="text" value="0 2 * * *" oninput="updateAdvancedPreview(this.value)"
+        style="width:100%;background:#1e1e2e;border:1px solid #333;border-radius:6px;padding:9px 12px;color:#fff;font-family:monospace;font-size:14px;box-sizing:border-box;">
+      <div style="font-size:11px;color:#888;margin-top:4px;">格式：分 小时 日 月 周几（5 字段）</div>
+    </div>
+
+    <!-- 实时预览条（所有 Tab 共享） -->
+    <div style="margin-top:16px;padding:10px 14px;background:#1a2e1a;border:1px solid #26C28133;border-radius:8px;display:flex;align-items:center;gap:8px;">
+      <span style="color:#26C281;font-size:14px;">✓</span>
+      <span id="cron-preview" style="font-size:13px;color:#26C281;">每天凌晨 2:00 触发 <span style="color:#26C28188;font-size:11px;">（0 2 * * *）</span></span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  ['preset','custom','advanced'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-' + t);
+    btn.style.background = t === tab ? '#5E5CE6' : 'transparent';
+    btn.style.color = t === tab ? '#fff' : '#888';
+  });
+}
+
+function selectPreset(el, cron, label) {
+  document.querySelectorAll('.preset-card').forEach(c => {
+    c.style.background = '#2a2a3e';
+    c.style.borderColor = '#333';
+    c.querySelector('div:last-child').style.color = '#666';
+  });
+  el.style.background = '#5E5CE614';
+  el.style.borderColor = '#5E5CE6';
+  el.querySelector('div:last-child').style.color = '#5E5CE6';
+  document.getElementById('cron-preview').innerHTML =
+    label + ' 触发 <span style="color:#26C28188;font-size:11px;">（' + cron + '）</span>';
+}
+
+function toggleDay(el, day) {
+  const active = el.classList.toggle('active');
+  el.style.background = active ? '#5E5CE6' : '#1e1e2e';
+  el.style.color = active ? '#fff' : '#666';
+  el.style.borderColor = active ? '#5E5CE6' : '#333';
+}
+
+function updateAdvancedPreview(val) {
+  document.getElementById('cron-preview').innerHTML =
+    '自定义表达式 <span style="color:#26C28188;font-size:11px;">（' + val + '）</span>';
+}
+</script>

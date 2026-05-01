@@ -6,6 +6,7 @@ import {
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { VideoCameraFilled, Clock, FolderOpened } from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 
@@ -122,7 +123,7 @@ function downloadRecording(rec) {
 
 // ── Stats (C2) ───────────────────────────────────────────────
 const statsDialog = ref(false)
-const statsFilter = ref({ range: '7d', camera_mac: '' })
+const statsFilter = ref({ range: '7d' })
 const statsData = ref(null)
 const statsLoading = ref(false)
 
@@ -136,7 +137,6 @@ async function fetchStats() {
   statsData.value = null
   try {
     const params = { range: statsFilter.value.range }
-    if (statsFilter.value.camera_mac) params.camera_mac = statsFilter.value.camera_mac
     const { data } = await getRecordingStats(params)
     statsData.value = data
   } catch (e) {
@@ -167,11 +167,6 @@ function statusType(s) {
 function cameraLabel(mac) {
   const cam = cameras.value.find((c) => c.device_mac === mac)
   return cam ? cam.onvif_host : mac
-}
-
-// daily bar max for scaling
-function dailyMax(daily) {
-  return Math.max(...(daily || []).map((d) => d.count), 1)
 }
 </script>
 
@@ -254,50 +249,57 @@ function dailyMax(daily) {
     </el-dialog>
 
     <!-- 统计弹窗 -->
-    <el-dialog v-model="statsDialog" title="录制统计" width="680px" destroy-on-close>
-      <div class="stats-toolbar">
+    <el-dialog v-model="statsDialog" title="录制统计" width="600px" destroy-on-close>
+      <div class="stats-header">
         <el-radio-group v-model="statsFilter.range" @change="fetchStats">
           <el-radio-button value="7d">近 7 天</el-radio-button>
           <el-radio-button value="30d">近 30 天</el-radio-button>
         </el-radio-group>
-        <el-select v-model="statsFilter.camera_mac" clearable placeholder="全部摄像头" style="width:180px" @change="fetchStats">
-          <el-option v-for="c in cameras" :key="c.device_mac" :label="c.onvif_host" :value="c.device_mac" />
-        </el-select>
+        <span class="stats-period-hint">{{ statsFilter.range === '7d' ? '过去 7 天的录制汇总' : '过去 30 天的录制汇总' }}</span>
       </div>
 
-      <el-skeleton v-if="statsLoading" :rows="4" animated style="margin-top:12px" />
+      <div v-if="statsLoading" class="stats-skeleton">
+        <div v-for="i in 3" :key="i" class="stats-skeleton-tile" />
+      </div>
 
-      <template v-if="statsData && !statsLoading">
-        <!-- Per-camera summary -->
-        <div class="stats-section-title">各摄像头汇总</div>
-        <el-table :data="statsData.cameras" size="small" border style="margin-bottom:16px">
-          <el-table-column label="摄像头" min-width="140">
-            <template #default="{ row }">{{ cameraLabel(row.camera_mac) }}</template>
-          </el-table-column>
-          <el-table-column prop="count" label="录制次数" width="100" align="right" />
-          <el-table-column label="总时长" width="130" align="right">
-            <template #default="{ row }">{{ formatDurationLong(row.total_duration_seconds) }}</template>
-          </el-table-column>
-          <el-table-column label="总大小" width="110" align="right">
-            <template #default="{ row }">{{ formatSize(row.total_size_bytes) }}</template>
-          </el-table-column>
-        </el-table>
-
-        <!-- Daily trend bars -->
-        <div class="stats-section-title">每日录制次数</div>
-        <div class="daily-chart">
-          <div
-            v-for="d in statsData.daily"
-            :key="d.date"
-            class="daily-bar-col"
-          >
-            <div
-              class="daily-bar"
-              :style="{ height: Math.max(4, (d.count / dailyMax(statsData.daily)) * 80) + 'px' }"
-              :title="`${d.date}: ${d.count} 次 · ${formatDurationLong(d.duration_seconds)}`"
-            />
-            <div class="daily-label">{{ d.date.slice(5) }}</div>
+      <template v-else-if="statsData">
+        <div class="stats-grid">
+          <div class="stat-tile stat-tile--count">
+            <div class="stat-icon-wrap">
+              <el-icon class="stat-icon"><VideoCameraFilled /></el-icon>
+            </div>
+            <div class="stat-body">
+              <div class="stat-value">{{ statsData.count }}</div>
+              <div class="stat-label">录制次数</div>
+            </div>
+            <div class="stat-glow stat-glow--count" />
           </div>
+
+          <div class="stat-tile stat-tile--duration">
+            <div class="stat-icon-wrap">
+              <el-icon class="stat-icon"><Clock /></el-icon>
+            </div>
+            <div class="stat-body">
+              <div class="stat-value">{{ formatDurationLong(statsData.total_duration) }}</div>
+              <div class="stat-label">总时长</div>
+            </div>
+            <div class="stat-glow stat-glow--duration" />
+          </div>
+
+          <div class="stat-tile stat-tile--size">
+            <div class="stat-icon-wrap">
+              <el-icon class="stat-icon"><FolderOpened /></el-icon>
+            </div>
+            <div class="stat-body">
+              <div class="stat-value">{{ formatSize(statsData.total_size) }}</div>
+              <div class="stat-label">总存储</div>
+            </div>
+            <div class="stat-glow stat-glow--size" />
+          </div>
+        </div>
+
+        <div v-if="statsData.count === 0" class="stats-empty">
+          该时间段内暂无录制记录
         </div>
       </template>
     </el-dialog>
@@ -309,55 +311,164 @@ function dailyMax(daily) {
   margin-bottom: 16px;
 }
 
-.stats-toolbar {
+/* ── Stats dialog ─────────────────────────── */
+.stats-header {
   display: flex;
-  gap: 12px;
   align-items: center;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
-.stats-section-title {
+.stats-period-hint {
   font-size: 12px;
-  font-weight: 600;
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  letter-spacing: 0.01em;
 }
 
-.daily-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 100px;
-  padding-bottom: 20px;
-  overflow-x: auto;
+/* skeleton */
+.stats-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
-.daily-bar-col {
+.stats-skeleton-tile {
+  height: 88px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 25%,
+    var(--color-surface-overlay) 37%,
+    var(--color-surface-raised) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+/* grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  animation: stats-in 0.28s var(--easing-snap, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes stats-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* tile */
+.stat-tile {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  min-width: 28px;
+  gap: 14px;
+  padding: 18px 16px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--duration-base) ease,
+              background var(--duration-base) ease;
+}
+
+.stat-tile::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.stat-tile--count::after   { background: var(--color-primary); }
+.stat-tile--duration::after { background: var(--color-online, #26C281); }
+.stat-tile--size::after    { background: var(--color-warning, #F07D38); }
+
+.stat-tile:hover {
+  border-color: var(--color-border-subtle, #28282b);
+  background: var(--color-surface-overlay);
+}
+
+/* icon badge */
+.stat-icon-wrap {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-tile--count   .stat-icon-wrap { background: rgba(94, 92, 230, 0.12); }
+.stat-tile--duration .stat-icon-wrap { background: rgba(38, 194, 129, 0.12); }
+.stat-tile--size    .stat-icon-wrap { background: rgba(240, 125, 56, 0.12); }
+
+.stat-icon {
+  font-size: 18px;
+}
+
+.stat-tile--count   .stat-icon { color: var(--color-primary); }
+.stat-tile--duration .stat-icon { color: var(--color-online, #26C281); }
+.stat-tile--size    .stat-icon { color: var(--color-warning, #F07D38); }
+
+/* text */
+.stat-body {
   flex: 1;
+  min-width: 0;
 }
 
-.daily-bar {
-  width: 100%;
-  background: var(--color-primary, #5e5ce6);
-  border-radius: 2px 2px 0 0;
-  cursor: default;
-  transition: opacity 0.15s;
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.daily-bar:hover {
-  opacity: 0.75;
-}
-
-.daily-label {
-  font-size: 10px;
+.stat-label {
+  font-size: 11px;
   color: var(--color-text-muted);
   margin-top: 4px;
-  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 500;
+}
+
+/* ambient glow */
+.stat-glow {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.stat-glow--count    { background: var(--color-primary); }
+.stat-glow--duration { background: var(--color-online, #26C281); }
+.stat-glow--size     { background: var(--color-warning, #F07D38); }
+
+/* empty hint */
+.stats-empty {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 12px 0 4px;
 }
 </style>
