@@ -135,6 +135,3 @@ async function handleDelete(row) {
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-</style>
