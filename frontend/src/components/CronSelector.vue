@@ -29,7 +29,14 @@ const DAYS = [
   { label: '日', value: 0 },
 ]
 
+const TABS = [
+  { key: 'preset',   label: '快速选择' },
+  { key: 'custom',   label: '自定义时间' },
+  { key: 'advanced', label: '高级 (Cron)' },
+]
+
 function buildCustomCron() {
+  if (!customTime.value) return `0 2 * * *`
   const [hStr, mStr] = customTime.value.split(':')
   const h = parseInt(hStr, 10)
   const m = parseInt(mStr, 10)
@@ -60,6 +67,7 @@ function onAdvancedInput(val) {
 }
 
 function switchTab(tab) {
+  if (activeTab.value === tab) return
   activeTab.value = tab
   if (tab === 'custom') emit('update:modelValue', buildCustomCron())
 }
@@ -82,18 +90,15 @@ function cronDescription(cron) {
 }
 
 const description = computed(() => cronDescription(props.modelValue))
-const valid = computed(() => props.modelValue?.trim().split(/\s+/).length === 5)
+const CRON_RE = /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/
+const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 </script>
 
 <template>
   <div class="cron-selector">
     <div class="tab-bar">
       <button
-        v-for="tab in [
-          { key: 'preset',   label: '快速选择' },
-          { key: 'custom',   label: '自定义时间' },
-          { key: 'advanced', label: '高级 (Cron)' },
-        ]"
+        v-for="tab in TABS"
         :key="tab.key"
         class="tab-btn"
         :class="{ active: activeTab === tab.key }"
