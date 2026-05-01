@@ -1,14 +1,27 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '0 2 * * *' },
 })
 const emit = defineEmits(['update:modelValue'])
 
-const activeTab = ref('preset')
 const customTime = ref('02:00')
 const customDays = ref([1, 2, 3, 4, 5, 6, 0])
+
+watch(() => props.modelValue, (val) => {
+  if (!val) return
+  const parts = val.trim().split(/\s+/)
+  if (parts.length !== 5) return
+  const [m, h, , , dow] = parts
+  if (!/^\d+$/.test(m) || !/^\d+$/.test(h)) return
+  customTime.value = `${String(Number(h)).padStart(2, '0')}:${String(Number(m)).padStart(2, '0')}`
+  if (dow === '*') {
+    customDays.value = [0, 1, 2, 3, 4, 5, 6]
+  } else {
+    customDays.value = dow.split(',').map(Number).filter((n) => !isNaN(n))
+  }
+}, { immediate: true })
 
 const PRESETS = [
   { label: '每天凌晨 2:00',   cron: '0 2 * * *' },
@@ -18,6 +31,8 @@ const PRESETS = [
   { label: '周末凌晨',        cron: '0 0 * * 6,0' },
   { label: '每小时整点',      cron: '0 * * * *' },
 ]
+
+const activeTab = ref(PRESETS.some((p) => p.cron === props.modelValue) ? 'preset' : 'advanced')
 
 const DAYS = [
   { label: '一', value: 1 },
@@ -85,6 +100,7 @@ function cronDescription(cron) {
   const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
   if (dow === '*') return `每天 ${timeStr} 触发`
   if (dow === '1-5') return `工作日 ${timeStr} 触发`
+  if (dow === '1,2,3,4,5') return `工作日 ${timeStr} 触发`
   if (dow === '6,0' || dow === '0,6') return `周末 ${timeStr} 触发`
   return `自定义：${cron}`
 }
