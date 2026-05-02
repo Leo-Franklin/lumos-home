@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCamerasStore } from '@/stores/cameras'
 import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
@@ -11,6 +12,8 @@ import {
 import { Plus, Edit, Delete, Search, VideoPlay, Camera, VideoCamera, VideoPause, VideoCameraFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CameraPlayer from '@/components/CameraPlayer.vue'
+
+const { t } = useI18n()
 
 const camerasStore = useCamerasStore()
 const devicesStore = useDevicesStore()
@@ -34,11 +37,11 @@ function openAdd() {
 async function handleAdd() {
   try {
     await createCamera(addForm.value)
-    ElMessage.success('摄像头已添加')
+    ElMessage.success(t('cameras.added'))
     addDialog.value = false
     camerasStore.fetchCameras()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '添加失败')
+    ElMessage.error(e.response?.data?.detail || t('cameras.addFailed'))
   }
 }
 
@@ -67,19 +70,19 @@ async function handleEdit() {
   if (!payload.rtsp_url) payload.rtsp_url = null
   try {
     await updateCamera(_mac, payload)
-    ElMessage.success('已保存')
+    ElMessage.success(t('cameras.saved'))
     editDialog.value = false
     camerasStore.fetchCameras()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '保存失败')
+    ElMessage.error(e.response?.data?.detail || t('cameras.saveFailed'))
   }
 }
 
 // ── Delete ────────────────────────────────────────────────────
 async function handleDelete(cam) {
-  await ElMessageBox.confirm(`确定删除摄像头 ${cam.onvif_host}？`, '确认删除', { type: 'warning' })
+  await ElMessageBox.confirm(t('cameras.deleteConfirm', { host: cam.onvif_host }), t('common.confirmDelete'), { type: 'warning' })
   await deleteCamera(cam.device_mac)
-  ElMessage.success('已删除')
+  ElMessage.success(t('cameras.deleted'))
   camerasStore.fetchCameras()
 }
 
@@ -97,7 +100,7 @@ async function handleProbe(cam) {
     probeResult.value = data
     camerasStore.fetchCameras()
   } catch (e) {
-    ElMessage.error('ONVIF 探测失败：' + (e.response?.data?.error?.message || e.message))
+    ElMessage.error(t('cameras.onvifProbeFailed', { detail: e.response?.data?.error?.message || e.message }))
     probeDialog.value = false
   } finally {
     probeLoading.value = false
@@ -109,14 +112,14 @@ async function handleRecord(cam) {
   try {
     if (cam.is_recording) {
       await stopRecord(cam.device_mac)
-      ElMessage.success('已发送停止录制指令')
+      ElMessage.success(t('cameras.recordStopped'))
     } else {
       await startRecord(cam.device_mac)
-      ElMessage.success('已发送开始录制指令')
+      ElMessage.success(t('cameras.recordStarted'))
     }
     await camerasStore.fetchCameras()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || e.response?.data?.error?.message || '操作失败')
+    ElMessage.error(e.response?.data?.detail || e.response?.data?.error?.message || t('common.operationFailed'))
   }
 }
 
@@ -127,10 +130,10 @@ const liveTitle = ref('')
 
 function openLive(cam) {
   if (!cam.rtsp_url) {
-    ElMessage.warning('该摄像头未配置 RTSP 地址，请先点击「ONVIF 探测」自动获取')
+    ElMessage.warning(t('cameras.noRtspWarning'))
     return
   }
-  liveTitle.value = `实时预览 — ${cam.onvif_host}`
+  liveTitle.value = t('cameras.liveTitle', { host: cam.onvif_host })
   liveUrl.value = mjpegStreamUrl(cam.device_mac)
   liveDialog.value = true
 }
@@ -147,18 +150,18 @@ const snapshotLoading = ref(false)
 
 async function handleSnapshot(cam) {
   if (!cam.rtsp_url) {
-    ElMessage.warning('该摄像头未配置 RTSP 地址')
+    ElMessage.warning(t('cameras.noRtsp'))
     return
   }
   snapshotLoading.value = true
-  snapshotTitle.value = `截图 — ${cam.onvif_host}`
+  snapshotTitle.value = t('cameras.snapshotTitle', { host: cam.onvif_host })
   try {
     const { data } = await takeSnapshot(cam.device_mac)
     if (snapshotUrl.value) URL.revokeObjectURL(snapshotUrl.value)
     snapshotUrl.value = URL.createObjectURL(data)
     snapshotDialog.value = true
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '截图失败，摄像头可能无信号')
+    ElMessage.error(t('cameras.snapshotFailed'))
   } finally {
     snapshotLoading.value = false
   }
@@ -184,18 +187,18 @@ let hlsMac = ''
 
 async function openHlsLive(cam) {
   if (!cam.rtsp_url) {
-    ElMessage.warning('该摄像头未配置 RTSP 地址，请先点击「ONVIF 探测」自动获取')
+    ElMessage.warning(t('cameras.noRtspWarning'))
     return
   }
   hlsStarting.value = true
   hlsMac = cam.device_mac
   try {
     await startLive(cam.device_mac)
-    hlsTitle.value = `HLS 直播 — ${cam.onvif_host}`
+    hlsTitle.value = t('cameras.hlsTitle', { host: cam.onvif_host })
     hlsSrc.value = hlsLiveUrl(cam.device_mac)
     hlsDialog.value = true
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || 'HLS 直播启动失败')
+    ElMessage.error(t('cameras.hlsStartFailed'))
   } finally {
     hlsStarting.value = false
   }
@@ -209,11 +212,6 @@ async function closeHlsLive() {
   }
 }
 
-function fmtTime(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('zh-CN', { hour12: false })
-}
-
 onMounted(async () => {
   await Promise.all([camerasStore.fetchCameras(), devicesStore.fetchDevices(), dlnaStore.fetchDevices()])
 })
@@ -222,57 +220,57 @@ onMounted(async () => {
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">摄像头管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openAdd">添加摄像头</el-button>
+      <h2 class="page-title">{{ $t('cameras.title') }}</h2>
+      <el-button type="primary" :icon="Plus" @click="openAdd">{{ $t('cameras.addCamera') }}</el-button>
     </div>
 
     <el-table v-loading="camerasStore.loading" :data="camerasStore.items" style="width: 100%">
-      <el-table-column label="设备 MAC" prop="device_mac" width="160" />
-      <el-table-column label="ONVIF 地址" width="170">
+      <el-table-column :label="$t('cameras.deviceMac')" prop="device_mac" width="160" />
+      <el-table-column :label="$t('cameras.onvifHost')" width="170">
         <template #default="{ row }">{{ row.onvif_host }}:{{ row.onvif_port }}</template>
       </el-table-column>
-      <el-table-column label="RTSP URL" min-width="200">
+      <el-table-column :label="$t('cameras.rtspUrl')" min-width="200">
         <template #default="{ row }">
           <span class="rtsp-url">{{ row.rtsp_url || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="码流" prop="stream_profile" width="110" />
-      <el-table-column label="在线" width="80" align="center">
+      <el-table-column :label="$t('cameras.streamProfile')" prop="stream_profile" width="110" />
+      <el-table-column :label="$t('cameras.online')" width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_online ? 'success' : 'info'" size="small">
-            {{ row.is_online ? '在线' : '离线' }}
+            {{ row.is_online ? $t('cameras.online') : $t('cameras.offline') }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="录制" width="90" align="center">
+      <el-table-column :label="$t('cameras.recording')" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_recording ? 'danger' : 'info'" size="small">
-            {{ row.is_recording ? '录制中' : '空闲' }}
+            {{ row.is_recording ? $t('cameras.recording') : $t('cameras.idle') }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="上次探测" width="160">
-        <template #default="{ row }">{{ fmtTime(row.last_probe_at) }}</template>
+      <el-table-column :label="$t('cameras.lastProbe')" width="160">
+        <template #default="{ row }">{{ $d(row.last_probe_at, 'short') }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="240" align="center">
+      <el-table-column :label="$t('cameras.actions')" min-width="240" align="center">
         <template #default="{ row }">
           <div class="action-group">
-            <el-tooltip content="ONVIF 探测" :show-after="400">
+            <el-tooltip :content="$t('cameras.onvifProbe')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Search" @click="handleProbe(row)" />
             </el-tooltip>
-            <el-tooltip content="实时预览" :show-after="400">
+            <el-tooltip :content="$t('cameras.livePreview')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="VideoPlay" @click="openLive(row)" />
             </el-tooltip>
-            <el-tooltip content="截图" :show-after="400">
+            <el-tooltip :content="$t('cameras.snapshot')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Camera" :loading="snapshotLoading" @click="handleSnapshot(row)" />
             </el-tooltip>
-            <el-tooltip content="HLS 直播" :show-after="400">
+            <el-tooltip :content="$t('cameras.hlsLive')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="VideoCamera" :loading="hlsStarting" @click="openHlsLive(row)" />
             </el-tooltip>
-            <el-tooltip content="编辑" :show-after="400">
+            <el-tooltip :content="$t('cameras.edit')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
             </el-tooltip>
-            <el-tooltip :content="row.is_recording ? '停止录制' : '开始录制'" :show-after="400">
+            <el-tooltip :content="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')" :show-after="400">
               <el-button
                 class="action-btn"
                 :class="row.is_recording ? 'action-btn--stop' : 'action-btn--record'"
@@ -281,7 +279,7 @@ onMounted(async () => {
                 @click="handleRecord(row)"
               />
             </el-tooltip>
-            <el-tooltip content="删除" :show-after="400">
+            <el-tooltip :content="$t('cameras.delete')" :show-after="400">
               <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
             </el-tooltip>
           </div>
@@ -290,10 +288,10 @@ onMounted(async () => {
     </el-table>
 
     <!-- 添加摄像头弹窗 -->
-    <el-dialog v-model="addDialog" title="添加摄像头" width="480px">
+    <el-dialog v-model="addDialog" :title="$t('cameras.addCamera')" width="480px">
       <el-form :model="addForm" label-width="110px">
-        <el-form-item label="设备 MAC">
-          <el-select v-model="addForm.device_mac" placeholder="选择设备" filterable style="width: 100%">
+        <el-form-item :label="$t('cameras.deviceMac')">
+          <el-select v-model="addForm.device_mac" :placeholder="$t('cameras.selectDevice')" filterable style="width: 100%">
             <el-option
               v-for="d in devicesStore.items"
               :key="d.mac"
@@ -302,57 +300,57 @@ onMounted(async () => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="ONVIF 地址">
-          <el-input v-model="addForm.onvif_host" placeholder="192.168.1.x" />
+        <el-form-item :label="$t('cameras.onvifHost')">
+          <el-input v-model="addForm.onvif_host" :placeholder="$t('cameras.onvifPlaceholder')" />
         </el-form-item>
-        <el-form-item label="ONVIF 端口">
+        <el-form-item :label="$t('cameras.onvifPort')">
           <el-input-number v-model="addForm.onvif_port" :min="1" :max="65535" />
         </el-form-item>
-        <el-form-item label="ONVIF 用户名">
+        <el-form-item :label="$t('cameras.onvifUser')">
           <el-input v-model="addForm.onvif_user" />
         </el-form-item>
-        <el-form-item label="ONVIF 密码">
+        <el-form-item :label="$t('cameras.onvifPassword')">
           <el-input v-model="addForm.onvif_password" type="password" show-password />
         </el-form-item>
-        <el-form-item label="RTSP 端口">
+        <el-form-item :label="$t('cameras.rtspPort')">
           <el-input-number v-model="addForm.rtsp_port" :min="1" :max="65535" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="addDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleAdd">添加</el-button>
+        <el-button @click="addDialog = false">{{ $t('cameras.cancel') }}</el-button>
+        <el-button type="primary" @click="handleAdd">{{ $t('cameras.add') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 编辑摄像头弹窗 -->
-    <el-dialog v-model="editDialog" title="编辑摄像头" width="500px">
+    <el-dialog v-model="editDialog" :title="$t('cameras.editCamera')" width="500px">
       <el-form :model="editForm" label-width="120px">
-        <el-form-item label="ONVIF 地址">
+        <el-form-item :label="$t('cameras.onvifHost')">
           <el-input v-model="editForm.onvif_host" />
         </el-form-item>
-        <el-form-item label="ONVIF 端口">
+        <el-form-item :label="$t('cameras.onvifPort')">
           <el-input-number v-model="editForm.onvif_port" :min="1" :max="65535" />
         </el-form-item>
-        <el-form-item label="ONVIF 用户名">
+        <el-form-item :label="$t('cameras.onvifUser')">
           <el-input v-model="editForm.onvif_user" />
         </el-form-item>
-        <el-form-item label="ONVIF 密码">
-          <el-input v-model="editForm.onvif_password" type="password" show-password placeholder="不填则不修改" />
+        <el-form-item :label="$t('cameras.onvifPassword')">
+          <el-input v-model="editForm.onvif_password" type="password" show-password :placeholder="$t('cameras.passwordPlaceholder')" />
         </el-form-item>
-        <el-form-item label="RTSP 端口">
+        <el-form-item :label="$t('cameras.rtspPort')">
           <el-input-number v-model="editForm.rtsp_port" :min="1" :max="65535" />
         </el-form-item>
-        <el-form-item label="RTSP URL">
-          <el-input v-model="editForm.rtsp_url" placeholder="留空则由 ONVIF 探测自动填充" />
+        <el-form-item :label="$t('cameras.rtspUrl')">
+          <el-input v-model="editForm.rtsp_url" :placeholder="$t('cameras.rtspUrlPlaceholder')" />
         </el-form-item>
-        <el-form-item label="码流">
+        <el-form-item :label="$t('cameras.streamProfile')">
           <el-select v-model="editForm.stream_profile" style="width: 100%">
-            <el-option value="mainStream" label="主码流 (mainStream)" />
-            <el-option value="subStream" label="子码流 (subStream)" />
+            <el-option value="mainStream" :label="$t('cameras.mainStream')" />
+            <el-option value="subStream" :label="$t('cameras.subStream')" />
           </el-select>
         </el-form-item>
-        <el-form-item label="DLNA 自动投屏">
-          <el-select v-model="editForm.auto_cast_dlna" clearable placeholder="录制完成后自动投屏到该设备（可选）" style="width: 100%">
+        <el-form-item :label="$t('cameras.dlnaAutoCast')">
+          <el-select v-model="editForm.auto_cast_dlna" clearable :placeholder="$t('cameras.dlnaPlaceholder')" style="width: 100%">
             <el-option
               v-for="d in dlnaStore.devices"
               :key="d.udn"
@@ -363,15 +361,15 @@ onMounted(async () => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleEdit">保存</el-button>
+        <el-button @click="editDialog = false">{{ $t('cameras.cancel') }}</el-button>
+        <el-button type="primary" @click="handleEdit">{{ $t('cameras.save') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- ONVIF 探测结果 -->
-    <el-dialog v-model="probeDialog" title="ONVIF 探测结果" width="520px">
+    <el-dialog v-model="probeDialog" :title="$t('cameras.probeResult')" width="520px">
       <div v-if="probeLoading" style="text-align: center; padding: 20px">
-        <el-text>正在探测...</el-text>
+        <el-text>{{ $t('cameras.probing') }}</el-text>
       </div>
       <template v-else-if="probeResult">
         <el-descriptions :column="2" border>
@@ -381,15 +379,15 @@ onMounted(async () => {
             :label="k"
           >{{ v }}</el-descriptions-item>
         </el-descriptions>
-        <h4 style="margin: 16px 0 8px">可用码流</h4>
+        <h4 style="margin: 16px 0 8px">{{ $t('cameras.availableStreams') }}</h4>
         <el-table :data="probeResult.profiles" size="small" border>
           <el-table-column prop="index" label="#" width="50" />
-          <el-table-column prop="name" label="名称" />
-          <el-table-column prop="token" label="Token" />
-          <el-table-column prop="rtsp_url" label="RTSP URL" show-overflow-tooltip />
+          <el-table-column prop="name" :label="$t('cameras.name')" />
+          <el-table-column prop="token" :label="$t('cameras.token')" />
+          <el-table-column prop="rtsp_url" :label="$t('cameras.rtspUrl')" show-overflow-tooltip />
         </el-table>
         <el-alert v-if="probeResult.auto_set_rtsp_url" type="success" style="margin-top: 12px" :closable="false">
-          已自动写入 RTSP URL：{{ probeResult.auto_set_rtsp_url }}
+          {{ $t('cameras.rtspUrlWritten', { url: probeResult.auto_set_rtsp_url }) }}
         </el-alert>
       </template>
     </el-dialog>
@@ -415,8 +413,8 @@ onMounted(async () => {
     >
       <img v-if="snapshotUrl" :src="snapshotUrl" style="width:100%; display:block; border-radius:4px;" />
       <template #footer>
-        <el-button @click="snapshotDialog = false">关闭</el-button>
-        <el-button type="primary" @click="downloadSnapshot">下载</el-button>
+        <el-button @click="snapshotDialog = false">{{ $t('common.close') }}</el-button>
+        <el-button type="primary" @click="downloadSnapshot">{{ $t('common.download') }}</el-button>
       </template>
     </el-dialog>
 
