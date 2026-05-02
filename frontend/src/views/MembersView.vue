@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useFormatDuration } from '@/composables/useFormatDuration'
 import { useMembersStore } from '@/stores/members'
 import { listDevices } from '@/api/devices'
 import { listCameras } from '@/api/cameras'
@@ -10,6 +12,9 @@ import {
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
+const { formatDuration } = useFormatDuration()
 
 const membersStore = useMembersStore()
 
@@ -62,22 +67,22 @@ async function submitMember() {
     }
     if (isEditMember.value) {
       await updateMember(editMemberId.value, payload)
-      ElMessage.success('已更新')
+      ElMessage.success(t('members.updated'))
     } else {
       await createMember(payload)
-      ElMessage.success('已创建')
+      ElMessage.success(t('members.created'))
     }
     memberDialog.value = false
     membersStore.fetchMembers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    ElMessage.error(e.response?.data?.detail || t('common.operationFailed'))
   }
 }
 
 async function handleDeleteMember(row) {
-  await ElMessageBox.confirm(`确定删除成员「${row.name}」？关联数据也会一并删除。`, '确认删除', { type: 'warning' })
+  await ElMessageBox.confirm(t('members.deleteConfirm', { name: row.name }), t('common.confirmDelete'), { type: 'warning' })
   await deleteMember(row.id)
-  ElMessage.success('已删除')
+  ElMessage.success(t('members.deleted'))
   membersStore.fetchMembers()
 }
 
@@ -109,17 +114,17 @@ async function handleBind() {
   if (!bindForm.value.mac) return
   try {
     await bindDevice(currentMember.value.id, { mac: bindForm.value.mac, label: bindForm.value.label || null })
-    ElMessage.success('已绑定')
+    ElMessage.success(t('members.bound'))
     bindForm.value = { mac: '', label: '' }
     loadBoundDevices(currentMember.value.id)
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '绑定失败')
+    ElMessage.error(e.response?.data?.detail || t('members.bindFailed'))
   }
 }
 
 async function handleUnbind(mac) {
   await unbindDevice(currentMember.value.id, mac)
-  ElMessage.success('已解绑')
+  ElMessage.success(t('members.unbound'))
   loadBoundDevices(currentMember.value.id)
 }
 
@@ -175,26 +180,15 @@ async function fetchMemberStats(id) {
     const { data } = await getMemberStats(id, { range: statsRange.value })
     statsData.value = data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '统计加载失败')
+    ElMessage.error(e.response?.data?.detail || t('members.statsFailed'))
   } finally {
     statsLoading.value = false
   }
 }
 
+// ── Helpers ────────────────────────────────────────────────
 function statsDailyMax() {
   return Math.max(...(statsData.value?.daily || []).map((d) => d.minutes), 1)
-}
-
-function fmtMinutes(m) {
-  if (!m) return '0 分钟'
-  const h = Math.floor(m / 60), min = m % 60
-  return h > 0 ? `${h} 小时 ${min} 分钟` : `${min} 分钟`
-}
-
-// ── Helpers ────────────────────────────────────────────────
-function fmtTime(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('zh-CN', { hour12: false })
 }
 
 function deviceLabel(d) {
@@ -208,12 +202,12 @@ const unboundDevices = () =>
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">家庭成员</h2>
-      <el-button type="primary" :icon="Plus" @click="openAddMember">添加成员</el-button>
+      <h2 class="page-title">{{ $t('members.title') }}</h2>
+      <el-button type="primary" :icon="Plus" @click="openAddMember">{{ $t('members.addMember') }}</el-button>
     </div>
 
     <el-table v-loading="membersStore.loading" :data="membersStore.items" style="width: 100%">
-      <el-table-column label="姓名" min-width="120">
+      <el-table-column :label="$t('members.name')" min-width="120">
         <template #default="{ row }">
           <div class="member-name-cell">
             <el-avatar v-if="row.avatar_url" :src="row.avatar_url" :size="28" />
@@ -223,29 +217,29 @@ const unboundDevices = () =>
         </template>
       </el-table-column>
 
-      <el-table-column label="状态" width="100" align="center">
+      <el-table-column :label="$t('members.status')" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_home ? 'success' : 'info'" size="small">
-            {{ row.is_home ? '在家' : '外出' }}
+            {{ row.is_home ? $t('members.home') : $t('members.away') }}
           </el-tag>
         </template>
       </el-table-column>
 
-      <el-table-column label="最近到家" width="180">
-        <template #default="{ row }">{{ fmtTime(row.last_arrived_at) }}</template>
+      <el-table-column :label="$t('members.lastArrived')" width="180">
+        <template #default="{ row }">{{ $d(row.last_arrived_at, 'short') }}</template>
       </el-table-column>
 
-      <el-table-column label="最近离家" width="180">
-        <template #default="{ row }">{{ fmtTime(row.last_left_at) }}</template>
+      <el-table-column :label="$t('members.lastLeft')" width="180">
+        <template #default="{ row }">{{ $d(row.last_left_at, 'short') }}</template>
       </el-table-column>
 
-      <el-table-column label="Webhook" min-width="160">
+      <el-table-column :label="$t('members.webhook')" min-width="160">
         <template #default="{ row }">
           <span class="text-muted">{{ row.webhook_url || '—' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column label="自动录制" min-width="120">
+      <el-table-column :label="$t('members.autoRecord')" min-width="120">
         <template #default="{ row }">
           <span v-if="row.auto_record_cameras?.length" class="text-muted">
             {{ row.auto_record_cameras.length }} 台
@@ -254,22 +248,22 @@ const unboundDevices = () =>
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="200" align="center">
+      <el-table-column :label="$t('members.actions')" width="200" align="center">
         <template #default="{ row }">
           <div class="action-group">
-            <el-tooltip content="绑定设备" :show-after="400">
+            <el-tooltip :content="$t('members.bindDevice')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Link" @click="openDevices(row)" />
             </el-tooltip>
-            <el-tooltip content="日志" :show-after="400">
+            <el-tooltip :content="$t('members.logs')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Document" @click="openLogs(row)" />
             </el-tooltip>
-            <el-tooltip content="统计" :show-after="400">
+            <el-tooltip :content="$t('members.stats')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="DataAnalysis" @click="openStats(row)" />
             </el-tooltip>
-            <el-tooltip content="编辑" :show-after="400">
+            <el-tooltip :content="$t('common.edit')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Edit" @click="openEditMember(row)" />
             </el-tooltip>
-            <el-tooltip content="删除" :show-after="400">
+            <el-tooltip :content="$t('common.delete')" :show-after="400">
               <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDeleteMember(row)" />
             </el-tooltip>
           </div>
@@ -278,23 +272,23 @@ const unboundDevices = () =>
     </el-table>
 
     <!-- Member create/edit dialog -->
-    <el-dialog v-model="memberDialog" :title="isEditMember ? '编辑成员' : '添加成员'" width="460px">
+    <el-dialog v-model="memberDialog" :title="isEditMember ? $t('members.editMember') : $t('members.addMember')" width="460px">
       <el-form :model="memberForm" label-width="110px">
-        <el-form-item label="姓名" required>
-          <el-input v-model="memberForm.name" placeholder="如：张三" />
+        <el-form-item :label="$t('members.name')" required>
+          <el-input v-model="memberForm.name" :placeholder="$t('members.namePlaceholder')" />
         </el-form-item>
         <el-form-item label="头像 URL">
-          <el-input v-model="memberForm.avatar_url" placeholder="可选" />
+          <el-input v-model="memberForm.avatar_url" :placeholder="$t('members.avatarOptional')" />
         </el-form-item>
-        <el-form-item label="Webhook">
-          <el-input v-model="memberForm.webhook_url" placeholder="到家/离家时推送，可选" />
+        <el-form-item :label="$t('members.webhook')">
+          <el-input v-model="memberForm.webhook_url" :placeholder="$t('members.webhookPlaceholder')" />
         </el-form-item>
-        <el-form-item label="自动录制摄像头">
+        <el-form-item :label="$t('members.autoRecord')">
           <el-select
             v-model="memberForm.auto_record_cameras"
             multiple
             clearable
-            placeholder="到家时自动启动录制（可选）"
+            :placeholder="$t('members.autoRecordPlaceholder')"
             style="width: 100%"
           >
             <el-option
@@ -307,21 +301,21 @@ const unboundDevices = () =>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="memberDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitMember">{{ isEditMember ? '保存' : '创建' }}</el-button>
+        <el-button @click="memberDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitMember">{{ isEditMember ? $t('common.save') : $t('common.create') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Bound devices dialog -->
     <el-dialog
       v-model="devicesDialog"
-      :title="`绑定设备 — ${currentMember?.name}`"
+      :title="$t('members.bindDevicesTitle', { name: currentMember?.name })"
       width="560px"
     >
       <div class="bind-row">
         <el-select
           v-model="bindForm.mac"
-          placeholder="选择设备"
+          :placeholder="$t('members.selectDevice')"
           filterable
           style="flex: 1"
         >
@@ -332,21 +326,21 @@ const unboundDevices = () =>
             :value="d.mac"
           />
         </el-select>
-        <el-input v-model="bindForm.label" placeholder="备注（可选）" style="width: 130px" />
-        <el-button type="primary" @click="handleBind">绑定</el-button>
+        <el-input v-model="bindForm.label" :placeholder="$t('members.noteOptional')" style="width: 130px" />
+        <el-button type="primary" @click="handleBind">{{ $t('members.bindDevice') }}</el-button>
       </div>
 
       <el-table v-loading="devicesLoading" :data="boundDevices" style="margin-top: 12px" size="small">
-        <el-table-column label="设备" min-width="160">
+        <el-table-column :label="$t('members.device')" min-width="160">
           <template #default="{ row }">{{ deviceLabel(row) }}</template>
         </el-table-column>
-        <el-table-column prop="mac" label="MAC" width="150" />
-        <el-table-column prop="label" label="备注" min-width="100">
+        <el-table-column prop="mac" :label="$t('members.mac')" width="150" />
+        <el-table-column prop="label" :label="$t('members.note')" min-width="100">
           <template #default="{ row }">{{ row.label || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="80" align="center">
+        <el-table-column :label="$t('members.actions')" width="80" align="center">
           <template #default="{ row }">
-          <el-tooltip content="解绑" :show-after="400">
+          <el-tooltip :content="$t('members.unbind')" :show-after="400">
             <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleUnbind(row.mac)" />
           </el-tooltip>
           </template>
@@ -357,22 +351,22 @@ const unboundDevices = () =>
     <!-- Presence logs dialog -->
     <el-dialog
       v-model="logsDialog"
-      :title="`到家日志 — ${logsMember?.name}`"
+      :title="$t('members.logsTitle', { name: logsMember?.name })"
       width="520px"
     >
       <el-table v-loading="logsLoading" :data="logs" size="small">
-        <el-table-column label="事件" width="90" align="center">
+        <el-table-column :label="$t('members.event')" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.event === 'arrived' ? 'success' : 'warning'" size="small">
-              {{ row.event === 'arrived' ? '到家' : '离家' }}
+              {{ row.event === 'arrived' ? $t('members.arrived') : $t('members.left') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="触发设备 MAC" min-width="150">
+        <el-table-column :label="$t('members.triggeredBy')" min-width="150">
           <template #default="{ row }">{{ row.triggered_by_mac || '—' }}</template>
         </el-table-column>
-        <el-table-column label="时间" min-width="170">
-          <template #default="{ row }">{{ fmtTime(row.occurred_at) }}</template>
+        <el-table-column :label="$t('members.time')" min-width="170">
+          <template #default="{ row }">{{ $d(row.occurred_at, 'short') }}</template>
         </el-table-column>
       </el-table>
 
@@ -391,17 +385,17 @@ const unboundDevices = () =>
     <!-- Stats dialog (C1) -->
     <el-dialog
       v-model="statsDialog"
-      :title="`在家统计 — ${statsMember?.name}`"
+      :title="$t('members.statsTitle', { name: statsMember?.name })"
       width="560px"
       destroy-on-close
     >
       <div class="stats-toolbar">
         <el-radio-group v-model="statsRange" @change="fetchMemberStats(statsMember.id)">
-          <el-radio-button value="7d">近 7 天</el-radio-button>
-          <el-radio-button value="30d">近 30 天</el-radio-button>
+          <el-radio-button value="7d">{{ $t('members.recent7Days') }}</el-radio-button>
+          <el-radio-button value="30d">{{ $t('members.recent30Days') }}</el-radio-button>
         </el-radio-group>
         <span v-if="statsData" class="stats-total">
-          累计在家：{{ fmtMinutes(statsData.total_minutes) }}
+          {{ $t('members.statsTotal', { duration: formatDuration(statsData.total_minutes * 60) }) }}
         </span>
       </div>
 
@@ -416,11 +410,11 @@ const unboundDevices = () =>
           <div
             class="daily-bar"
             :style="{ height: Math.max(4, (d.minutes / statsDailyMax()) * 80) + 'px' }"
-            :title="`${d.date}: ${fmtMinutes(d.minutes)}`"
+            :title="`${d.date}: ${formatDuration(d.minutes * 60)}`"
           />
           <div class="daily-label">{{ d.date.slice(5) }}</div>
         </div>
-        <div v-if="!statsData.daily?.length" class="empty-hint">暂无数据</div>
+        <div v-if="!statsData.daily?.length" class="empty-hint">{{ $t('members.noData') }}</div>
       </div>
     </el-dialog>
   </div>
