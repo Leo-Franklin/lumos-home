@@ -3,8 +3,21 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleStore } from '@/stores/locale'
 
+const { t, locale } = useI18n()
+const localeStore = useLocaleStore()
+
+const langOptions = [
+  { label: '中文', value: 'zh-CN' },
+  { label: 'English', value: 'en' },
+]
+
+function switchLang(lang) {
+  localeStore.setLocale(lang)
+}
 const router = useRouter()
 const auth = useAuthStore()
 
@@ -13,7 +26,7 @@ const loading = ref(false)
 
 async function handleLogin() {
   if (!form.value.username || !form.value.password) {
-    ElMessage.warning('请填写用户名和密码')
+    ElMessage.warning(t('login.fillRequired'))
     return
   }
   loading.value = true
@@ -21,7 +34,7 @@ async function handleLogin() {
     await auth.login(form.value.username, form.value.password)
     router.push('/devices')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '登录失败，请检查用户名和密码')
+    ElMessage.error(e.response?.data?.detail || t('login.loginFailed'))
   } finally {
     loading.value = false
   }
@@ -30,20 +43,40 @@ async function handleLogin() {
 
 <template>
   <div class="login-page">
+    <div class="lang-bar">
+      <el-dropdown @command="switchLang">
+        <span class="lang-trigger">
+          {{ locale === 'zh-CN' ? '中文' : 'English' }}
+          <el-icon :size="12" style="margin-left: 4px"><ArrowDown /></el-icon>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              v-for="opt in langOptions"
+              :key="opt.value"
+              :command="opt.value"
+              :class="{ 'is-active': locale === opt.value }"
+            >
+              {{ opt.label }}
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
     <div class="login-box">
       <div class="login-logo">
         <div class="logo-icon-wrap">
           <el-icon :size="22" class="logo-icon"><House /></el-icon>
         </div>
-        <h2 class="logo-title">智能家居管理</h2>
-        <p class="logo-sub">Smart Home Control Panel</p>
+        <h2 class="logo-title">{{ $t('login.brandTitle') }}</h2>
+        <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
       <div class="login-divider" />
       <el-form @submit.prevent="handleLogin" :model="form" label-width="0">
         <el-form-item>
           <el-input
             v-model="form.username"
-            placeholder="用户名"
+            :placeholder="$t('login.username')"
             size="large"
             :prefix-icon="User"
           />
@@ -51,7 +84,7 @@ async function handleLogin() {
         <el-form-item>
           <el-input
             v-model="form.password"
-            placeholder="密码"
+            :placeholder="$t('login.password')"
             type="password"
             size="large"
             :prefix-icon="Lock"
@@ -66,7 +99,7 @@ async function handleLogin() {
           style="width: 100%; height: 40px; font-size: 14px"
           @click="handleLogin"
         >
-          登录
+          {{ $t('login.submit') }}
         </el-button>
       </el-form>
     </div>
@@ -76,12 +109,35 @@ async function handleLogin() {
 <style scoped>
 .login-page {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
   background: var(--color-bg);
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+.lang-bar {
+  width: 380px;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.lang-trigger {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out;
+}
+.lang-trigger:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
 }
 
 .login-box {

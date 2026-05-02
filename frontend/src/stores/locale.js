@@ -1,6 +1,6 @@
 // src/stores/locale.js
 import { defineStore } from 'pinia'
-import { useI18n } from 'vue-i18n'
+import i18n from '@/locales'
 import api from '@/api'
 
 export const useLocaleStore = defineStore('locale', {
@@ -11,8 +11,7 @@ export const useLocaleStore = defineStore('locale', {
   actions: {
     setLocale(lang) {
       this.locale = lang
-      const { global: i18n } = useI18n()
-      i18n.locale.value = lang
+      i18n.global.locale.value = lang
       localStorage.setItem('app-locale', lang)
       api.put('/user/profile', { language: lang }).catch(() => {})
     },

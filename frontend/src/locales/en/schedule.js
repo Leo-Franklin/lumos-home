@@ -23,7 +23,7 @@ export default {
   weekday: 'Day of week (all = every day)',
   advPlaceholder: 'min hour day month weekday, e.g. 0 2 * * *',
   advHint: 'Format: min hour day month weekday',
-  trigger: ' trigger',
+  trigger: 'trigger',
   // ScheduleView keys
   title: 'Recording Schedule',
   newSchedule: 'New Schedule',

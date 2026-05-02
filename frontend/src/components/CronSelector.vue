@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: String, default: '0 2 * * *' },
@@ -24,30 +27,30 @@ watch(() => props.modelValue, (val) => {
 }, { immediate: true })
 
 const PRESETS = [
-  { label: '每天凌晨 2:00',   cron: '0 2 * * *' },
-  { label: '工作日早 8:00',   cron: '0 8 * * 1-5' },
-  { label: '每天晚上 22:00',  cron: '0 22 * * *' },
-  { label: '每 30 分钟',      cron: '*/30 * * * *' },
-  { label: '周末凌晨',        cron: '0 0 * * 6,0' },
-  { label: '每小时整点',      cron: '0 * * * *' },
+  { labelKey: 'schedule.presetDaily2am',   cron: '0 2 * * *' },
+  { labelKey: 'schedule.presetWeekday8am', cron: '0 8 * * 1-5' },
+  { labelKey: 'schedule.presetDaily10pm',  cron: '0 22 * * *' },
+  { labelKey: 'schedule.presetEvery30min', cron: '*/30 * * * *' },
+  { labelKey: 'schedule.presetWeekendMidnight', cron: '0 0 * * 6,0' },
+  { labelKey: 'schedule.presetHourly',     cron: '0 * * * *' },
 ]
 
 const activeTab = ref(PRESETS.some((p) => p.cron === props.modelValue) ? 'preset' : 'advanced')
 
 const DAYS = [
-  { label: '一', value: 1 },
-  { label: '二', value: 2 },
-  { label: '三', value: 3 },
-  { label: '四', value: 4 },
-  { label: '五', value: 5 },
-  { label: '六', value: 6 },
-  { label: '日', value: 0 },
+  { labelKey: 'schedule.weekdayShort.1', value: 1 },
+  { labelKey: 'schedule.weekdayShort.2', value: 2 },
+  { labelKey: 'schedule.weekdayShort.3', value: 3 },
+  { labelKey: 'schedule.weekdayShort.4', value: 4 },
+  { labelKey: 'schedule.weekdayShort.5', value: 5 },
+  { labelKey: 'schedule.weekdayShort.6', value: 6 },
+  { labelKey: 'schedule.weekdayShort.0', value: 0 },
 ]
 
 const TABS = [
-  { key: 'preset',   label: '快速选择' },
-  { key: 'custom',   label: '自定义时间' },
-  { key: 'advanced', label: '高级 (Cron)' },
+  { key: 'preset',   labelKey: 'schedule.tabPreset' },
+  { key: 'custom',   labelKey: 'schedule.tabCustom' },
+  { key: 'advanced', labelKey: 'schedule.tabAdvanced' },
 ]
 
 function buildCustomCron() {
@@ -88,21 +91,21 @@ function switchTab(tab) {
 }
 
 function cronDescription(cron) {
-  if (!cron) return '未设置'
+  if (!cron) return t('schedule.cronNotSet')
   const preset = PRESETS.find((p) => p.cron === cron)
-  if (preset) return preset.label + ' 触发'
+  if (preset) return t(preset.labelKey) + ' ' + t('schedule.trigger')
   const parts = cron.trim().split(/\s+/)
-  if (parts.length !== 5) return `自定义：${cron}`
+  if (parts.length !== 5) return t('schedule.cronCustom', { expr: cron })
   const [min, hour, , , dow] = parts
-  if (min === '*' && hour === '*') return '每分钟触发'
-  if (min.startsWith('*/')) return `每 ${min.slice(2)} 分钟触发`
-  if (hour === '*') return `每小时第 ${min} 分触发`
+  if (min === '*' && hour === '*') return t('schedule.cronEveryMinute')
+  if (min.startsWith('*/')) return t('schedule.cronEveryNMinute', { n: min.slice(2) })
+  if (hour === '*') return t('schedule.cronHourlyAt', { min })
   const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
-  if (dow === '*') return `每天 ${timeStr} 触发`
-  if (dow === '1-5') return `工作日 ${timeStr} 触发`
-  if (dow === '1,2,3,4,5') return `工作日 ${timeStr} 触发`
-  if (dow === '6,0' || dow === '0,6') return `周末 ${timeStr} 触发`
-  return `自定义：${cron}`
+  if (dow === '*') return t('schedule.cronDaily', { time: timeStr })
+  if (dow === '1-5') return t('schedule.cronWeekday', { time: timeStr })
+  if (dow === '1,2,3,4,5') return t('schedule.cronWeekday', { time: timeStr })
+  if (dow === '6,0' || dow === '0,6') return t('schedule.cronWeekend', { time: timeStr })
+  return t('schedule.cronCustom', { expr: cron })
 }
 
 const description = computed(() => cronDescription(props.modelValue))
@@ -119,7 +122,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
         class="tab-btn"
         :class="{ active: activeTab === tab.key }"
         @click="switchTab(tab.key)"
-      >{{ tab.label }}</button>
+      >{{ $t(tab.labelKey) }}</button>
     </div>
 
     <div v-if="activeTab === 'preset'" class="preset-grid">
@@ -130,7 +133,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
         :class="{ selected: modelValue === p.cron }"
         @click="selectPreset(p.cron)"
       >
-        <div class="preset-label">{{ p.label }}</div>
+        <div class="preset-label">{{ $t(p.labelKey) }}</div>
         <div class="preset-cron">{{ p.cron }}</div>
       </div>
     </div>
@@ -138,7 +141,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
     <div v-else-if="activeTab === 'custom'" class="custom-panel">
       <div class="custom-row">
         <div class="custom-field">
-          <div class="field-label">触发时间</div>
+          <div class="field-label">{{ $t('schedule.triggerTime') }}</div>
           <el-time-picker
             v-model="customTime"
             format="HH:mm"
@@ -150,7 +153,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
         </div>
       </div>
       <div class="day-section">
-        <div class="field-label">星期（全选 = 每天）</div>
+        <div class="field-label">{{ $t('schedule.weekday') }}</div>
         <div class="day-buttons">
           <button
             v-for="d in DAYS"
@@ -158,7 +161,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
             class="day-btn"
             :class="{ active: customDays.includes(d.value) }"
             @click="toggleDay(d.value)"
-          >{{ d.label }}</button>
+          >{{ $t(d.labelKey) }}</button>
         </div>
       </div>
     </div>
@@ -166,10 +169,10 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
     <div v-else class="advanced-panel">
       <el-input
         :model-value="modelValue"
-        placeholder="分 时 日 月 周，如 0 2 * * *"
+        :placeholder="$t('schedule.advPlaceholder')"
         @input="onAdvancedInput"
       />
-      <div class="adv-hint">格式：分 小时 日 月 周几（5 字段）</div>
+      <div class="adv-hint">{{ $t('schedule.advHint') }}</div>
     </div>
 
     <div class="preview-bar" :class="valid ? 'valid' : 'invalid'">

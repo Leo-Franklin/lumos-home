@@ -3,6 +3,11 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { useI18n } from 'vue-i18n'
+import { useLocaleStore } from '@/stores/locale'
+
+const { t } = useI18n()
+const localeStore = useLocaleStore()
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -10,6 +15,10 @@ const notifications = useNotificationsStore()
 
 const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
 const { connected } = useWebSocket(wsUrl, { onMessage: notifications.handle })
+
+function switchLang(lang) {
+  localeStore.setLocale(lang)
+}
 
 function logout() {
   auth.logout()
@@ -24,7 +33,7 @@ function logout() {
         <div class="brand-icon-wrap">
           <el-icon :size="16" class="brand-icon"><House /></el-icon>
         </div>
-        <span class="brand-name">智能家居</span>
+        <span class="brand-name">{{ $t('layout.brandName') }}</span>
       </div>
       <div class="header-right">
         <div class="ws-status">
@@ -32,8 +41,11 @@ function logout() {
             class="ws-dot"
             :class="connected ? 'connected' : 'disconnected'"
         />
-          <span class="ws-label">{{ connected ? '已连接' : '未连接' }}</span>
+          <span class="ws-label">{{ connected ? $t('layout.connected') : $t('layout.disconnected') }}</span>
         </div>
+        <button class="lang-switch" @click="switchLang(localeStore.locale === 'zh-CN' ? 'en' : 'zh-CN')">
+          {{ $t('layout.switchLang') }}
+        </button>
         <el-dropdown @command="(cmd) => cmd === 'logout' && logout()">
           <div class="user-trigger">
             <el-icon :size="14"><User /></el-icon>
@@ -41,7 +53,7 @@ function logout() {
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item command="logout">{{ $t('layout.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -50,36 +62,36 @@ function logout() {
 
     <div class="app-body">
       <nav class="app-sidebar">
-        <div class="nav-section-label">控制中心</div>
+        <div class="nav-section-label">{{ $t('layout.controlCenter') }}</div>
         <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
-          <el-icon :size="16"><DataAnalysis /></el-icon><span>仪表板</span>
+          <el-icon :size="16"><DataAnalysis /></el-icon><span>{{ $t('layout.dashboard') }}</span>
         </RouterLink>
         <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
-          <el-icon :size="16"><Monitor /></el-icon><span>设备列表</span>
+          <el-icon :size="16"><Monitor /></el-icon><span>{{ $t('layout.devices') }}</span>
         </RouterLink>
         <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
-          <el-icon :size="16"><TrendCharts /></el-icon><span>数据分析</span>
+          <el-icon :size="16"><TrendCharts /></el-icon><span>{{ $t('layout.analytics') }}</span>
         </RouterLink>
         <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
-          <el-icon :size="16"><Share /></el-icon><span>网络拓扑</span>
+          <el-icon :size="16"><Share /></el-icon><span>{{ $t('layout.topology') }}</span>
         </RouterLink>
         <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
-          <el-icon :size="16"><VideoCameraFilled /></el-icon><span>摄像头</span>
+          <el-icon :size="16"><VideoCameraFilled /></el-icon><span>{{ $t('layout.cameras') }}</span>
         </RouterLink>
         <RouterLink to="/recordings" class="nav-item" :class="{ active: $route.path === '/recordings' }">
-          <el-icon :size="16"><Film /></el-icon><span>录像库</span>
+          <el-icon :size="16"><Film /></el-icon><span>{{ $t('layout.recordings') }}</span>
         </RouterLink>
         <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
-          <el-icon :size="16"><Clock /></el-icon><span>录制计划</span>
+          <el-icon :size="16"><Clock /></el-icon><span>{{ $t('layout.schedule') }}</span>
         </RouterLink>
         <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
-          <el-icon :size="16"><UserFilled /></el-icon><span>家庭成员</span>
+          <el-icon :size="16"><UserFilled /></el-icon><span>{{ $t('layout.members') }}</span>
         </RouterLink>
         <RouterLink to="/dlna" class="nav-item" :class="{ active: $route.path === '/dlna' }">
-          <el-icon :size="16"><Promotion /></el-icon><span>超级遥控器</span>
+          <el-icon :size="16"><Promotion /></el-icon><span>{{ $t('layout.dlna') }}</span>
         </RouterLink>
         <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
-          <el-icon :size="16"><Setting /></el-icon><span>系统设置</span>
+          <el-icon :size="16"><Setting /></el-icon><span>{{ $t('layout.settings') }}</span>
         </RouterLink>
       </nav>
 
@@ -159,6 +171,24 @@ function logout() {
 .ws-label {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.lang-switch {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out,
+              border-color var(--duration-fast) ease-out;
+}
+.lang-switch:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
 }
 
 .user-trigger {

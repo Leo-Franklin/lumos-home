@@ -27,7 +27,7 @@ export default {
   triggerTime: '触发时间',
   weekday: '星期（全选 = 每天）',
   advPlaceholder: '分 时 日 月 周，如 0 2 * * *',
-  advHint: '格式：分 小时 日 月 周几',
+  advHint: '格式：分 小时 日 月 周几（5 字段）',
   trigger: '触发',
   // ScheduleView keys
   title: '录制计划',

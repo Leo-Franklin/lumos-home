@@ -44,7 +44,7 @@ const datetimeFormats = {
 
 const i18n = createI18n({
   legacy: false,
-  locale: 'zh-CN',
+  locale: localStorage.getItem('app-locale') || 'zh-CN',
   fallbackLocale: 'zh-CN',
   messages,
   datetimeFormats,

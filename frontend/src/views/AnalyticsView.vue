@@ -3,6 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import BaseChart       from '@/components/charts/BaseChart.vue'
 import HeatmapChart    from '@/components/charts/HeatmapChart.vue'
 import LineChart       from '@/components/charts/LineChart.vue'
@@ -15,6 +16,8 @@ import {
   getRecordingCalendar, getNewDevices, getDeviceStability, getTypeActivity,
 } from '@/api/analytics'
 import { getDeviceHeatmap } from '@/api/devices'
+
+const { t } = useI18n()
 
 // ── ① Heatmap ──────────────────────────────────────────
 const hmData    = ref([])
@@ -29,7 +32,7 @@ async function fetchHeatmap() {
     if (hmTypes.value.length) params.device_type = hmTypes.value.join(',')
     const { data } = await getDeviceHeatmap(params)
     hmData.value = (data.cells ?? []).map((c) => ({ day: c.day, hour: c.hour, count: c.value, devices: [] }))
-  } catch { ElMessage.error('热力图加载失败') }
+  } catch { ElMessage.error(t('analytics.heatmapFailed')) }
   finally { hmLoading.value = false }
 }
 
@@ -43,7 +46,7 @@ async function fetchTrend() {
   try {
     const { data } = await getOnlineTrend({ range: trendRange.value })
     trendData.value = (data.data || []).map((d) => ({ x: new Date(d.timestamp), y: d.count }))
-  } catch { ElMessage.error('在线趋势加载失败') }
+  } catch { ElMessage.error(t('analytics.trendFailed')) }
   finally { trendLoading.value = false }
 }
 
@@ -60,7 +63,7 @@ async function fetchTypeStats() {
       value: d.count,
       color: DEVICE_TYPE_COLORS[d.type] || '#8B8B96',
     }))
-  } catch { ElMessage.error('设备类型加载失败') }
+  } catch { ElMessage.error(t('analytics.typeStatsFailed')) }
   finally { typeLoading.value = false }
 }
 
@@ -79,7 +82,7 @@ async function fetchResponseTime() {
         valueLabel: `${Math.round(d.avg_ms)}ms`,
       }))
       .sort((a, b) => b.value - a.value) // slowest first — most actionable
-  } catch { ElMessage.error('响应时延加载失败') }
+  } catch { ElMessage.error(t('analytics.responseTimeFailed')) }
   finally { rtLoading.value = false }
 }
 
@@ -92,7 +95,7 @@ async function fetchCalendar() {
   try {
     const { data } = await getRecordingCalendar({ range: '90d' })
     calData.value = data.data || []
-  } catch { ElMessage.error('录像日历加载失败') }
+  } catch { ElMessage.error(t('analytics.calendarFailed')) }
   finally { calLoading.value = false }
 }
 
@@ -113,7 +116,7 @@ async function fetchNewDevices() {
       value: d.count,
       color: d.count > prev4Avg * 2 ? '#F07D38' : '#5E5CE6',
     }))
-  } catch { ElMessage.error('新设备趋势加载失败') }
+  } catch { ElMessage.error(t('analytics.newDevicesFailed')) }
   finally { newDevLoading.value = false }
 }
 
@@ -140,7 +143,7 @@ async function fetchStability() {
         color:      stabilityColor(d.uptime_pct ?? 0),
       }))
       .sort((a, b) => a.value - b.value) // least stable first — most actionable
-  } catch { ElMessage.error('稳定性加载失败') }
+  } catch { ElMessage.error(t('analytics.stabilityFailed')) }
   finally { stabilityLoading.value = false }
 }
 
@@ -173,13 +176,13 @@ async function fetchTypeActivity() {
         TYPE_KEYS.map((k) => [k, +((d[k] ?? 0) / peaks[k] * 100).toFixed(1)])
       ),
     }))
-  } catch { ElMessage.error('类型活跃加载失败') }
+  } catch { ElMessage.error(t('analytics.typeActivityFailed')) }
   finally { activityLoading.value = false }
 }
 
 // ── Dynamic chart titles ─────────────────────────────────
-const rtTitle        = computed(() => rtData.value.length        ? `设备响应时延（共 ${rtData.value.length} 台）`        : '设备响应时延')
-const stabilityTitle = computed(() => stabilityData.value.length ? `设备在线稳定性（共 ${stabilityData.value.length} 台）` : '设备在线稳定性')
+const rtTitle        = computed(() => rtData.value.length        ? t('analytics.responseTimeTitle', { count: rtData.value.length })        : t('analytics.responseTimeTitleEmpty'))
+const stabilityTitle = computed(() => stabilityData.value.length ? t('analytics.stabilityTitle', { count: stabilityData.value.length }) : t('analytics.stabilityTitleEmpty'))
 
 async function fetchAll() {
   await Promise.all([
@@ -195,15 +198,15 @@ onMounted(fetchAll)
   <div>
     <div class="page-header">
       <div>
-        <h2 class="page-title">数据分析</h2>
-        <span class="page-sub">家庭网络综合洞察</span>
+        <h2 class="page-title">{{ $t('analytics.title') }}</h2>
+        <span class="page-sub">{{ $t('analytics.subtitle') }}</span>
       </div>
-      <el-button :icon="Refresh" @click="fetchAll">刷新全部</el-button>
+      <el-button :icon="Refresh" @click="fetchAll">{{ $t('analytics.refreshAll') }}</el-button>
     </div>
 
     <!-- ① 热力图 全宽 -->
     <BaseChart
-      title="设备活跃时段"
+      :title="$t('analytics.heatmapTitle')"
       :loading="hmLoading"
       :empty="false"
       style="margin-bottom:16px"
@@ -221,18 +224,18 @@ onMounted(fetchAll)
     <!-- Row 2: ③ 趋势 + ⑤ 日历 -->
     <div class="row-2 mb">
       <BaseChart
-        title="在线设备数量趋势"
+        :title="$t('analytics.onlineTrendTitle')"
         :loading="trendLoading"
         :empty="!trendLoading && !trendData.length"
         :range="trendRange"
-        :ranges="[{ label: '近7天', value: '7d' }, { label: '近30天', value: '30d' }]"
+        :ranges="[{ label: $t('analytics.range7d'), value: '7d' }, { label: $t('analytics.range30d'), value: '30d' }]"
         @range-change="(r) => { trendRange = r; fetchTrend() }"
       >
         <LineChart :data="trendData" color="#5E5CE6" :height="160" />
       </BaseChart>
 
       <BaseChart
-        title="录像活动日历"
+        :title="$t('analytics.recordingCalendar')"
         :loading="calLoading"
         :empty="!calLoading && !calData.length"
       >
@@ -242,15 +245,15 @@ onMounted(fetchAll)
 
     <!-- Row 3: ② 类型分布 + ⑥ 新设备 + ⑧ 类型对比 -->
     <div class="row-3 mb">
-      <BaseChart title="设备类型分布" :loading="typeLoading" :empty="!typeLoading && !typeData.length">
+      <BaseChart :title="$t('analytics.deviceTypeDist')" :loading="typeLoading" :empty="!typeLoading && !typeData.length">
         <DonutChart :data="typeData" :size="160" />
       </BaseChart>
 
-      <BaseChart title="新设备发现趋势" :loading="newDevLoading" :empty="!newDevLoading && !newDevData.length">
+      <BaseChart :title="$t('analytics.newDevicesTrend')" :loading="newDevLoading" :empty="!newDevLoading && !newDevData.length">
         <BarChart :data="newDevData" mode="vertical" :height="180" />
       </BaseChart>
 
-      <BaseChart title="各类型活跃时段（相对活跃度）" :loading="activityLoading" :empty="!activityLoading && !activityData.length">
+      <BaseChart :title="$t('analytics.typeActivity')" :loading="activityLoading" :empty="!activityLoading && !activityData.length">
         <BarChart :data="activityData" mode="grouped" :groups="ACTIVITY_GROUPS" :height="160" />
         <!-- Inline legend -->
         <div class="type-legend">
@@ -283,7 +286,7 @@ onMounted(fetchAll)
         :loading="stabilityLoading"
         :empty="!stabilityLoading && !stabilityData.length"
         :range="stabilityRange"
-        :ranges="[{ label: '近7天', value: '7d' }, { label: '近30天', value: '30d' }]"
+        :ranges="[{ label: $t('analytics.range7d'), value: '7d' }, { label: $t('analytics.range30d'), value: '30d' }]"
         @range-change="(r) => { stabilityRange = r; fetchStability() }"
       >
         <BarChart

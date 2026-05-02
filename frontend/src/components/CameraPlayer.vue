@@ -3,6 +3,9 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Warning } from '@element-plus/icons-vue'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   src: { type: String, required: true },
@@ -17,17 +20,17 @@ let vjsPlayer = null
 function onError(e) {
   loading.value = false
   if (props.mode === 'live') {
-    error.value = '实时画面加载失败，请检查摄像头是否在线及 RTSP 地址是否正确'
+    error.value = t('cameras.streamLoadFailed')
     return
   }
   const code = e.target?.error?.code
   const msgs = {
-    1: '加载被中止',
-    2: '网络错误，无法加载视频',
-    3: '视频解码失败（可能是不支持的编码格式，如 H.265）',
-    4: '视频格式不支持或资源不可用',
+    1: t('cameras.errAborted'),
+    2: t('cameras.errNetwork'),
+    3: t('cameras.errDecode'),
+    4: t('cameras.errFormat'),
   }
-  error.value = msgs[code] || `视频加载失败（错误码 ${code}）`
+  error.value = msgs[code] || t('cameras.errGeneric', { code })
 }
 
 function initVjs(src) {
@@ -48,7 +51,7 @@ function initVjs(src) {
   })
   vjsPlayer.on('ready', () => { loading.value = false })
   vjsPlayer.on('error', () => {
-    error.value = 'HLS 流加载失败，请确认转码已完成'
+    error.value = t('cameras.hlsLoadFailed')
     loading.value = false
   })
 }
@@ -98,7 +101,7 @@ onUnmounted(() => {
       v-if="loading && !error && mode !== 'hls'"
       style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;"
     >
-      {{ mode === 'live' ? '连接摄像头中...' : '加载中...' }}
+      {{ mode === 'live' ? $t('common.connecting') : $t('common.loading') }}
     </div>
     <div
       v-if="error"
@@ -106,7 +109,7 @@ onUnmounted(() => {
     >
       <el-icon :size="40" style="margin-bottom: 12px;"><Warning /></el-icon>
       <span>{{ error }}</span>
-      <el-link v-if="mode === 'recorded'" :href="src" target="_blank" style="margin-top: 12px; color: #409eff; font-size: 12px;">在新标签页中打开查看详情</el-link>
+      <el-link v-if="mode === 'recorded'" :href="src" target="_blank" style="margin-top: 12px; color: #409eff; font-size: 12px;">{{ $t('cameras.openInNewTab') }}</el-link>
     </div>
   </div>
 </template>

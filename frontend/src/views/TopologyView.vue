@@ -5,7 +5,9 @@ import api from '@/api/index'
 import { ElMessage } from 'element-plus'
 import { Refresh, Histogram } from '@element-plus/icons-vue'
 import { useDevicesStore } from '@/stores/devices'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
@@ -56,7 +58,7 @@ async function loadTopology() {
     await nextTick()
     renderGraph()
   } catch {
-    ElMessage.error('加载拓扑数据失败')
+    ElMessage.error(t('topology.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -234,7 +236,7 @@ function renderGraph() {
       .attr('fill', cfg.color)
       .attr('opacity', 0.65)
       .attr('pointer-events', 'none')
-      .text(`${cfg.label.toUpperCase()} · ${group.length}`)
+      .text(`${t(`common.deviceTypes.${type}`).toUpperCase()} · ${group.length}`)
   })
 
   // ── Device nodes ──
@@ -285,7 +287,7 @@ function renderGraph() {
   gwG.append('text')
     .attr('y', 40).attr('text-anchor', 'middle')
     .attr('font-size', '11px').attr('fill', '#9898b8').attr('font-weight', 600)
-    .attr('pointer-events', 'none').text('家庭网关')
+    .attr('pointer-events', 'none').text(t('topology.gatewayLabel'))
 
   if (activeTypes.value.length > 0) updateNodeOpacity()
 }
@@ -323,10 +325,10 @@ onMounted(loadTopology)
     <!-- Header -->
     <div class="page-header">
       <div>
-        <h2 class="page-title">网络拓扑</h2>
+        <h2 class="page-title">{{ $t('topology.title') }}</h2>
         <span class="page-sub">
-          在线 {{ stats.online }} / 共 {{ stats.total }} 台设备
-          <span v-if="devicesStore.scanning" class="scanning-tag">● 扫描中…</span>
+          {{ $t('topology.onlineCount', { online: stats.online, total: stats.total }) }}
+          <span v-if="devicesStore.scanning" class="scanning-tag">● {{ $t('topology.scanning') }}</span>
         </span>
       </div>
       <div class="header-actions">
@@ -336,10 +338,10 @@ onMounted(loadTopology)
           size="small"
           @click="devicesStore.scan()"
         >
-          扫描网络
+          {{ $t('topology.scanNetwork') }}
         </el-button>
         <el-button :loading="loading" :icon="Refresh" size="small" @click="loadTopology">
-          刷新
+          {{ $t('topology.refresh') }}
         </el-button>
       </div>
     </div>
@@ -361,7 +363,7 @@ onMounted(loadTopology)
             <span
               class="tt-status"
               :class="tooltip.node.is_online ? 'tt-online' : 'tt-offline'"
-            >{{ tooltip.node.is_online ? '在线' : '离线' }}</span>
+            >{{ tooltip.node.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
             <template v-if="tooltip.node.is_online && tooltip.node.response_time_ms != null">
               <span class="tt-sep">·</span>
               <span class="tt-lat" :style="{ color: latencyColor(tooltip.node.response_time_ms) }">
@@ -388,20 +390,20 @@ onMounted(loadTopology)
             @click="toggleType(key)"
           >
             <span class="legend-dot" :style="{ background: cfg.color }" />
-            <span>{{ cfg.label }}</span>
+            <span>{{ $t(`common.deviceTypes.${key}`) }}</span>
           </div>
           <div
             v-if="activeTypes.length > 0"
             class="legend-item legend-clear"
             @click="activeTypes = []; updateNodeOpacity()"
           >
-            ✕ 清除
+            ✕ {{ $t('topology.clear') }}
           </div>
         </div>
 
         <!-- Empty state -->
         <div v-if="!loading && nodes.length === 0" class="empty-hint">
-          暂无设备数据，请点击「扫描网络」发现局域网设备
+          {{ $t('topology.noDevices') }}
         </div>
       </div>
 
@@ -413,7 +415,7 @@ onMounted(loadTopology)
               class="type-badge"
               :style="{ background: typeOf(selected).color + '20', color: typeOf(selected).color }"
             >
-              {{ typeOf(selected).icon }} {{ typeOf(selected).label }}
+              {{ typeOf(selected).icon }} {{ $t(`common.deviceTypes.${selected.device_type || 'unknown'}`) }}
             </span>
             <button class="close-btn" @click="selected = null">✕</button>
           </div>
@@ -424,7 +426,7 @@ onMounted(loadTopology)
 
           <div class="panel-status-row">
             <span class="status-dot" :class="selected.is_online ? 'online' : 'offline'" />
-            <span class="status-text">{{ selected.is_online ? '在线' : '离线' }}</span>
+            <span class="status-text">{{ selected.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
             <span
               v-if="selected.is_online && selected.response_time_ms != null"
               class="latency"
@@ -435,15 +437,15 @@ onMounted(loadTopology)
           </div>
 
           <div class="info-section">
-            <div class="info-row"><span class="il">MAC</span><span class="iv mono">{{ selected.mac }}</span></div>
-            <div class="info-row"><span class="il">IP</span><span class="iv mono">{{ selected.ip || '—' }}</span></div>
-            <div class="info-row"><span class="il">主机名</span><span class="iv mono">{{ selected.hostname || '—' }}</span></div>
-            <div class="info-row"><span class="il">厂商</span><span class="iv">{{ selected.vendor || '—' }}</span></div>
-            <div class="info-row"><span class="il">最后在线</span><span class="iv">{{ formatTime(selected.last_seen) }}</span></div>
+            <div class="info-row"><span class="il">{{ $t('topology.mac') }}</span><span class="iv mono">{{ selected.mac }}</span></div>
+            <div class="info-row"><span class="il">{{ $t('topology.ip') }}</span><span class="iv mono">{{ selected.ip || '—' }}</span></div>
+            <div class="info-row"><span class="il">{{ $t('topology.hostname') }}</span><span class="iv mono">{{ selected.hostname || '—' }}</span></div>
+            <div class="info-row"><span class="il">{{ $t('topology.vendor') }}</span><span class="iv">{{ selected.vendor || '—' }}</span></div>
+            <div class="info-row"><span class="il">{{ $t('topology.lastSeen') }}</span><span class="iv">{{ formatTime(selected.last_seen) }}</span></div>
           </div>
 
           <div v-if="selected.owners?.length" class="info-section">
-            <div class="section-title">归属成员</div>
+            <div class="section-title">{{ $t('topology.owners') }}</div>
             <div v-for="owner in selected.owners" :key="owner.id" class="owner-row">
               <!-- Avatar -->
               <div class="owner-avatar" :class="owner.is_home ? 'home' : 'away'">
@@ -452,7 +454,7 @@ onMounted(loadTopology)
               </div>
               <span class="owner-name">{{ owner.name }}</span>
               <span class="owner-tag" :class="owner.is_home ? 'tag-home' : 'tag-away'">
-                {{ owner.is_home ? '在家' : '外出' }}
+                {{ owner.is_home ? $t('topology.atHome') : $t('topology.away') }}
               </span>
             </div>
           </div>

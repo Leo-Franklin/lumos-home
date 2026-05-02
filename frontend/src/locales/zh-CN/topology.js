@@ -1,0 +1,22 @@
+// src/locales/zh-CN/topology.js
+export default {
+  title: '网络拓扑',
+  onlineCount: '在线 {online} / 共 {total} 台设备',
+  scanning: '扫描中…',
+  scanNetwork: '扫描网络',
+  refresh: '刷新',
+  clear: '清除',
+  gatewayLabel: '家庭网关',
+  online: '在线',
+  offline: '离线',
+  mac: 'MAC',
+  ip: 'IP',
+  hostname: '主机名',
+  vendor: '厂商',
+  lastSeen: '最后在线',
+  owners: '归属成员',
+  atHome: '在家',
+  away: '外出',
+  noDevices: '暂无设备数据，请点击「扫描网络」发现局域网设备',
+  loadFailed: '加载拓扑数据失败',
+}

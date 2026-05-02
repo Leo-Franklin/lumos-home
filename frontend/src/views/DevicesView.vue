@@ -4,10 +4,12 @@ import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice, getDeviceHeatmap } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
 import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 
+const { t } = useI18n()
 const devicesStore = useDevicesStore()
 
 // ── 编辑 ──────────────────────────────────────────────
@@ -26,19 +28,19 @@ async function saveEdit() {
       device_type: editForm.value.device_type,
       notes: editForm.value.notes,
     })
-    ElMessage.success('保存成功')
+    ElMessage.success(t('devices.saveSuccess'))
     editDialog.value = false
     devicesStore.fetchDevices()
   } catch {
-    ElMessage.error('保存失败')
+    ElMessage.error(t('devices.saveFailed'))
   }
 }
 
 // ── 删除 ──────────────────────────────────────────────
 async function handleDelete(row) {
-  await ElMessageBox.confirm(`确定删除设备 ${row.alias || row.mac}？`, '确认删除', { type: 'warning' })
+  await ElMessageBox.confirm(t('devices.deleteConfirm', { name: row.alias || row.mac }), t('common.confirmDelete'), { type: 'warning' })
   await deleteDevice(row.mac)
-  ElMessage.success('已删除')
+  ElMessage.success(t('devices.deleted'))
   devicesStore.fetchDevices()
 }
 
@@ -67,8 +69,8 @@ function formatTime(val) {
 }
 
 const detailTypeLabel = computed(() => {
-  const map = { camera: '摄像头', computer: '电脑', phone: '手机', iot: 'IoT 设备', unknown: '未知' }
-  return map[detailDevice.value?.device_type] ?? detailDevice.value?.device_type ?? '—'
+  const type = detailDevice.value?.device_type
+  return type ? t(`common.deviceTypes.${type}`) : '—'
 })
 
 // ── Heatmap ──────────────────────────────────────────
@@ -92,7 +94,7 @@ async function fetchHeatmap() {
     const { data } = await getDeviceHeatmap(params)
     heatmapData.value = data.cells ?? []
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '热力图加载失败')
+    ElMessage.error(e.response?.data?.detail || t('devices.heatmapFailed'))
   } finally {
     heatmapLoading.value = false
   }
@@ -128,22 +130,21 @@ onMounted(() => devicesStore.fetchDevices())
   <div>
     <div class="page-header">
       <div>
-        <h2 class="page-title">设备列表</h2>
+        <h2 class="page-title">{{ $t('devices.title') }}</h2>
         <span class="page-sub">
-          在线 {{ devicesStore.items.filter((d) => d.is_online).length }} /
-          总计 {{ devicesStore.total }}
+          {{ $t('devices.onlineCount', { online: devicesStore.items.filter((d) => d.is_online).length, total: devicesStore.total }) }}
         </span>
       </div>
       <div class="header-actions">
         <ScanProgress />
-        <el-button @click="openHeatmap">活跃热力图</el-button>
+        <el-button @click="openHeatmap">{{ $t('devices.heatmap') }}</el-button>
         <el-button
           type="primary"
           :loading="devicesStore.scanning"
           :icon="Refresh"
           @click="devicesStore.scan()"
         >
-          扫描网络
+          {{ $t('devices.scan') }}
         </el-button>
       </div>
     </div>
@@ -154,7 +155,7 @@ onMounted(() => devicesStore.fetchDevices())
         :class="{ active: devicesStore.filterTypes.length === 0 }"
         @click="devicesStore.toggleFilter('')"
       >
-        全部
+        {{ $t('common.all') }}
       </button>
       <button
         v-for="opt in filterOptions"
@@ -171,7 +172,7 @@ onMounted(() => devicesStore.fetchDevices())
         class="filter-btn filter-btn--clear"
         @click="devicesStore.toggleFilter('')"
       >
-        清除
+        {{ $t('devices.clearFilter') }}
       </button>
     </div>
 
@@ -185,7 +186,7 @@ onMounted(() => devicesStore.fetchDevices())
         @delete="handleDelete"
       />
       <div v-if="!devicesStore.loading && devicesStore.items.length === 0" class="empty-state">
-        {{ devicesStore.filterTypes.length > 0 ? '当前类型下暂无设备' : '暂无设备，请点击「扫描网络」' }}
+        {{ devicesStore.filterTypes.length > 0 ? $t('devices.noFilteredDevices') : $t('devices.noDevices') }}
       </div>
     </div>
 
@@ -203,31 +204,31 @@ onMounted(() => devicesStore.fetchDevices())
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editDialog" title="编辑设备" width="440px">
+    <el-dialog v-model="editDialog" :title="$t('devices.editDevice')" width="440px">
       <el-form :model="editForm" label-width="80px">
-        <el-form-item label="MAC">
+        <el-form-item :label="$t('devices.mac')">
           <el-input :value="editForm.mac" disabled />
         </el-form-item>
-        <el-form-item label="别名">
-          <el-input v-model="editForm.alias" placeholder="输入设备别名" />
+        <el-form-item :label="$t('devices.alias')">
+          <el-input v-model="editForm.alias" :placeholder="$t('devices.alias')" />
         </el-form-item>
-        <el-form-item label="类型">
+        <el-form-item :label="$t('devices.deviceType')">
           <el-select v-model="editForm.device_type" style="width: 100%">
-            <el-option v-for="t in deviceTypeOptions" :key="t" :label="t" :value="t" />
+            <el-option v-for="t in deviceTypeOptions" :key="t" :label="$t(`common.deviceTypes.${t}`)" :value="t" />
           </el-select>
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item :label="$t('devices.notes')">
           <el-input v-model="editForm.notes" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveEdit">保存</el-button>
+        <el-button @click="editDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveEdit">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 热力图 -->
-    <el-dialog v-model="heatmapDialog" title="设备活跃热力图" width="760px" destroy-on-close>
+    <el-dialog v-model="heatmapDialog" :title="$t('devices.heatmapTitle')" width="760px" destroy-on-close>
       <el-skeleton v-if="heatmapLoading" :rows="4" animated />
       <HeatmapChart
         v-else
@@ -241,50 +242,50 @@ onMounted(() => devicesStore.fetchDevices())
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailDialog" title="设备详情" width="500px" v-if="detailDevice">
+    <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
       <div class="detail-header">
         <span class="detail-status-dot" :class="detailDevice.is_online ? 'online' : 'offline'" />
         <span class="detail-title">{{ detailDevice.alias || detailDevice.mac }}</span>
         <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
-          {{ detailDevice.is_online ? '在线' : '离线' }}
+          {{ detailDevice.is_online ? $t('common.online') : $t('common.offline') }}
         </el-tag>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">基本信息</div>
+        <div class="detail-section-title">{{ $t('devices.basicInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">MAC 地址</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
-          <div class="detail-row"><span class="detail-label">IP 地址</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
-          <div class="detail-row"><span class="detail-label">主机名</span><span class="detail-value mono">{{ detailDevice.hostname || '—' }}</span></div>
-          <div class="detail-row"><span class="detail-label">设备类型</span><span class="detail-value">{{ detailTypeLabel }}</span></div>
-          <div class="detail-row"><span class="detail-label">厂商</span><span class="detail-value">{{ detailDevice.vendor || '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.macAddress') }}</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.ipAddress') }}</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.hostname') }}</span><span class="detail-value mono">{{ detailDevice.hostname || '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.deviceType') }}</span><span class="detail-value">{{ detailTypeLabel }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.vendor') }}</span><span class="detail-value">{{ detailDevice.vendor || '—' }}</span></div>
         </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">网络信息</div>
+        <div class="detail-section-title">{{ $t('devices.networkInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">开放端口</span><span class="detail-value mono">{{ parsePorts(detailDevice.open_ports) }}</span></div>
-          <div class="detail-row"><span class="detail-label">响应时间</span><span class="detail-value mono">{{ detailDevice.response_time_ms != null ? detailDevice.response_time_ms + ' ms' : '—' }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.openPorts') }}</span><span class="detail-value mono">{{ parsePorts(detailDevice.open_ports) }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.responseTime') }}</span><span class="detail-value mono">{{ detailDevice.response_time_ms != null ? detailDevice.response_time_ms + ' ms' : '—' }}</span></div>
         </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">记录信息</div>
+        <div class="detail-section-title">{{ $t('devices.recordInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">首次发现</span><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span></div>
-          <div class="detail-row"><span class="detail-label">最后在线</span><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.firstSeen') }}</span><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.lastSeen') }}</span><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span></div>
         </div>
       </div>
 
       <div class="detail-section" v-if="detailDevice.notes">
-        <div class="detail-section-title">备注</div>
+        <div class="detail-section-title">{{ $t('devices.notes') }}</div>
         <div class="detail-notes">{{ detailDevice.notes }}</div>
       </div>
 
       <template #footer>
-        <el-button @click="detailDialog = false">关闭</el-button>
-        <el-button type="primary" @click="detailDialog = false; openEdit(detailDevice)">编辑</el-button>
+        <el-button @click="detailDialog = false">{{ $t('common.close') }}</el-button>
+        <el-button type="primary" @click="detailDialog = false; openEdit(detailDevice)">{{ $t('common.edit') }}</el-button>
       </template>
     </el-dialog>
   </div>

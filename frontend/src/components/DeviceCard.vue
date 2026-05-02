@@ -3,6 +3,9 @@ import {
   VideoCameraFilled, Monitor, Iphone, Cpu, QuestionFilled,
   Connection, Grid, Film, Printer, Microphone, Trophy, Box, Watch,
 } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps({
   device: { type: Object, required: true },
@@ -63,20 +66,20 @@ function typeIconStyle(t) {
     </div>
 
     <div class="device-main">
-      <span class="device-name">{{ device.alias || '未命名' }}</span>
+      <span class="device-name">{{ device.alias || $t('devices.unnamed') }}</span>
       <span class="device-meta">{{ device.ip }}<template v-if="device.vendor"> · {{ device.vendor }}</template></span>
     </div>
 
     <span class="device-mac">{{ device.mac }}</span>
 
     <span class="type-badge" :style="typeBadgeStyle(device.device_type)">
-      {{ typeConfig(device.device_type).label }}
+      {{ $t(`common.deviceTypes.${device.device_type}`) }}
     </span>
 
     <div class="device-actions">
-      <button class="btn-ghost" @click="$emit('detail', device)">详情</button>
-      <button class="btn-ghost" @click="$emit('edit', device)">编辑</button>
-      <button class="btn-ghost btn-danger" @click="$emit('delete', device)">删除</button>
+      <button class="btn-ghost" @click="$emit('detail', device)">{{ $t('common.detail') }}</button>
+      <button class="btn-ghost" @click="$emit('edit', device)">{{ $t('common.edit') }}</button>
+      <button class="btn-ghost btn-danger" @click="$emit('delete', device)">{{ $t('common.delete') }}</button>
     </div>
   </div>
 </template>

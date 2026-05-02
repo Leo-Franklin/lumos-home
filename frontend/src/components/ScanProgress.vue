@@ -2,7 +2,9 @@
 import { useNotificationsStore } from '@/stores/notifications'
 import { computed } from 'vue'
 import { useDevicesStore } from '@/stores/devices'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const devicesStore = useDevicesStore()
 const notifications = useNotificationsStore()
 
@@ -14,11 +16,10 @@ const lastScan = computed(() => {
 <template>
   <div v-if="devicesStore.scanning" class="scan-progress">
     <el-icon class="is-loading scan-icon"><Loading /></el-icon>
-    <span class="scan-text">扫描中...</span>
+    <span class="scan-text">{{ $t('common.scanning') }}</span>
   </div>
   <div v-else-if="lastScan" class="scan-result">
-    发现 <span class="scan-count">{{ lastScan.data.found }}</span> 台，
-    新增 <span class="scan-count">{{ lastScan.data.new }}</span>
+    {{ $t('common.scanResult', { found: lastScan.data.found, new: lastScan.data.new }) }}
   </div>
 </template>
 

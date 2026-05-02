@@ -1,0 +1,22 @@
+// src/locales/en/topology.js
+export default {
+  title: 'Network Topology',
+  onlineCount: 'Online {online} / {total} devices',
+  scanning: 'Scanning...',
+  scanNetwork: 'Scan Network',
+  refresh: 'Refresh',
+  clear: 'Clear',
+  gatewayLabel: 'Gateway',
+  online: 'Online',
+  offline: 'Offline',
+  mac: 'MAC',
+  ip: 'IP',
+  hostname: 'Hostname',
+  vendor: 'Vendor',
+  lastSeen: 'Last Seen',
+  owners: 'Members',
+  atHome: 'Home',
+  away: 'Away',
+  noDevices: 'No devices, click "Scan Network" to discover LAN devices',
+  loadFailed: 'Failed to load topology data',
+}

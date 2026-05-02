@@ -9,6 +9,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { VideoCameraFilled, Clock, FolderOpened, VideoPlay, Download, Delete } from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useI18n } from 'vue-i18n'
+import { useFormatDuration } from '@/composables/useFormatDuration'
+
+const { t } = useI18n()
+const { formatDurationLong } = useFormatDuration()
 
 const recordings = ref([])
 const total = ref(0)
@@ -57,7 +62,7 @@ async function playRecording(rec) {
     }
   } catch (e) {
     if (e.response?.status === 202) {
-      ElMessage.info('录像转码中，请稍候...')
+      ElMessage.info(t('recordings.transcoding'))
       hlsConvertingId.value = rec.id
       pollHlsReady(rec)
     } else {
@@ -79,7 +84,7 @@ function pollHlsReady(rec) {
         clearInterval(hlsPollTimer)
         hlsPollTimer = null
         hlsConvertingId.value = null
-        ElMessage.success('转码完成，即将播放')
+        ElMessage.success(t('recordings.transcodeComplete'))
         playUrl.value = recordingHlsUrl(rec.id)
         playMode.value = 'hls'
         playDialog.value = true
@@ -89,7 +94,7 @@ function pollHlsReady(rec) {
         clearInterval(hlsPollTimer)
         hlsPollTimer = null
         hlsConvertingId.value = null
-        ElMessage.error('转码失败')
+        ElMessage.error(t('recordings.transcodeFailed'))
       }
     }
   }, 3000)
@@ -101,14 +106,14 @@ function closePlay() {
 
 async function handleDelete(rec) {
   try {
-    await ElMessageBox.confirm('确定删除该录像？', '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(t('recordings.deleteConfirm'), t('common.confirmDelete'), { type: 'warning' })
   } catch { return }
   try {
     await deleteRecording(rec.id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('recordings.deleted'))
     fetchRecordings()
   } catch (err) {
-    ElMessage.error(err.response?.data?.detail || '删除失败，请稍后重试')
+    ElMessage.error(err.response?.data?.detail || t('recordings.deleteFailed'))
   }
 }
 
@@ -140,7 +145,7 @@ async function fetchStats() {
     const { data } = await getRecordingStats(params)
     statsData.value = data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '统计加载失败')
+    ElMessage.error(e.response?.data?.detail || t('recordings.statsFailed'))
   } finally {
     statsLoading.value = false
   }
@@ -155,11 +160,6 @@ function formatDuration(s) {
   const m = Math.floor(s / 60), sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
 }
-function formatDurationLong(s) {
-  if (!s) return '0 分钟'
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
-  return h > 0 ? `${h} 小时 ${m} 分钟` : `${m} 分钟`
-}
 function statusType(s) {
   return { completed: 'success', recording: 'warning', failed: 'danger', synced: 'info' }[s] || ''
 }
@@ -173,45 +173,45 @@ function cameraLabel(mac) {
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">录像库</h2>
-      <el-button @click="openStats">录制统计</el-button>
+      <h2 class="page-title">{{ $t('recordings.title') }}</h2>
+      <el-button @click="openStats">{{ $t('recordings.recordingStats') }}</el-button>
     </div>
 
     <el-form :inline="true" :model="filter" class="filter-bar">
-      <el-form-item label="摄像头">
-        <el-select v-model="filter.camera_mac" placeholder="全部" clearable style="width: 200px">
+      <el-form-item :label="$t('recordings.camera')">
+        <el-select v-model="filter.camera_mac" :placeholder="$t('recordings.all')" clearable style="width: 200px">
           <el-option v-for="c in cameras" :key="c.device_mac" :label="c.onvif_host" :value="c.device_mac" />
         </el-select>
       </el-form-item>
-      <el-form-item label="日期">
-        <el-date-picker v-model="filter.date" type="date" value-format="YYYY-MM-DD" placeholder="全部日期" clearable />
+      <el-form-item :label="$t('recordings.date')">
+        <el-date-picker v-model="filter.date" type="date" value-format="YYYY-MM-DD" :placeholder="$t('recordings.allDates')" clearable />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchRecordings">查询</el-button>
+        <el-button type="primary" @click="fetchRecordings">{{ $t('recordings.query') }}</el-button>
       </el-form-item>
     </el-form>
 
     <el-table v-loading="loading" :data="recordings" style="width: 100%">
-      <el-table-column prop="camera_mac" label="摄像头 MAC" min-width="160" />
-      <el-table-column label="开始时间" width="170">
+      <el-table-column prop="camera_mac" :label="$t('recordings.cameraMac')" min-width="160" />
+      <el-table-column :label="$t('recordings.startTime')" width="170">
         <template #default="{ row }">{{ new Date(row.started_at).toLocaleString('zh-CN') }}</template>
       </el-table-column>
-      <el-table-column label="时长" width="90">
+      <el-table-column :label="$t('recordings.duration')" width="90">
         <template #default="{ row }">{{ formatDuration(row.duration) }}</template>
       </el-table-column>
-      <el-table-column label="大小" width="100">
+      <el-table-column :label="$t('recordings.size')" width="100">
         <template #default="{ row }">{{ formatSize(row.file_size) }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column :label="$t('recordings.status')" width="100">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center">
+      <el-table-column :label="$t('recordings.actions')" width="180" align="center">
         <template #default="{ row }">
           <div class="action-group">
             <el-tooltip
-              :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : '播放'"
+              :content="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
               :disabled="row.status !== 'recording' && row.status !== 'failed'"
             >
               <el-button
@@ -224,7 +224,7 @@ function cameraLabel(mac) {
               />
             </el-tooltip>
             <el-tooltip
-              content="下载"
+              :content="$t('recordings.download')"
               :disabled="row.status !== 'recording' && row.status !== 'failed'"
             >
               <el-button
@@ -235,7 +235,7 @@ function cameraLabel(mac) {
                 @click="downloadRecording(row)"
               />
             </el-tooltip>
-            <el-tooltip content="删除" :show-after="400">
+            <el-tooltip :content="$t('common.delete')" :show-after="400">
               <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
             </el-tooltip>
           </div>
@@ -253,18 +253,18 @@ function cameraLabel(mac) {
     />
 
     <!-- 播放弹窗 -->
-    <el-dialog v-model="playDialog" title="录像回放" width="720px" destroy-on-close @close="closePlay">
+    <el-dialog v-model="playDialog" :title="$t('recordings.playback')" width="720px" destroy-on-close @close="closePlay">
       <CameraPlayer :src="playUrl" :mode="playMode" />
     </el-dialog>
 
     <!-- 统计弹窗 -->
-    <el-dialog v-model="statsDialog" title="录制统计" width="600px" destroy-on-close>
+    <el-dialog v-model="statsDialog" :title="$t('recordings.statsTitle')" width="600px" destroy-on-close>
       <div class="stats-header">
         <el-radio-group v-model="statsFilter.range" @change="fetchStats">
-          <el-radio-button value="7d">近 7 天</el-radio-button>
-          <el-radio-button value="30d">近 30 天</el-radio-button>
+          <el-radio-button value="7d">{{ $t('recordings.statsRange7d') }}</el-radio-button>
+          <el-radio-button value="30d">{{ $t('recordings.statsRange30d') }}</el-radio-button>
         </el-radio-group>
-        <span class="stats-period-hint">{{ statsFilter.range === '7d' ? '过去 7 天的录制汇总' : '过去 30 天的录制汇总' }}</span>
+        <span class="stats-period-hint">{{ statsFilter.range === '7d' ? $t('recordings.statsHint7d') : $t('recordings.statsHint30d') }}</span>
       </div>
 
       <div v-if="statsLoading" class="stats-skeleton">
@@ -279,7 +279,7 @@ function cameraLabel(mac) {
             </div>
             <div class="stat-body">
               <div class="stat-value">{{ statsData.count }}</div>
-              <div class="stat-label">录制次数</div>
+              <div class="stat-label">{{ $t('recordings.count') }}</div>
             </div>
             <div class="stat-glow stat-glow--count" />
           </div>
@@ -290,7 +290,7 @@ function cameraLabel(mac) {
             </div>
             <div class="stat-body">
               <div class="stat-value">{{ formatDurationLong(statsData.total_duration) }}</div>
-              <div class="stat-label">总时长</div>
+              <div class="stat-label">{{ $t('recordings.totalDuration') }}</div>
             </div>
             <div class="stat-glow stat-glow--duration" />
           </div>
@@ -301,14 +301,14 @@ function cameraLabel(mac) {
             </div>
             <div class="stat-body">
               <div class="stat-value">{{ formatSize(statsData.total_size) }}</div>
-              <div class="stat-label">总存储</div>
+              <div class="stat-label">{{ $t('recordings.totalSize') }}</div>
             </div>
             <div class="stat-glow stat-glow--size" />
           </div>
         </div>
 
         <div v-if="statsData.count === 0" class="stats-empty">
-          该时间段内暂无录制记录
+          {{ $t('recordings.noRecordings') }}
         </div>
       </template>
     </el-dialog>
