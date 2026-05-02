@@ -8,7 +8,7 @@ import {
   startRecord, stopRecord, mjpegStreamUrl,
   takeSnapshot, startLive, stopLive, hlsLiveUrl,
 } from '@/api/cameras'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, VideoPlay, Camera, VideoCamera, VideoPause, VideoCameraFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 
@@ -226,7 +226,7 @@ onMounted(async () => {
       <el-button type="primary" :icon="Plus" @click="openAdd">添加摄像头</el-button>
     </div>
 
-    <el-table v-loading="camerasStore.loading" :data="camerasStore.items" stripe border style="width: 100%">
+    <el-table v-loading="camerasStore.loading" :data="camerasStore.items" style="width: 100%">
       <el-table-column label="设备 MAC" prop="device_mac" width="160" />
       <el-table-column label="ONVIF 地址" width="170">
         <template #default="{ row }">{{ row.onvif_host }}:{{ row.onvif_port }}</template>
@@ -254,21 +254,37 @@ onMounted(async () => {
       <el-table-column label="上次探测" width="160">
         <template #default="{ row }">{{ fmtTime(row.last_probe_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="320" align="center">
+      <el-table-column label="操作" min-width="240" align="center">
         <template #default="{ row }">
-          <el-button size="small" @click="handleProbe(row)">探测</el-button>
-          <el-button size="small" @click="openLive(row)">预览</el-button>
-          <el-button size="small" :loading="snapshotLoading" @click="handleSnapshot(row)">截图</el-button>
-          <el-button size="small" :loading="hlsStarting" @click="openHlsLive(row)">HLS直播</el-button>
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button
-            size="small"
-            :type="row.is_recording ? 'warning' : 'success'"
-            @click="handleRecord(row)"
-          >
-            {{ row.is_recording ? '停止' : '录制' }}
-          </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <div class="action-group">
+            <el-tooltip content="ONVIF 探测" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Search" @click="handleProbe(row)" />
+            </el-tooltip>
+            <el-tooltip content="实时预览" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="VideoPlay" @click="openLive(row)" />
+            </el-tooltip>
+            <el-tooltip content="截图" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Camera" :loading="snapshotLoading" @click="handleSnapshot(row)" />
+            </el-tooltip>
+            <el-tooltip content="HLS 直播" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="VideoCamera" :loading="hlsStarting" @click="openHlsLive(row)" />
+            </el-tooltip>
+            <el-tooltip content="编辑" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
+            </el-tooltip>
+            <el-tooltip :content="row.is_recording ? '停止录制' : '开始录制'" :show-after="400">
+              <el-button
+                class="action-btn"
+                :class="row.is_recording ? 'action-btn--stop' : 'action-btn--record'"
+                size="small"
+                :icon="row.is_recording ? VideoPause : VideoCameraFilled"
+                @click="handleRecord(row)"
+              />
+            </el-tooltip>
+            <el-tooltip content="删除" :show-after="400">
+              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -423,5 +439,75 @@ onMounted(async () => {
   font-size: 11px;
   color: var(--color-text-secondary);
   word-break: break-all;
+}
+
+/* ── Table styling ──────────────────────────── */
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--color-text-muted);
+  --el-table-border-color: var(--color-border-subtle);
+  --el-table-row-hover-bg-color: var(--color-surface-raised);
+  background: transparent;
+}
+
+:deep(.el-table__header th.el-table__cell) {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 0;
+}
+
+:deep(.el-table__body td.el-table__cell) {
+  padding: 10px 0;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+/* Action buttons */
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.action-btn {
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-hover-bg-color: var(--color-surface-raised);
+  --el-button-hover-border-color: transparent;
+  --el-button-hover-text-color: var(--color-text-primary);
+  --el-button-active-bg-color: var(--color-surface-overlay);
+  --el-button-active-border-color: transparent;
+  height: 28px;
+  width: 28px;
+  padding: 3px;
+  border-radius: 5px;
+  font-size: 15px;
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out;
+}
+
+.action-btn--danger {
+  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-text-color: var(--color-error);
+  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+}
+
+.action-btn--record {
+  --el-button-hover-bg-color: rgba(38, 194, 129, 0.1);
+  --el-button-hover-text-color: var(--color-online);
+  --el-button-active-bg-color: rgba(38, 194, 129, 0.15);
+}
+
+.action-btn--stop {
+  --el-button-hover-bg-color: rgba(240, 125, 56, 0.1);
+  --el-button-hover-text-color: var(--color-warning);
+  --el-button-active-bg-color: rgba(240, 125, 56, 0.15);
 }
 </style>

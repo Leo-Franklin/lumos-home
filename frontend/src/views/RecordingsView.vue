@@ -6,7 +6,7 @@ import {
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { VideoCameraFilled, Clock, FolderOpened } from '@element-plus/icons-vue'
+import { VideoCameraFilled, Clock, FolderOpened, VideoPlay, Download, Delete } from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 
@@ -191,7 +191,7 @@ function cameraLabel(mac) {
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="recordings" stripe border style="width: 100%">
+    <el-table v-loading="loading" :data="recordings" style="width: 100%">
       <el-table-column prop="camera_mac" label="摄像头 MAC" min-width="160" />
       <el-table-column label="开始时间" width="170">
         <template #default="{ row }">{{ new Date(row.started_at).toLocaleString('zh-CN') }}</template>
@@ -207,29 +207,38 @@ function cameraLabel(mac) {
           <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" align="center">
+      <el-table-column label="操作" width="180" align="center">
         <template #default="{ row }">
-          <el-tooltip
-            :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : ''"
-            :disabled="row.status !== 'recording' && row.status !== 'failed'"
-          >
-            <el-button
-              size="small"
-              type="primary"
-              :disabled="row.status === 'recording' || row.status === 'failed'"
-              :loading="hlsConvertingId === row.id"
-              @click="playRecording(row)"
+          <div class="action-group">
+            <el-tooltip
+              :content="row.status === 'recording' ? '录制中，暂不可播放' : row.status === 'failed' ? '录制失败，无可用文件' : '播放'"
+              :disabled="row.status !== 'recording' && row.status !== 'failed'"
             >
-              {{ hlsConvertingId === row.id ? '转码中' : '播放' }}
-            </el-button>
-          </el-tooltip>
-          <el-button
-            size="small"
-            :disabled="row.status === 'recording' || row.status === 'failed'"
-            style="margin-left: 6px"
-            @click="downloadRecording(row)"
-          >下载</el-button>
-          <el-button size="small" type="danger" style="margin-left: 6px" @click="handleDelete(row)">删除</el-button>
+              <el-button
+                class="action-btn action-btn--primary"
+                size="small"
+                :icon="VideoPlay"
+                :disabled="row.status === 'recording' || row.status === 'failed'"
+                :loading="hlsConvertingId === row.id"
+                @click="playRecording(row)"
+              />
+            </el-tooltip>
+            <el-tooltip
+              content="下载"
+              :disabled="row.status !== 'recording' && row.status !== 'failed'"
+            >
+              <el-button
+                class="action-btn"
+                size="small"
+                :icon="Download"
+                :disabled="row.status === 'recording' || row.status === 'failed'"
+                @click="downloadRecording(row)"
+              />
+            </el-tooltip>
+            <el-tooltip content="删除" :show-after="400">
+              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -470,5 +479,69 @@ function cameraLabel(mac) {
   font-size: 12px;
   color: var(--color-text-muted);
   padding: 12px 0 4px;
+}
+
+/* ── Table styling ──────────────────────────── */
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--color-text-muted);
+  --el-table-border-color: var(--color-border-subtle);
+  --el-table-row-hover-bg-color: var(--color-surface-raised);
+  background: transparent;
+}
+
+:deep(.el-table__header th.el-table__cell) {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 0;
+}
+
+:deep(.el-table__body td.el-table__cell) {
+  padding: 10px 0;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+/* Action buttons */
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.action-btn {
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-hover-bg-color: var(--color-surface-raised);
+  --el-button-hover-border-color: transparent;
+  --el-button-hover-text-color: var(--color-text-primary);
+  --el-button-active-bg-color: var(--color-surface-overlay);
+  --el-button-active-border-color: transparent;
+  height: 28px;
+  width: 28px;
+  padding: 3px;
+  border-radius: 5px;
+  font-size: 15px;
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out;
+}
+
+.action-btn--primary {
+  --el-button-hover-bg-color: rgba(94, 92, 230, 0.1);
+  --el-button-hover-text-color: var(--color-primary);
+  --el-button-active-bg-color: rgba(94, 92, 230, 0.15);
+}
+
+.action-btn--danger {
+  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-text-color: var(--color-error);
+  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
 }
 </style>

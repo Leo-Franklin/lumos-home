@@ -9,7 +9,7 @@ import {
   listPresenceLogs, getMemberStats,
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
 
 const membersStore = useMembersStore()
 
@@ -212,7 +212,7 @@ const unboundDevices = () =>
       <el-button type="primary" :icon="Plus" @click="openAddMember">添加成员</el-button>
     </div>
 
-    <el-table v-loading="membersStore.loading" :data="membersStore.items" stripe border>
+    <el-table v-loading="membersStore.loading" :data="membersStore.items" style="width: 100%">
       <el-table-column label="姓名" min-width="120">
         <template #default="{ row }">
           <div class="member-name-cell">
@@ -254,13 +254,25 @@ const unboundDevices = () =>
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="280" align="center">
+      <el-table-column label="操作" width="200" align="center">
         <template #default="{ row }">
-          <el-button size="small" @click="openDevices(row)">绑定设备</el-button>
-          <el-button size="small" @click="openLogs(row)">日志</el-button>
-          <el-button size="small" @click="openStats(row)">统计</el-button>
-          <el-button size="small" @click="openEditMember(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDeleteMember(row)">删除</el-button>
+          <div class="action-group">
+            <el-tooltip content="绑定设备" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Link" @click="openDevices(row)" />
+            </el-tooltip>
+            <el-tooltip content="日志" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Document" @click="openLogs(row)" />
+            </el-tooltip>
+            <el-tooltip content="统计" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="DataAnalysis" @click="openStats(row)" />
+            </el-tooltip>
+            <el-tooltip content="编辑" :show-after="400">
+              <el-button class="action-btn" size="small" :icon="Edit" @click="openEditMember(row)" />
+            </el-tooltip>
+            <el-tooltip content="删除" :show-after="400">
+              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDeleteMember(row)" />
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -324,7 +336,7 @@ const unboundDevices = () =>
         <el-button type="primary" @click="handleBind">绑定</el-button>
       </div>
 
-      <el-table v-loading="devicesLoading" :data="boundDevices" style="margin-top: 12px" border size="small">
+      <el-table v-loading="devicesLoading" :data="boundDevices" style="margin-top: 12px" size="small">
         <el-table-column label="设备" min-width="160">
           <template #default="{ row }">{{ deviceLabel(row) }}</template>
         </el-table-column>
@@ -334,7 +346,9 @@ const unboundDevices = () =>
         </el-table-column>
         <el-table-column label="操作" width="80" align="center">
           <template #default="{ row }">
-            <el-button size="small" type="danger" @click="handleUnbind(row.mac)">解绑</el-button>
+          <el-tooltip content="解绑" :show-after="400">
+            <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleUnbind(row.mac)" />
+          </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -346,7 +360,7 @@ const unboundDevices = () =>
       :title="`到家日志 — ${logsMember?.name}`"
       width="520px"
     >
-      <el-table v-loading="logsLoading" :data="logs" border size="small">
+      <el-table v-loading="logsLoading" :data="logs" size="small">
         <el-table-column label="事件" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.event === 'arrived' ? 'success' : 'warning'" size="small">
@@ -481,5 +495,63 @@ const unboundDevices = () =>
   font-size: 13px;
   color: var(--color-text-muted);
   margin: auto;
+}
+
+/* ── Table styling ──────────────────────────── */
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--color-text-muted);
+  --el-table-border-color: var(--color-border-subtle);
+  --el-table-row-hover-bg-color: var(--color-surface-raised);
+  background: transparent;
+}
+
+:deep(.el-table__header th.el-table__cell) {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 0;
+}
+
+:deep(.el-table__body td.el-table__cell) {
+  padding: 10px 0;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+/* Action buttons */
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.action-btn {
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-hover-bg-color: var(--color-surface-raised);
+  --el-button-hover-border-color: transparent;
+  --el-button-hover-text-color: var(--color-text-primary);
+  --el-button-active-bg-color: var(--color-surface-overlay);
+  --el-button-active-border-color: transparent;
+  height: 28px;
+  width: 28px;
+  padding: 3px;
+  border-radius: 5px;
+  font-size: 15px;
+  transition: background var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out;
+}
+
+.action-btn--danger {
+  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-text-color: var(--color-error);
+  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
 }
 </style>
