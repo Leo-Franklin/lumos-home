@@ -4,7 +4,10 @@ import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '@
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import CronSelector from '@/components/CronSelector.vue'
+
+const { t } = useI18n()
 
 const schedules = ref([])
 const cameras = ref([])
@@ -49,15 +52,15 @@ async function handleSubmit() {
   try {
     if (isEdit.value) {
       await updateSchedule(editId.value, form.value)
-      ElMessage.success('已更新')
+      ElMessage.success(t('schedule.updated'))
     } else {
       await createSchedule(form.value)
-      ElMessage.success('已创建')
+      ElMessage.success(t('schedule.created'))
     }
     dialog.value = false
     fetch()
   } catch (e) {
-    ElMessage.error(e.response?.data?.error?.message || '操作失败')
+    ElMessage.error(e.response?.data?.error?.message || t('common.operationFailed'))
   }
 }
 
@@ -67,9 +70,9 @@ async function toggleEnabled(row) {
 }
 
 async function handleDelete(row) {
-  await ElMessageBox.confirm(`确定删除计划「${row.name || row.cron_expr}」？`, '确认删除', { type: 'warning' })
+  await ElMessageBox.confirm(t('schedule.deleteConfirm', { name: row.name || row.cron_expr }), t('common.confirmDelete'), { type: 'warning' })
   await deleteSchedule(row.id)
-  ElMessage.success('已删除')
+  ElMessage.success(t('schedule.deleted'))
   fetch()
 }
 </script>
@@ -77,31 +80,31 @@ async function handleDelete(row) {
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">录制计划</h2>
-      <el-button type="primary" :icon="Plus" @click="openAdd">新建计划</el-button>
+      <h2 class="page-title">{{ $t('schedule.title') }}</h2>
+      <el-button type="primary" :icon="Plus" @click="openAdd">{{ $t('schedule.newSchedule') }}</el-button>
     </div>
 
     <el-table v-loading="loading" :data="schedules" style="width: 100%">
-      <el-table-column prop="name" label="计划名称" min-width="120">
-        <template #default="{ row }">{{ row.name || '(未命名)' }}</template>
+      <el-table-column prop="name" :label="$t('schedule.scheduleName')" min-width="120">
+        <template #default="{ row }">{{ row.name || $t('schedule.unnamed') }}</template>
       </el-table-column>
-      <el-table-column prop="camera_mac" label="摄像头 MAC" width="160" />
-      <el-table-column prop="cron_expr" label="Cron 表达式" width="150" />
-      <el-table-column label="分段时长" width="120">
-        <template #default="{ row }">{{ Math.floor(row.segment_duration / 60) }} 分钟</template>
+      <el-table-column prop="camera_mac" :label="$t('schedule.cameraMac')" width="160" />
+      <el-table-column prop="cron_expr" :label="$t('schedule.cronExpr')" width="150" />
+      <el-table-column :label="$t('schedule.segmentDuration')" width="120">
+        <template #default="{ row }">{{ Math.floor(row.segment_duration / 60) }}{{ $t('schedule.segmentUnit') }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="90" align="center">
+      <el-table-column :label="$t('schedule.status')" width="90" align="center">
         <template #default="{ row }">
           <el-switch :model-value="row.enabled" @change="toggleEnabled(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" align="center">
+      <el-table-column :label="$t('schedule.actions')" width="120" align="center">
         <template #default="{ row }">
           <div class="action-group">
-            <el-tooltip content="编辑" :show-after="400">
+            <el-tooltip :content="$t('common.edit')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
             </el-tooltip>
-            <el-tooltip content="删除" :show-after="400">
+            <el-tooltip :content="$t('common.delete')" :show-after="400">
               <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
             </el-tooltip>
           </div>
@@ -109,10 +112,10 @@ async function handleDelete(row) {
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialog" :title="isEdit ? '编辑计划' : '新建计划'" width="680px">
+    <el-dialog v-model="dialog" :title="isEdit ? $t('schedule.editSchedule') : $t('schedule.newSchedule')" width="680px">
       <el-form :model="form" label-width="110px">
-        <el-form-item label="摄像头">
-          <el-select v-model="form.camera_mac" placeholder="选择摄像头" style="width: 100%">
+        <el-form-item :label="$t('schedule.cameraMac')">
+          <el-select v-model="form.camera_mac" :placeholder="$t('schedule.selectCamera')" style="width: 100%">
             <el-option
               v-for="c in cameras"
               :key="c.device_mac"
@@ -121,22 +124,22 @@ async function handleDelete(row) {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="计划名称">
-          <el-input v-model="form.name" placeholder="如：夜间录制" />
+        <el-form-item :label="$t('schedule.scheduleName')">
+          <el-input v-model="form.name" :placeholder="$t('schedule.namePlaceholder')" />
         </el-form-item>
-        <el-form-item label="触发时间" style="width: 100%">
+        <el-form-item :label="$t('schedule.triggerTime')" style="width: 100%">
           <CronSelector v-model="form.cron_expr" />
         </el-form-item>
-        <el-form-item label="分段时长(秒)">
+        <el-form-item :label="$t('schedule.segmentLabel')">
           <el-input-number v-model="form.segment_duration" :min="60" :step="300" />
         </el-form-item>
-        <el-form-item label="是否启用">
+        <el-form-item :label="$t('schedule.enabled')">
           <el-switch v-model="form.enabled" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">{{ isEdit ? '保存' : '创建' }}</el-button>
+        <el-button @click="dialog = false">{{ $t('schedule.cancel') }}</el-button>
+        <el-button type="primary" @click="handleSubmit">{{ isEdit ? $t('common.save') : $t('common.create') }}</el-button>
       </template>
     </el-dialog>
   </div>
