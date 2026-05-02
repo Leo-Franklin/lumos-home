@@ -1,0 +1,22 @@
+// src/locales/en/dashboard.js
+export default {
+  title: 'Dashboard',
+  refresh: 'Refresh',
+  loadFailed: 'Failed to load',
+  membersHome: 'Members Home',
+  cameras: 'Cameras',
+  networkDevices: 'Network Devices',
+  todayRecordings: "Today's Recordings",
+  unknownDevices: 'Unknown Devices',
+  membersHomeDesc: 'members currently home',
+  camerasOnline: ' online',
+  camerasRecording: ' recording',
+  devicesOnline: ' devices online',
+  todayAppeared: ' first seen today',
+  onlineTrend: '24H Online Trend',
+  deviceTypes: 'Device Types',
+  newDevices: 'Recent New Devices',
+  zeroMinutes: '0 min',
+  durationFormat: '{h}h {m}m',
+  durationMinutesOnly: '{m}m',
+}

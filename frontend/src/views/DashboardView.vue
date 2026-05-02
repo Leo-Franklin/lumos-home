@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getDashboard } from '@/api/system'
 import { Refresh } from '@element-plus/icons-vue'
 import LineChart  from '@/components/charts/LineChart.vue'
@@ -7,6 +8,10 @@ import BarChart   from '@/components/charts/BarChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
 import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS } from '@/components/charts/chartColors'
 import { getOnlineTrend, getDeviceTypeStats, getNewDevices } from '@/api/analytics'
+import { useFormatDuration } from '@/composables/useFormatDuration'
+
+const { t } = useI18n()
+const { formatDuration } = useFormatDuration()
 
 const data = ref(null)
 const loading = ref(false)
@@ -44,17 +49,10 @@ async function fetchDashboard() {
     const { data: d } = await getDashboard()
     data.value = d
   } catch (e) {
-    error.value = e.response?.data?.detail || e.message || '加载失败'
+    error.value = e.response?.data?.detail || e.message || t('dashboard.loadFailed')
   } finally {
     loading.value = false
   }
-}
-
-function formatDuration(seconds) {
-  if (!seconds) return '0 分钟'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  return h > 0 ? `${h} 小时 ${m} 分钟` : `${m} 分钟`
 }
 
 onMounted(() => {
@@ -69,8 +67,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">仪表板</h2>
-      <el-button :icon="Refresh" :loading="loading" @click="fetchDashboard">刷新</el-button>
+      <h2 class="page-title">{{ $t('dashboard.title') }}</h2>
+      <el-button :icon="Refresh" :loading="loading" @click="fetchDashboard">{{ $t('common.refresh') }}</el-button>
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon style="margin-bottom: 16px" />
@@ -80,59 +78,59 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div class="stats-grid">
 
         <div class="stat-card">
-          <div class="stat-header">成员在家</div>
+          <div class="stat-header">{{ $t('dashboard.membersHome') }}</div>
           <div class="stat-value">
             {{ data.members_home }}<span class="stat-of"> / {{ data.members_total }}</span>
           </div>
-          <div class="stat-desc">名成员当前在家</div>
+          <div class="stat-desc">{{ $t('dashboard.membersHomeDesc') }}</div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-header">摄像头</div>
+          <div class="stat-header">{{ $t('dashboard.cameras') }}</div>
           <div class="stat-value">
             {{ data.cameras_online }}<span class="stat-of"> / {{ data.cameras_total }}</span>
           </div>
           <div class="stat-desc">
-            台在线
+            {{ $t('dashboard.camerasOnline') }}
             <span v-if="data.cameras_recording > 0" class="tag-recording">
-              · {{ data.cameras_recording }} 台录制中
+              · {{ data.cameras_recording }}{{ $t('dashboard.camerasRecording') }}
             </span>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-header">网络设备</div>
+          <div class="stat-header">{{ $t('dashboard.networkDevices') }}</div>
           <div class="stat-value">
             {{ data.devices_online }}<span class="stat-of"> / {{ data.devices_total }}</span>
           </div>
-          <div class="stat-desc">台设备在线</div>
+          <div class="stat-desc">{{ $t('dashboard.devicesOnline') }}</div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-header">今日录像</div>
+          <div class="stat-header">{{ $t('dashboard.todayRecordings') }}</div>
           <div class="stat-value">{{ data.recordings_today_count }}</div>
-          <div class="stat-desc">条 · {{ formatDuration(data.recordings_today_duration_seconds) }}</div>
+          <div class="stat-desc">{{ $t('common.unit_record') }} · {{ formatDuration(data.recordings_today_duration_seconds) }}</div>
         </div>
 
         <div class="stat-card" :class="{ 'stat-card--warn': data.unknown_devices_today > 0 }">
-          <div class="stat-header">陌生设备</div>
+          <div class="stat-header">{{ $t('dashboard.unknownDevices') }}</div>
           <div class="stat-value">{{ data.unknown_devices_today }}</div>
-          <div class="stat-desc">台今日首次出现</div>
+          <div class="stat-desc">{{ $t('dashboard.todayAppeared') }}</div>
         </div>
 
       </div>
 
       <div v-if="sparkData.length || donutData.length" class="mini-charts">
         <div class="mini-card">
-          <div class="mini-label">24H 在线趋势</div>
+          <div class="mini-label">{{ $t('dashboard.onlineTrend') }}</div>
           <LineChart :data="sparkData" color="#5E5CE6" :height="60" :mini="true" />
         </div>
         <div class="mini-card">
-          <div class="mini-label">设备类型</div>
+          <div class="mini-label">{{ $t('dashboard.deviceTypes') }}</div>
           <DonutChart :data="donutData" :size="80" :mini="true" />
         </div>
         <div class="mini-card">
-          <div class="mini-label">近期新设备</div>
+          <div class="mini-label">{{ $t('dashboard.newDevices') }}</div>
           <BarChart :data="weekBarData" mode="vertical" :height="60" :mini="true" />
         </div>
       </div>

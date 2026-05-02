@@ -1,0 +1,22 @@
+// src/locales/zh-CN/dashboard.js
+export default {
+  title: '仪表板',
+  refresh: '刷新',
+  loadFailed: '加载失败',
+  membersHome: '成员在家',
+  cameras: '摄像头',
+  networkDevices: '网络设备',
+  todayRecordings: '今日录像',
+  unknownDevices: '陌生设备',
+  membersHomeDesc: '名成员当前在家',
+  camerasOnline: '台在线',
+  camerasRecording: ' 台录制中',
+  devicesOnline: '台设备在线',
+  todayAppeared: '台今日首次出现',
+  onlineTrend: '24H 在线趋势',
+  deviceTypes: '设备类型',
+  newDevices: '近期新设备',
+  zeroMinutes: '0 分钟',
+  durationFormat: '{h} 小时 {m} 分钟',
+  durationMinutesOnly: '{m} 分钟',
+}
