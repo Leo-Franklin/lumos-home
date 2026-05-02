@@ -163,6 +163,10 @@ function formatDuration(s) {
 function statusType(s) {
   return { completed: 'success', recording: 'warning', failed: 'danger', synced: 'info' }[s] || ''
 }
+const statusLabels = { completed: 'recordings.statusCompleted', recording: 'recordings.statusRecording', failed: 'recordings.statusFailed', synced: 'recordings.statusSynced' }
+function statusLabel(s) {
+  return t(statusLabels[s] || s)
+}
 
 function cameraLabel(mac) {
   const cam = cameras.value.find((c) => c.device_mac === mac)
@@ -204,7 +208,7 @@ function cameraLabel(mac) {
       </el-table-column>
       <el-table-column :label="$t('recordings.status')" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+          <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column :label="$t('recordings.actions')" width="180" align="center">
