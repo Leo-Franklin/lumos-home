@@ -28,6 +28,7 @@ export default {
   unnamed: 'Unnamed',
   saveSuccess: 'Saved successfully',
   saveFailed: 'Save failed',
+  searchPlaceholder: 'Search IP / MAC',
   deleteConfirm: 'Delete device {name}?',
   deleted: 'Deleted',
   heatmapFailed: 'Failed to load heatmap',

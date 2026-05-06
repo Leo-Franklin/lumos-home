@@ -28,6 +28,7 @@ export default {
   unnamed: '未命名',
   saveSuccess: '保存成功',
   saveFailed: '保存失败',
+  searchPlaceholder: '搜索 IP / MAC',
   deleteConfirm: '确定删除设备 {name}？',
   deleted: '已删除',
   heatmapFailed: '热力图加载失败',

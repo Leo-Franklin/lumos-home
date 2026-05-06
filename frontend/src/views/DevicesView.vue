@@ -11,6 +11,7 @@ import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 
 const { t } = useI18n()
 const devicesStore = useDevicesStore()
+const searchInput = ref('')
 
 // ── 编辑 ──────────────────────────────────────────────
 const editDialog = ref(false)
@@ -150,6 +151,13 @@ onMounted(() => devicesStore.fetchDevices())
     </div>
 
     <div class="filter-bar">
+      <el-input
+        v-model="searchInput"
+        :placeholder="$t('devices.searchPlaceholder')"
+        clearable
+        style="width: 200px"
+        @input="devicesStore.setSearch(searchInput)"
+      />
       <button
         class="filter-btn"
         :class="{ active: devicesStore.filterTypes.length === 0 }"
