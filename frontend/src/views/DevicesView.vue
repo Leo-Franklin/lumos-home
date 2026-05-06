@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice, getDeviceHeatmap } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -10,8 +11,15 @@ import DeviceCard from '@/components/DeviceCard.vue'
 import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const devicesStore = useDevicesStore()
 const searchInput = ref('')
+
+function onAllClick() {
+  searchInput.value = ''
+  devicesStore.filterTypes = []
+  devicesStore.clearSearch()
+}
 
 // ── 编辑 ──────────────────────────────────────────────
 const editDialog = ref(false)
@@ -124,7 +132,13 @@ const filterOptions = [
   { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96' },
 ]
 
-onMounted(() => devicesStore.fetchDevices())
+onMounted(() => {
+  if (route.query.mac) {
+    searchInput.value = route.query.mac
+    devicesStore.setSearch(route.query.mac)
+  }
+  devicesStore.fetchDevices()
+})
 </script>
 
 <template>
@@ -161,7 +175,7 @@ onMounted(() => devicesStore.fetchDevices())
       <button
         class="filter-btn"
         :class="{ active: devicesStore.filterTypes.length === 0 }"
-        @click="devicesStore.toggleFilter('')"
+        @click="onAllClick"
       >
         {{ $t('common.all') }}
       </button>
@@ -178,7 +192,7 @@ onMounted(() => devicesStore.fetchDevices())
       <button
         v-if="devicesStore.filterTypes.length > 0"
         class="filter-btn filter-btn--clear"
-        @click="devicesStore.toggleFilter('')"
+        @click="onAllClick"
       >
         {{ $t('devices.clearFilter') }}
       </button>

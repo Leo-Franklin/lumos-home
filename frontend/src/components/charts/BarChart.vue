@@ -19,6 +19,8 @@ const props = defineProps({
   scrollMaxHeight: { type: Number, default: 380 },
 })
 
+const emit = defineEmits(['bar-click'])
+
 const containerRef = ref(null)
 const svgRef       = ref(null)
 let ro = null
@@ -86,6 +88,8 @@ function renderVertical(svg, w, h) {
     .attr('height', (d) => h - y(d.value))
     .attr('rx', 3)
     .attr('fill', (d) => barColor(d))
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => emit('bar-click', d))
 
   if (props.mini) return
 
@@ -137,6 +141,8 @@ function renderHorizontal(svg, w, h) {
     .attr('width',  (d) => Math.max(0, x(d.value)))
     .attr('rx', 3)
     .attr('fill', (d) => barColor(d))
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => emit('bar-click', d))
 
   // Value label to the right
   svg.selectAll('.vl').data(props.data).join('text')
@@ -173,6 +179,8 @@ function renderGrouped(svg, w, h) {
       .attr('height', (d) => h - y(d[grp.key] ?? 0))
       .attr('rx', 2)
       .attr('fill', grp.color)
+      .style('cursor', 'pointer')
+      .on('click', (event, d) => emit('bar-click', d))
   })
 
   if (props.mini) return

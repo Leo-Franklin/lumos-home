@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import BaseChart       from '@/components/charts/BaseChart.vue'
 import HeatmapChart    from '@/components/charts/HeatmapChart.vue'
 import LineChart       from '@/components/charts/LineChart.vue'
@@ -18,6 +19,11 @@ import {
 import { getDeviceHeatmap } from '@/api/devices'
 
 const { t } = useI18n()
+const router = useRouter()
+
+function navigateToDevice(mac) {
+  router.push({ path: '/devices', query: { mac } })
+}
 
 // ── ① Heatmap ──────────────────────────────────────────
 const hmData    = ref([])
@@ -278,6 +284,7 @@ onMounted(fetchAll)
           :height="220"
           :scroll-max-height="400"
           :color-fn="(v) => v < 50 ? '#26C281' : v < 200 ? '#F2C94C' : '#F07D38'"
+          @bar-click="(d) => navigateToDevice(d.label)"
         />
       </BaseChart>
 
@@ -294,6 +301,7 @@ onMounted(fetchAll)
           mode="horizontal"
           :height="220"
           :scroll-max-height="400"
+          @bar-click="(d) => navigateToDevice(d.label)"
         />
       </BaseChart>
     </div>

@@ -36,6 +36,13 @@ export const useDevicesStore = defineStore('devices', () => {
     }, 300)
   }
 
+  function clearSearch() {
+    search.value = ''
+    clearTimeout(searchTimeoutId)
+    page.value = 1
+    fetchDevices()
+  }
+
   function changePage(p) {
     page.value = p
     fetchDevices()
@@ -50,6 +57,7 @@ export const useDevicesStore = defineStore('devices', () => {
   function toggleFilter(type) {
     if (type === '') {
       filterTypes.value = []
+      search.value = ''
     } else {
       const idx = filterTypes.value.indexOf(type)
       filterTypes.value = idx === -1
@@ -82,5 +90,5 @@ export const useDevicesStore = defineStore('devices', () => {
     fetchDevices()
   }
 
-  return { items, total, page, pageSize, loading, scanning, filterTypes, search, fetchDevices, changePage, changePageSize, toggleFilter, setSearch, scan, onScanCompleted }
+  return { items, total, page, pageSize, loading, scanning, filterTypes, search, fetchDevices, changePage, changePageSize, toggleFilter, setSearch, clearSearch, scan, onScanCompleted }
 })
