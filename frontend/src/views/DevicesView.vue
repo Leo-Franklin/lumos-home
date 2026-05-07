@@ -2,13 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDevicesStore } from '@/stores/devices'
-import { updateDevice, deleteDevice, getDeviceHeatmap } from '@/api/devices'
+import { updateDevice, deleteDevice } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
-import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -82,32 +81,6 @@ const detailTypeLabel = computed(() => {
   return type ? t(`common.deviceTypes.${type}`) : '—'
 })
 
-// ── Heatmap ──────────────────────────────────────────
-const heatmapDialog  = ref(false)
-const heatmapRange   = ref('7d')
-const heatmapTypes   = ref([])
-const heatmapData    = ref([])
-const heatmapLoading = ref(false)
-
-async function openHeatmap() {
-  heatmapData.value  = []
-  heatmapDialog.value = true
-  await fetchHeatmap()
-}
-
-async function fetchHeatmap() {
-  heatmapLoading.value = true
-  try {
-    const params = { range: heatmapRange.value }
-    if (heatmapTypes.value.length) params.device_type = heatmapTypes.value.join(',')
-    const { data } = await getDeviceHeatmap(params)
-    heatmapData.value = data.cells ?? []
-  } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('devices.heatmapFailed'))
-  } finally {
-    heatmapLoading.value = false
-  }
-}
 
 // ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = [
@@ -152,7 +125,6 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <ScanProgress />
-        <el-button @click="openHeatmap">{{ $t('devices.heatmap') }}</el-button>
         <el-button
           type="primary"
           :loading="devicesStore.scanning"
@@ -249,20 +221,7 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    <!-- 热力图 -->
-    <el-dialog v-model="heatmapDialog" :title="$t('devices.heatmapTitle')" width="760px" destroy-on-close>
-      <el-skeleton v-if="heatmapLoading" :rows="4" animated />
-      <HeatmapChart
-        v-else
-        :data="heatmapData"
-        :range="heatmapRange"
-        :device-types="heatmapTypes"
-        :height="220"
-        @range-change="(r) => { heatmapRange = r; fetchHeatmap() }"
-        @type-filter-change="(t) => { heatmapTypes = t; fetchHeatmap() }"
-      />
-    </el-dialog>
-
+    
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
       <div class="detail-header">
