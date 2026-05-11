@@ -10,4 +10,6 @@ export default {
   healthy: '正常',
   abnormal: '异常',
   refresh: '刷新',
+  systemHealthy: '运行正常',
+  systemUnhealthy: '运行异常',
 }

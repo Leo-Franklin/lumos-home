@@ -43,23 +43,12 @@ onMounted(fetchHealth)
     <template v-if="health">
       <el-descriptions :title="$t('settings.healthStatus')" :column="2" border>
         <el-descriptions-item :label="$t('settings.overallStatus')">
-          <el-tag :type="health.status === 'healthy' ? 'success' : 'danger'">{{ health.status }}</el-tag>
+          <el-tag :type="health.status === 'healthy' ? 'success' : 'danger'">
+            {{ health.status === 'healthy' ? $t('settings.systemHealthy') : $t('settings.systemUnhealthy') }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.version')">{{ health.version }}</el-descriptions-item>
         <el-descriptions-item :label="$t('settings.uptime')">
           {{ formatUptime(health.uptime_seconds) }}
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <el-descriptions :title="$t('settings.componentStatus')" :column="2" border style="margin-top: 20px">
-        <el-descriptions-item v-for="(v, k) in health.checks" :key="k" :label="k">
-          <el-tag v-if="typeof v === 'boolean'" :type="v ? 'success' : 'danger'" size="small">
-            {{ v ? $t('settings.healthy') : $t('settings.abnormal') }}
-          </el-tag>
-          <template v-else-if="typeof v === 'object'">
-            在线 {{ v.online }} / 总计 {{ v.total }}
-          </template>
-          <span v-else>{{ v }}</span>
         </el-descriptions-item>
       </el-descriptions>
     </template>

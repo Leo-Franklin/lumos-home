@@ -226,7 +226,7 @@ onMounted(() => {
     <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
       <div class="detail-header">
         <span class="detail-status-dot" :class="detailDevice.is_online ? 'online' : 'offline'" />
-        <span class="detail-title">{{ detailDevice.alias || detailDevice.mac }}</span>
+        <span class="detail-title">{{ detailDevice.alias || detailDevice.hostname || $t('devices.unnamedDevice') }}</span>
         <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
           {{ detailDevice.is_online ? $t('common.online') : $t('common.offline') }}
         </el-tag>
@@ -235,21 +235,13 @@ onMounted(() => {
       <div class="detail-section">
         <div class="detail-section-title">{{ $t('devices.basicInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.macAddress') }}</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.ipAddress') }}</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.hostname') }}</span><span class="detail-value mono">{{ detailDevice.hostname || '—' }}</span></div>
           <div class="detail-row"><span class="detail-label">{{ $t('devices.deviceType') }}</span><span class="detail-value">{{ detailTypeLabel }}</span></div>
+          <div class="detail-row"><span class="detail-label">{{ $t('devices.mac') }}</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
+          <div class="detail-row"><span class="detail-label">IP</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
           <div class="detail-row"><span class="detail-label">{{ $t('devices.vendor') }}</span><span class="detail-value">{{ detailDevice.vendor || '—' }}</span></div>
         </div>
       </div>
 
-      <div class="detail-section">
-        <div class="detail-section-title">{{ $t('devices.networkInfo') }}</div>
-        <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.openPorts') }}</span><span class="detail-value mono">{{ parsePorts(detailDevice.open_ports) }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.responseTime') }}</span><span class="detail-value mono">{{ detailDevice.response_time_ms != null ? detailDevice.response_time_ms + ' ms' : '—' }}</span></div>
-        </div>
-      </div>
 
       <div class="detail-section">
         <div class="detail-section-title">{{ $t('devices.recordInfo') }}</div>

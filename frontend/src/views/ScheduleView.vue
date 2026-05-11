@@ -89,7 +89,6 @@ async function handleDelete(row) {
         <template #default="{ row }">{{ row.name || $t('schedule.unnamed') }}</template>
       </el-table-column>
       <el-table-column prop="camera_mac" :label="$t('schedule.cameraMac')" width="160" />
-      <el-table-column prop="cron_expr" :label="$t('schedule.cronExpr')" width="150" />
       <el-table-column :label="$t('schedule.segmentDuration')" width="120">
         <template #default="{ row }">{{ Math.floor(row.segment_duration / 60) }}{{ $t('schedule.segmentUnit') }}</template>
       </el-table-column>

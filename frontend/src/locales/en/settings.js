@@ -10,4 +10,6 @@ export default {
   healthy: 'Healthy',
   abnormal: 'Abnormal',
   refresh: 'Refresh',
+  systemHealthy: 'Healthy',
+  systemUnhealthy: 'Unhealthy',
 }

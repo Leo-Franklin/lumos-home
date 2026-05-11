@@ -66,11 +66,11 @@ function typeIconStyle(t) {
     </div>
 
     <div class="device-main">
-      <span class="device-name">{{ device.alias || $t('devices.unnamed') }}</span>
-      <span class="device-meta">{{ device.ip }}<template v-if="device.vendor"> · {{ device.vendor }}</template></span>
+      <span class="device-name">{{ device.alias || device.hostname || $t('devices.unnamed') }}</span>
+      <span class="device-meta" v-if="device.vendor">{{ device.vendor }}</span>
     </div>
 
-    <span class="device-mac">{{ device.mac }}</span>
+    <span class="device-ip-list">{{ device.ip || '—' }}</span>
 
     <span class="type-badge" :style="typeBadgeStyle(device.device_type)">
       {{ $t(`common.deviceTypes.${device.device_type}`) }}
@@ -154,18 +154,13 @@ function typeIconStyle(t) {
   text-overflow: ellipsis;
 }
 
-/* MAC address — visible on hover */
-.device-mac {
+/* IP in list */
+.device-ip-list {
   font-size: 11px;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   white-space: nowrap;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity var(--duration-fast) ease-out;
-}
-.device-row:hover .device-mac {
-  opacity: 1;
 }
 
 /* Type badge */

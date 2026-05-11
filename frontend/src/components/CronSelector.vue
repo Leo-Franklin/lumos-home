@@ -249,15 +249,8 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   text-overflow: ellipsis;
 }
 .preset-cron {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  margin-top: 3px;
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none; /* Hide technical cron syntax from regular users */
 }
-.preset-card.selected .preset-cron { color: var(--color-primary); }
 
 .custom-panel { display: flex; flex-direction: column; gap: 14px; }
 .custom-row { display: flex; gap: 12px; }
@@ -324,8 +317,6 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 .preview-bar.invalid .preview-text { color: var(--color-error, #F05252); }
 
 .preview-cron {
-  opacity: 0.6;
-  font-size: 11px;
-  font-family: var(--font-mono);
+  display: none; /* Hide technical cron syntax from regular users */
 }
 </style>
