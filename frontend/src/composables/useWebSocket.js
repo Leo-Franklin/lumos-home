@@ -2,6 +2,7 @@ import { ref, onUnmounted } from 'vue'
 
 export function useWebSocket(url, { onMessage, maxRetries = Infinity } = {}) {
   const connected = ref(false)
+  const reconnecting = ref(false)
   let ws = null
   let retries = 0
   let retryTimer = null
@@ -14,6 +15,7 @@ export function useWebSocket(url, { onMessage, maxRetries = Infinity } = {}) {
 
     ws.onopen = () => {
       connected.value = true
+      reconnecting.value = false
       retries = 0
     }
 
@@ -27,6 +29,7 @@ export function useWebSocket(url, { onMessage, maxRetries = Infinity } = {}) {
     ws.onclose = () => {
       connected.value = false
       if (retries < maxRetries) {
+        reconnecting.value = true
         const delay = Math.min(1000 * Math.pow(2, retries), 30000)
         retryTimer = setTimeout(() => {
           retries++
@@ -46,5 +49,5 @@ export function useWebSocket(url, { onMessage, maxRetries = Infinity } = {}) {
   connect()
   onUnmounted(disconnect)
 
-  return { connected, disconnect }
+  return { connected, reconnecting, disconnect }
 }

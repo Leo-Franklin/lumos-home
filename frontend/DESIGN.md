@@ -70,6 +70,24 @@
 | IoT | `--color-type-iot` | `#F07D38` | 橙色 |
 | 未知 | `--color-type-unknown` | `#8B8B96` | 灰色 = 次文字色复用 |
 
+### 活动流分类色（Activity Feed）
+| 分类 | Token | Hex | 用途 |
+|------|-------|-----|------|
+| 设备事件 | `--color-cat-device` | `#007AFF` | 设备上/下线、未知设备检测 |
+| 摄像头事件 | `--color-cat-camera` | `#34C759` | 摄头状态、录像事件 |
+| 成员事件 | `--color-cat-member` | `#5E5CE6` | 成员到达/离开 |
+| 系统事件 | `--color-cat-system` | `#8B8B96` | 扫描完成、DLNA 发现 |
+
+### Stat Card 图标强调色
+| 卡片 | Token | Hex | 说明 |
+|------|-------|-----|------|
+| 成员 | `--color-accent-members` | `#5E5CE6` | 配合 `--color-type-camera` 用同一色系 |
+| 摄像头 | `--color-accent-cameras` | `#34C759` | 强调在线/录制状态 |
+| 网络设备 | `--color-accent-devices` | `#007AFF` | 设备在线率感知 |
+| 录像 | `--color-accent-recordings` | `#FF9500` | 时间长度统计 |
+| 未知设备 | `--color-accent-unknown` | `#8B8B96` | 默认灰 |
+| 未知设备（警告）| `--color-accent-unknown-warn` | `#E6A23C` | 有新增设备时变橙色 |
+
 > **设计原则：** 类型色与语义状态色刻意复用，减少颜色总量，降低认知负担。
 > 紫=主色/摄像头，绿=成功/在线/电脑，黄=进行中/手机，橙=警告/IoT。
 
@@ -362,7 +380,7 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
 
 **必须遵守：**
 - 全局使用深色主题，不引入浅色背景页面（当前 MainLayout 的 `#f5f7fa` 需替换为 `--color-bg`）
-- 所有颜色使用 CSS 变量，禁止在组件内硬编码 hex 值
+- 所有颜色使用 CSS 变量，禁止在组件内硬编码 hex 值（活动流用 `--color-cat-*`，Stat Card 用 `--color-accent-*`）
 - IP 地址、MAC 地址、文件名等机器标识符一律使用 mono 字体
 - 状态色用于传达含义，不用于美化（绿色=在线，不是"好看"）
 - Element Plus 组件通过 CSS 变量覆盖（不修改 element-plus 源码）
@@ -410,11 +428,25 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
   --color-scanning: #F2C94C;
 
   /* 设备类型色 */
-  --color-type-camera:   #5E5CE6;
-  --color-type-computer: #26C281;
-  --color-type-phone:    #F2C94C;
-  --color-type-iot:      #F07D38;
-  --color-type-unknown:  #8B8B96;
+  --color-type-camera:        #5E5CE6;
+  --color-type-computer:      #26C281;
+  --color-type-phone:         #F2C94C;
+  --color-type-iot:           #F07D38;
+  --color-type-unknown:       #8B8B96;
+
+  /* 活动流分类色 */
+  --color-cat-device:   #007AFF;
+  --color-cat-camera:   #34C759;
+  --color-cat-member:   #5E5CE6;
+  --color-cat-system:   #8B8B96;
+
+  /* Stat Card 图标强调色 */
+  --color-accent-members:      #5E5CE6;
+  --color-accent-cameras:      #34C759;
+  --color-accent-devices:      #007AFF;
+  --color-accent-recordings:   #FF9500;
+  --color-accent-unknown:      #8B8B96;
+  --color-accent-unknown-warn: #E6A23C;
 
   /* 圆角 */
   --radius-xs:   3px;

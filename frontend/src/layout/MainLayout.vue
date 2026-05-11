@@ -14,7 +14,7 @@ const auth = useAuthStore()
 const notifications = useNotificationsStore()
 
 const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
-const { connected } = useWebSocket(wsUrl, { onMessage: notifications.handle })
+const { connected, reconnecting } = useWebSocket(wsUrl, { onMessage: notifications.handle })
 
 function switchLang(lang) {
   localeStore.setLocale(lang)
@@ -39,9 +39,9 @@ function logout() {
         <div class="ws-status">
           <span
             class="ws-dot"
-            :class="connected ? 'connected' : 'disconnected'"
-        />
-          <span class="ws-label">{{ connected ? $t('layout.connected') : $t('layout.disconnected') }}</span>
+            :class="connected ? 'connected' : reconnecting ? 'reconnecting' : 'disconnected'"
+          />
+          <span class="ws-label">{{ connected ? $t('layout.connected') : reconnecting ? $t('layout.reconnecting') : $t('layout.disconnected') }}</span>
         </div>
         <button class="lang-switch" @click="switchLang(localeStore.locale === 'zh-CN' ? 'en' : 'zh-CN')">
           {{ $t('layout.switchLang') }}
@@ -166,8 +166,12 @@ function logout() {
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.ws-dot.connected    { background: var(--color-online); animation: ws-pulse 2.5s ease-in-out infinite; }
+.ws-dot.connected    { background: var(--color-online); }
 .ws-dot.disconnected { background: var(--color-offline); }
+.ws-dot.reconnecting {
+  background: var(--color-scanning);
+  animation: ws-reconnect-pulse 1s ease-in-out infinite;
+}
 .ws-label {
   font-size: 12px;
   color: var(--color-text-muted);

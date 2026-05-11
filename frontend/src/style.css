@@ -49,6 +49,20 @@
   --color-type-nas:           #60A5FA;
   --color-type-wearable:      #FB7185;
 
+  /* 活动流分类色 */
+  --color-cat-device:   #007AFF;
+  --color-cat-camera:   #34C759;
+  --color-cat-member:   #5E5CE6;
+  --color-cat-system:   #8B8B96;
+
+  /* Stat Card 图标强调色 */
+  --color-accent-members:      #5E5CE6;
+  --color-accent-cameras:      #34C759;
+  --color-accent-devices:      #007AFF;
+  --color-accent-recordings:   #FF9500;
+  --color-accent-unknown:      #8B8B96;
+  --color-accent-unknown-warn: #E6A23C;
+
   /* 圆角 */
   --radius-xs:   3px;
   --radius-sm:   4px;

@@ -209,12 +209,12 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   height: 22px;
 }
 
-.stat-card--members .stat-icon { color: #5E5CE6; background: rgba(94,92,230,.1); }
-.stat-card--cameras .stat-icon { color: #34C759; background: rgba(52,199,89,.1); }
-.stat-card--devices .stat-icon { color: #007AFF; background: rgba(0,122,255,.1); }
-.stat-card--recordings .stat-icon { color: #FF9500; background: rgba(255,149,0,.1); }
-.stat-card--unknown .stat-icon { color: #8B8B96; }
-.stat-card--warn .stat-icon { color: #E6A23C; background: rgba(230,162,60,.15); }
+.stat-card--members .stat-icon { color: var(--color-accent-members); background: rgba(94,92,230,.1); }
+.stat-card--cameras .stat-icon { color: var(--color-accent-cameras); background: rgba(52,199,89,.1); }
+.stat-card--devices .stat-icon { color: var(--color-accent-devices); background: rgba(0,122,255,.1); }
+.stat-card--recordings .stat-icon { color: var(--color-accent-recordings); background: rgba(255,149,0,.1); }
+.stat-card--unknown .stat-icon { color: var(--color-accent-unknown); }
+.stat-card--warn .stat-icon { color: var(--color-accent-unknown-warn); background: rgba(230,162,60,.15); }
 
 .stat-body {
   min-width: 0;
@@ -307,10 +307,10 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   background: var(--color-text-muted);
 }
 
-.activity-item--device  .activity-dot { background: #007AFF; }
-.activity-item--camera  .activity-dot { background: #34C759; }
-.activity-item--member  .activity-dot { background: #5E5CE6; }
-.activity-item--system  .activity-dot { background: #8B8B96; }
+.activity-item--device  .activity-dot { background: var(--color-cat-device); }
+.activity-item--camera  .activity-dot { background: var(--color-cat-camera); }
+.activity-item--member  .activity-dot { background: var(--color-cat-member); }
+.activity-item--system  .activity-dot { background: var(--color-cat-system); }
 
 .activity-label {
   line-height: 1.4;

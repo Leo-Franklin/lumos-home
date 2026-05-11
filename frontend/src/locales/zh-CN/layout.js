@@ -14,6 +14,7 @@ export default {
   settings: '系统设置',
   connected: '已连接',
   disconnected: '未连接',
+  reconnecting: '重连中',
   switchLang: 'EN',
   logout: '退出登录',
 }

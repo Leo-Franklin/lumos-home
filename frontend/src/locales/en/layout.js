@@ -14,6 +14,7 @@ export default {
   settings: 'Settings',
   connected: 'Connected',
   disconnected: 'Disconnected',
+  reconnecting: 'Reconnecting',
   switchLang: '中文',
   logout: 'Logout',
 }

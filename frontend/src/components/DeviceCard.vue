@@ -13,33 +13,33 @@ defineProps({
 defineEmits(['edit', 'delete', 'detail'])
 
 const TYPE_CONFIG = {
-  camera:        { label: 'Camera',        color: 'var(--color-type-camera)',        hex: '#5E5CE6' },
-  computer:      { label: 'Computer',      color: 'var(--color-type-computer)',      hex: '#26C281' },
-  phone:         { label: 'Phone',         color: 'var(--color-type-phone)',         hex: '#F2C94C' },
-  iot:           { label: 'IoT',           color: 'var(--color-type-iot)',           hex: '#F07D38' },
-  router:        { label: 'Router',        color: 'var(--color-type-router)',        hex: '#06B6D4' },
-  tablet:        { label: 'Tablet',        color: 'var(--color-type-tablet)',        hex: '#D946EF' },
-  tv:            { label: 'TV',            color: 'var(--color-type-tv)',            hex: '#7C3AED' },
-  printer:       { label: 'Printer',       color: 'var(--color-type-printer)',       hex: '#14B8A6' },
-  smart_speaker: { label: 'Smart Speaker', color: 'var(--color-type-smart-speaker)', hex: '#A3E635' },
-  game_console:  { label: 'Game Console',  color: 'var(--color-type-game-console)',  hex: '#EF4444' },
-  nas:           { label: 'NAS',           color: 'var(--color-type-nas)',           hex: '#60A5FA' },
-  wearable:      { label: 'Wearable',      color: 'var(--color-type-wearable)',      hex: '#FB7185' },
-  unknown:       { label: 'Unknown',       color: 'var(--color-type-unknown)',       hex: '#8B8B96' },
+  camera:        { label: 'Camera',        color: 'var(--color-type-camera)',        hex: 'var(--color-type-camera)' },
+  computer:      { label: 'Computer',      color: 'var(--color-type-computer)',      hex: 'var(--color-type-computer)' },
+  phone:         { label: 'Phone',         color: 'var(--color-type-phone)',         hex: 'var(--color-type-phone)' },
+  iot:           { label: 'IoT',           color: 'var(--color-type-iot)',           hex: 'var(--color-type-iot)' },
+  router:        { label: 'Router',        color: 'var(--color-type-router)',        hex: 'var(--color-type-router)' },
+  tablet:        { label: 'Tablet',        color: 'var(--color-type-tablet)',        hex: 'var(--color-type-tablet)' },
+  tv:            { label: 'TV',            color: 'var(--color-type-tv)',            hex: 'var(--color-type-tv)' },
+  printer:       { label: 'Printer',       color: 'var(--color-type-printer)',       hex: 'var(--color-type-printer)' },
+  smart_speaker: { label: 'Smart Speaker', color: 'var(--color-type-smart-speaker)', hex: 'var(--color-type-smart-speaker)' },
+  game_console:  { label: 'Game Console',  color: 'var(--color-type-game-console)',  hex: 'var(--color-type-game-console)' },
+  nas:           { label: 'NAS',           color: 'var(--color-type-nas)',           hex: 'var(--color-type-nas)' },
+  wearable:      { label: 'Wearable',      color: 'var(--color-type-wearable)',      hex: 'var(--color-type-wearable)' },
+  unknown:       { label: 'Unknown',       color: 'var(--color-type-unknown)',       hex: 'var(--color-type-unknown)' },
 }
 
 function typeConfig(t) {
-  return TYPE_CONFIG[t] || { label: t || 'Unknown', color: 'var(--color-type-unknown)', hex: '#8B8B96' }
+  return TYPE_CONFIG[t] || { label: t || 'Unknown', color: 'var(--color-type-unknown)', hex: 'var(--color-type-unknown)' }
 }
 
 function typeBadgeStyle(t) {
   const cfg = typeConfig(t)
-  return { color: cfg.hex, background: cfg.hex + '1A' }
+  return { color: cfg.hex, background: `color-mix(in srgb, ${cfg.hex} 10%, transparent)` }
 }
 
 function typeIconStyle(t) {
   const cfg = typeConfig(t)
-  return { color: cfg.hex, background: cfg.hex + '1A' }
+  return { color: cfg.hex, background: `color-mix(in srgb, ${cfg.hex} 10%, transparent)` }
 }
 </script>
 
@@ -112,9 +112,15 @@ function typeIconStyle(t) {
 .status-dot.online {
   background: var(--color-online);
   box-shadow: 0 0 6px rgba(38, 194, 129, 0.5);
+  animation: breathe 2s ease-in-out infinite;
 }
 .status-dot.offline {
   background: var(--color-offline);
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(38, 194, 129, 0.5); }
+  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(38, 194, 129, 0.8); }
 }
 
 /* Type icon */

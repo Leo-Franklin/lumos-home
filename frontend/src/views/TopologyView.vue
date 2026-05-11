@@ -498,6 +498,10 @@ onMounted(loadTopology)
   0%, 100% { opacity: 1 }
   50% { opacity: 0.35 }
 }
+@keyframes breathe {
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); }
+  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(38, 194, 129, 0.8); }
+}
 .header-actions {
   display: flex;
   gap: 8px;
@@ -707,7 +711,7 @@ onMounted(loadTopology)
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); }
+.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
 .status-dot.offline { background: var(--color-offline); }
 .latency {
   margin-left: auto;

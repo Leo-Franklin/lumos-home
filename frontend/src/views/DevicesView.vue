@@ -90,19 +90,19 @@ const deviceTypeOptions = [
 ]
 
 const filterOptions = [
-  { value: 'camera',        label: 'Camera',        hex: '#5E5CE6' },
-  { value: 'computer',      label: 'Computer',      hex: '#26C281' },
-  { value: 'phone',         label: 'Phone',         hex: '#F2C94C' },
-  { value: 'iot',           label: 'IoT',           hex: '#F07D38' },
-  { value: 'router',        label: 'Router',        hex: '#06B6D4' },
-  { value: 'tablet',        label: 'Tablet',        hex: '#D946EF' },
-  { value: 'tv',            label: 'TV',            hex: '#7C3AED' },
-  { value: 'printer',       label: 'Printer',       hex: '#14B8A6' },
-  { value: 'smart_speaker', label: 'Smart Speaker', hex: '#A3E635' },
-  { value: 'game_console',  label: 'Game Console',  hex: '#EF4444' },
-  { value: 'nas',           label: 'NAS',           hex: '#60A5FA' },
-  { value: 'wearable',      label: 'Wearable',      hex: '#FB7185' },
-  { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96' },
+  { value: 'camera',        label: 'Camera',        hex: '#5E5CE6', rgba: 'rgba(94,92,230,' },
+  { value: 'computer',      label: 'Computer',      hex: '#26C281', rgba: 'rgba(38,194,129,' },
+  { value: 'phone',         label: 'Phone',         hex: '#F2C94C', rgba: 'rgba(242,201,76,' },
+  { value: 'iot',           label: 'IoT',           hex: '#F07D38', rgba: 'rgba(240,125,56,' },
+  { value: 'router',        label: 'Router',        hex: '#06B6D4', rgba: 'rgba(6,182,212,' },
+  { value: 'tablet',        label: 'Tablet',        hex: '#D946EF', rgba: 'rgba(217,70,239,' },
+  { value: 'tv',            label: 'TV',            hex: '#7C3AED', rgba: 'rgba(124,58,237,' },
+  { value: 'printer',       label: 'Printer',       hex: '#14B8A6', rgba: 'rgba(20,184,166,' },
+  { value: 'smart_speaker', label: 'Smart Speaker', hex: '#A3E635', rgba: 'rgba(163,230,53,' },
+  { value: 'game_console',  label: 'Game Console',  hex: '#EF4444', rgba: 'rgba(239,68,68,' },
+  { value: 'nas',           label: 'NAS',           hex: '#60A5FA', rgba: 'rgba(96,165,250,' },
+  { value: 'wearable',      label: 'Wearable',      hex: '#FB7185', rgba: 'rgba(251,113,133,' },
+  { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96', rgba: 'rgba(139,139,150,' },
 ]
 
 onMounted(() => {
@@ -156,7 +156,7 @@ onMounted(() => {
         :key="opt.value"
         class="filter-btn"
         :class="{ active: devicesStore.filterTypes.includes(opt.value) }"
-        :style="devicesStore.filterTypes.includes(opt.value) ? { color: opt.hex, borderColor: opt.hex + '66', background: opt.hex + '18' } : {}"
+        :style="devicesStore.filterTypes.includes(opt.value) ? { color: opt.hex, borderColor: opt.hex + '66', background: opt.rgba + '0.1)' } : {}"
         @click="devicesStore.toggleFilter(opt.value)"
       >
         {{ opt.label }}
