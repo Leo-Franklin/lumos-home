@@ -6,7 +6,6 @@ defineProps({
   suffix: { type: String, default: '' },
   description: { type: String, default: '' },
   trend: { type: String, default: null },  // e.g., "+2 vs last week"
-  icon: { type: Object, default: null },
   iconColor: { type: String, default: 'var(--color-primary)' },
   variant: {
     type: String,
