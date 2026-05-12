@@ -15,8 +15,8 @@ defineEmits(['click'])
     :class="{ active }"
     :style="active && color ? {
       '--chip-color': color,
-      '--chip-bg': color + '18',
-      '--chip-border': color + '50'
+      '--chip-bg': color.startsWith('var(') ? 'color-mix(in srgb, ' + color + ' 12%, transparent)' : color + '18',
+      '--chip-border': color.startsWith('var(') ? 'color-mix(in srgb, ' + color + ' 30%, transparent)' : color + '50'
     } : {}"
     @click="$emit('click')"
   >
