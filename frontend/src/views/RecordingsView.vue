@@ -105,8 +105,11 @@ function closePlay() {
 }
 
 function openFolder(row) {
-  if (row.storage_type === 'local') {
-    window.open('file://' + row.file_path)
+  if (row.storage_type === 'local' && row.file_path) {
+    // Only open if path looks like a local file path (starts with / or drive letter like C:\)
+    if (row.file_path.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(row.file_path)) {
+      window.open('file://' + row.file_path)
+    }
   } else if (row.storage_type === 'nas' && row.nas_access_url) {
     window.open(row.nas_access_url)
   }
