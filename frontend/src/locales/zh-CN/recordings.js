@@ -43,4 +43,5 @@ export default {
   file: '文件',
   openLocalFolder: '打开本地文件夹',
   openNasFolder: '打开 NAS 文件夹',
+  openFolderFailed: '打开文件夹失败',
 }

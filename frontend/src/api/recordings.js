@@ -13,3 +13,4 @@ export const recordingHlsUrl = (id) => {
 }
 
 export const getRecordingStats = (params) => api.get('/recordings/stats', { params })
+export const openRecordingFolder = (id) => api.post(`/recordings/${id}/open-folder`)

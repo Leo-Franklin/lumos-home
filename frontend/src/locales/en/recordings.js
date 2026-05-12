@@ -43,4 +43,5 @@ export default {
   file: 'File',
   openLocalFolder: 'Open Local Folder',
   openNasFolder: 'Open NAS Folder',
+  openFolderFailed: 'Failed to open folder',
 }

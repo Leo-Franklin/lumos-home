@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import {
   listRecordings, deleteRecording, streamUrl, downloadUrl,
   requestRecordingHls, recordingHlsUrl, getRecordingStats,
+  openRecordingFolder,
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -104,14 +105,17 @@ function closePlay() {
   playUrl.value = ''
 }
 
-function openFolder(row) {
-  if (row.storage_type === 'local' && row.file_path) {
-    // Only open if path looks like a local file path (starts with / or drive letter like C:\)
-    if (row.file_path.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(row.file_path)) {
-      window.open('file://' + row.file_path)
-    }
-  } else if (row.storage_type === 'nas' && row.nas_access_url) {
+async function openFolder(row) {
+  if (row.storage_type === 'nas' && row.nas_access_url) {
     window.open(row.nas_access_url)
+    return
+  }
+  if (row.storage_type === 'local') {
+    try {
+      await openRecordingFolder(row.id)
+    } catch {
+      ElMessage.error(t('recordings.openFolderFailed'))
+    }
   }
 }
 
