@@ -9,7 +9,7 @@ import {
   startRecord, stopRecord, mjpegStreamUrl,
   takeSnapshot, startLive, stopLive, hlsLiveUrl,
 } from '@/api/cameras'
-import { Plus, Edit, Delete, Search, VideoPlay, Camera, VideoCamera, VideoPause, VideoCameraFilled } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, VideoPlay, Camera, VideoCamera, VideoPause, VideoCameraFilled, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 
@@ -104,6 +104,21 @@ async function handleProbe(cam) {
     probeDialog.value = false
   } finally {
     probeLoading.value = false
+  }
+}
+
+// ── Preview Dropdown ──────────────────────────────────────────
+function handlePreviewCommand(cmd, row) {
+  switch (cmd) {
+    case 'live':
+      openLive(row)
+      break
+    case 'snapshot':
+      handleSnapshot(row)
+      break
+    case 'hls':
+      openHlsLive(row)
+      break
   }
 }
 
@@ -252,33 +267,55 @@ onMounted(async () => {
       <el-table-column :label="$t('cameras.lastProbe')" width="160">
         <template #default="{ row }">{{ $d(row.last_probe_at, 'short') }}</template>
       </el-table-column>
-      <el-table-column :label="$t('cameras.actions')" min-width="240" align="center">
+      <el-table-column :label="$t('cameras.actions')" min-width="200" align="center">
         <template #default="{ row }">
           <div class="action-group">
+            <!-- Probe -->
             <el-tooltip :content="$t('cameras.onvifProbe')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Search" @click="handleProbe(row)" />
             </el-tooltip>
-            <el-tooltip :content="$t('cameras.livePreview')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="VideoPlay" @click="openLive(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('cameras.snapshot')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Camera" :loading="snapshotLoading" @click="handleSnapshot(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('cameras.hlsLive')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="VideoCamera" :loading="hlsStarting" @click="openHlsLive(row)" />
-            </el-tooltip>
+
+            <!-- Preview dropdown -->
+            <el-dropdown trigger="click" @command="(cmd) => handlePreviewCommand(cmd, row)">
+              <el-button class="action-btn action-btn--primary" size="small">
+                <VideoPlay />
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="live">
+                    <el-icon><VideoPlay /></el-icon>
+                    {{ $t('cameras.livePreview') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="snapshot">
+                    <el-icon><Camera /></el-icon>
+                    {{ $t('cameras.snapshot') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="hls">
+                    <el-icon><VideoCamera /></el-icon>
+                    {{ $t('cameras.hlsLive') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+
+            <!-- Edit -->
             <el-tooltip :content="$t('cameras.edit')" :show-after="400">
               <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
             </el-tooltip>
+
+            <!-- Record -->
             <el-tooltip :content="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')" :show-after="400">
               <el-button
                 class="action-btn"
-                :class="row.is_recording ? 'action-btn--stop' : 'action-btn--record'"
+                :class="row.is_recording ? 'action-btn--recording' : 'action-btn--record'"
                 size="small"
                 :icon="row.is_recording ? VideoPause : VideoCameraFilled"
                 @click="handleRecord(row)"
               />
             </el-tooltip>
+
+            <!-- Delete -->
             <el-tooltip :content="$t('cameras.delete')" :show-after="400">
               <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
             </el-tooltip>
@@ -471,7 +508,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: var(--space-1);
 }
 
 .action-btn {
@@ -485,27 +522,58 @@ onMounted(async () => {
   height: 28px;
   width: 28px;
   padding: 3px;
-  border-radius: 5px;
-  font-size: 15px;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-standard),
+              color var(--duration-fast) var(--easing-standard);
 }
 
-.action-btn--danger {
-  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
-  --el-button-hover-text-color: var(--color-error);
-  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+.action-btn:hover:not(:disabled) {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-btn--primary {
+  width: auto;
+  padding: 0 var(--space-3);
+  gap: var(--space-1);
+}
+
+.action-btn--primary:hover {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
 }
 
 .action-btn--record {
-  --el-button-hover-bg-color: rgba(38, 194, 129, 0.1);
+  --el-button-hover-bg-color: rgba(16, 185, 129, 0.1);
   --el-button-hover-text-color: var(--color-online);
-  --el-button-active-bg-color: rgba(38, 194, 129, 0.15);
 }
 
-.action-btn--stop {
-  --el-button-hover-bg-color: rgba(240, 125, 56, 0.1);
-  --el-button-hover-text-color: var(--color-warning);
-  --el-button-active-bg-color: rgba(240, 125, 56, 0.15);
+.action-btn--recording {
+  --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);
+  --el-button-hover-text-color: var(--color-error);
+  animation: recording-pulse 1.5s ease-in-out infinite;
+}
+
+.action-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+/* Dropdown menu styles */
+:deep(.el-dropdown-menu__item) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
 }
 </style>
