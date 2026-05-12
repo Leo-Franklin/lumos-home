@@ -63,16 +63,6 @@ function openDetail(row) {
   detailDialog.value = true
 }
 
-function parsePorts(raw) {
-  if (!raw) return '—'
-  try {
-    const ports = JSON.parse(raw)
-    return ports.length ? ports.join(', ') : '—'
-  } catch {
-    return raw
-  }
-}
-
 function formatTime(val) {
   if (!val) return '—'
   return new Date(val).toLocaleString('zh-CN', { hour12: false })
@@ -319,7 +309,7 @@ onMounted(() => {
 .empty-container {
   display: flex;
   justify-content: center;
-  padding: var(--space-12) 0;
+  padding: var(--space-10) 0;
 }
 
 /* 详情弹窗 */
