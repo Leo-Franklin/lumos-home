@@ -93,22 +93,22 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <template v-if="data">
       <div class="stats-grid">
 
-        <div class="stat-card stat-card--members">
+        <div class="stat-card stat-card--members" style="animation: slide-in 200ms var(--easing-snap) both;">
           <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a7 7 0 0 1 10-5.5"/><circle cx="17" cy="8" r="3"/><path d="M14 21v-2a5 5 0 0 1 3.5-4.8"/></svg></div>
           <div class="stat-body">
             <div class="stat-header">{{ $t('dashboard.membersHome') }}</div>
-            <div class="stat-value">
+            <div class="stat-value tabular-nums">
               {{ data.members_home }}<span class="stat-of"> / {{ data.members_total }}</span>
             </div>
             <div class="stat-desc">{{ $t('dashboard.membersHomeDesc') }}</div>
           </div>
         </div>
 
-        <div class="stat-card stat-card--cameras">
+        <div class="stat-card stat-card--cameras" style="animation: slide-in 200ms 40ms var(--easing-snap) both;">
           <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8.5A2.5 2.5 0 0 1 4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7Z"/><path d="m17 10 4.5-3v10L17 14"/><circle cx="7" cy="12" r="1.5" fill="currentColor" stroke="none" :class="{ 'recording-dot': data.cameras_recording > 0 }"/></svg></div>
           <div class="stat-body">
             <div class="stat-header">{{ $t('dashboard.cameras') }}</div>
-            <div class="stat-value">
+            <div class="stat-value tabular-nums">
               {{ data.cameras_online }}<span class="stat-of"> / {{ data.cameras_total }}</span>
             </div>
             <div class="stat-desc">
@@ -120,31 +120,31 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
           </div>
         </div>
 
-        <div class="stat-card stat-card--devices">
+        <div class="stat-card stat-card--devices" style="animation: slide-in 200ms 80ms var(--easing-snap) both;">
           <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 15v6"/></svg></div>
           <div class="stat-body">
             <div class="stat-header">{{ $t('dashboard.networkDevices') }}</div>
-            <div class="stat-value">
+            <div class="stat-value tabular-nums">
               {{ data.devices_online }}<span class="stat-of"> / {{ data.devices_total }}</span>
             </div>
             <div class="stat-desc">{{ $t('dashboard.devicesOnline') }}</div>
           </div>
         </div>
 
-        <div class="stat-card stat-card--recordings">
+        <div class="stat-card stat-card--recordings" style="animation: slide-in 200ms 120ms var(--easing-snap) both;">
           <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" opacity=".85"/></svg></div>
           <div class="stat-body">
             <div class="stat-header">{{ $t('dashboard.todayRecordings') }}</div>
-            <div class="stat-value">{{ data.recordings_today_count }}</div>
+            <div class="stat-value tabular-nums">{{ data.recordings_today_count }}</div>
             <div class="stat-desc">{{ $t('common.unit_record') }} · {{ formatDuration(data.recordings_today_duration_seconds) }}</div>
           </div>
         </div>
 
-        <div class="stat-card stat-card--unknown" :class="{ 'stat-card--warn': data.unknown_devices_today > 0 }">
+        <div class="stat-card stat-card--unknown" :class="{ 'stat-card--warn': data.unknown_devices_today > 0 }" style="animation: slide-in 200ms 160ms var(--easing-snap) both;">
           <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><circle cx="12" cy="8" r=".5" fill="currentColor"/></svg></div>
           <div class="stat-body">
             <div class="stat-header">{{ $t('dashboard.unknownDevices') }}</div>
-            <div class="stat-value">{{ data.unknown_devices_today }}</div>
+            <div class="stat-value tabular-nums">{{ data.unknown_devices_today }}</div>
             <div class="stat-desc">{{ $t('dashboard.todayAppeared') }}</div>
           </div>
         </div>
@@ -159,6 +159,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
             :key="i"
             class="activity-item"
             :class="'activity-item--' + ev.category"
+            :style="{ animationDelay: Math.min(i * 20, 200) + 'ms', animationFillMode: 'both' }"
           >
             <span class="activity-dot"></span>
             <span class="activity-label">{{ ev.label }}</span>
@@ -263,12 +264,13 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   margin-top: 20px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 18px 20px;
   max-height: 420px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: slide-in 300ms var(--easing-snap) both;
 }
 
 .activity-header {
@@ -293,6 +295,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
   padding: 7px 0;
   font-size: 13px;
   color: var(--color-text-primary);
+  animation: slide-in 200ms var(--easing-snap) both;
 }
 
 .activity-item + .activity-item {

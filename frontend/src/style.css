@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 * {
   margin: 0;
@@ -63,6 +63,11 @@
   --color-accent-unknown:      #8B8B96;
   --color-accent-unknown-warn: #E6A23C;
 
+  /* 暖色调 - 家庭氛围辅助色 */
+  --color-warm-peach:   #E8A87C;
+  --color-warm-coral:   #F08080;
+  --color-warm-amber:   #E8B86D;
+
   /* 圆角 */
   --radius-xs:   3px;
   --radius-sm:   4px;
@@ -89,9 +94,10 @@
   --content-max-width:       1400px;
 
   /* 字体 */
-  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont,
+  --font-sans: "Outfit", -apple-system, BlinkMacSystemFont,
                "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --font-tabular: "Outfit", monospace;
 
   /* Element Plus 覆盖 */
   --el-color-primary:              var(--color-primary);
@@ -209,6 +215,24 @@ html, body {
 }
 .page-leave-to {
   opacity: 0;
+}
+
+/* ── Tabular numbers (stat values) ──────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ── Activity Feed stagger animation ─────── */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── WebSocket pulse ─────────────────────── */

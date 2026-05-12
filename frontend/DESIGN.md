@@ -13,8 +13,8 @@
 
 ## 1. 视觉主题与氛围
 
-**整体基调：** 深色技术仪表盘，冷感紫蓝主色，高对比度状态色。  
-**核心关键词：** 精准 · 实时 · 可控 · 专业 · 信息密集
+**整体基调：** 深色技术仪表盘，冷感紫蓝主色，高对比度状态色。加入暖色调辅助色，营造家庭氛围。
+**核心关键词：** 精准 · 实时 · 可控 · 专业 · 信息密集 · 温暖
 
 - 全局深色主题，消除浅色/深色混搭
 - 状态色作为语言系统（在线=绿、离线=灰、告警=橙/红）
@@ -88,6 +88,15 @@
 | 未知设备 | `--color-accent-unknown` | `#8B8B96` | 默认灰 |
 | 未知设备（警告）| `--color-accent-unknown-warn` | `#E6A23C` | 有新增设备时变橙色 |
 
+### 暖色调（家庭氛围辅助色）
+| Token | Hex | 用途 |
+|-------|-----|------|
+| `--color-warm-peach` | `#E8A87C` | 家庭成员、温馨场景辅助 |
+| `--color-warm-coral` | `#F08080` | 在家状态、亲和感 |
+| `--color-warm-amber` | `#E8B86D` | 提醒、关注 |
+
+> **设计原则：** 暖色仅用于 Members/Home 等与人相关的模块，不替代主色/状态色系统。
+
 > **设计原则：** 类型色与语义状态色刻意复用，减少颜色总量，降低认知负担。
 > 紫=主色/摄像头，绿=成功/在线/电脑，黄=进行中/手机，橙=警告/IoT。
 
@@ -96,13 +105,14 @@
 ## 3. 字体排版
 
 ```css
---font-sans: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC",
+--font-sans: "Outfit", -apple-system, BlinkMacSystemFont, "PingFang SC",
              "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+--font-tabular: "Outfit", monospace; /* 用于数字统计，使用 tabular-nums */
 ```
 
-> **中文支持：** Inter 不含中文字形，系统回退顺序为 PingFang SC（macOS）→ Hiragino Sans GB → 
-> Microsoft YaHei（Windows），确保中文排版与英文字重视觉统一。
+> **字体选择理由：** Outfit 相比 Inter/Plus Jakarta Sans 更具科技感与几何美感，同时保留良好的可读性。
+> 中文使用系统回退（PingFang SC → Hiragino Sans GB → Microsoft YaHei）。
 
 | Token | 大小 | 字重 | 行高 | 字距 | 用途 |
 |-------|------|------|------|------|------|
@@ -113,6 +123,8 @@
 | `--text-xl` | 18px | 600 | 1.4 | -0.02em | 页面副标题 |
 | `--text-2xl` | 22px | 700 | 1.3 | -0.02em | 页面主标题 |
 | `--text-3xl` | 28px | 700 | 1.2 | -0.03em | 大数字、统计数据 |
+
+**数字显示：** 统计数据使用 `font-variant-numeric: tabular-nums` + `letter-spacing: -0.03em`，确保数字等宽对齐，视觉更紧凑。
 
 **Mono 字体用途：** MAC 地址、IP 地址、录像文件名、设备 ID — 凡是机器生成的标识符均用 mono。
 
@@ -368,7 +380,8 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
 ```
 
 **动效规则：**
-- 列表行进入：`opacity 0→1 + translateY(4px→0)`，100ms，stagger 20ms
+- 列表行进入：`opacity 0→1 + translateY(4px→0)`，200ms，stagger 20ms（CSS `animationFillMode: both`）
+- Stat Card 入场：5 张卡片的 stagger 延迟分别为 0/40/80/120/160ms，营造依次浮现的层次感
 - 状态指示点（在线）：静态，无呼吸动画（避免视觉噪声）
 - 扫描进度：`width` 过渡 300ms
 - 模态框：`opacity + scale(0.96→1)` 200ms
