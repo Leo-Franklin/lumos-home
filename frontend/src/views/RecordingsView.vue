@@ -193,7 +193,9 @@ function cameraLabel(mac) {
   <div>
     <div class="page-header">
       <h2 class="page-title">{{ $t('recordings.title') }}</h2>
-      <el-button @click="openStats">{{ $t('recordings.recordingStats') }}</el-button>
+      <el-tooltip :content="$t('recordings.recordingStats')" :show-after="400">
+        <el-button @click="openStats">{{ $t('recordings.recordingStats') }}</el-button>
+      </el-tooltip>
     </div>
 
     <el-form :inline="true" :model="filter" class="filter-bar">
@@ -246,7 +248,7 @@ function cameraLabel(mac) {
           <div class="action-group">
             <el-tooltip
               :content="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
-              :disabled="row.status !== 'recording' && row.status !== 'failed'"
+              :show-after="400"
             >
               <el-button
                 class="action-btn action-btn--primary"
@@ -257,10 +259,7 @@ function cameraLabel(mac) {
                 @click="playRecording(row)"
               />
             </el-tooltip>
-            <el-tooltip
-              :content="$t('recordings.download')"
-              :disabled="row.status !== 'recording' && row.status !== 'failed'"
-            >
+            <el-tooltip :content="$t('recordings.download')" :show-after="400">
               <el-button
                 class="action-btn"
                 size="small"

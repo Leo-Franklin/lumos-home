@@ -58,6 +58,7 @@ export default {
   saved: '已保存',
   saveFailed: '保存失败',
   deleted: '已删除',
+  delete: '删除',
   deleteConfirm: '确定删除摄像头 {host}？',
   recordStarted: '已发送开始录制指令',
   recordStopped: '已发送停止录制指令',

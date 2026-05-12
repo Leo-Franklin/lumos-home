@@ -132,14 +132,18 @@ function handleFileRemove() {
     <div class="page-header">
       <h2 class="page-title">{{ $t('dlna.title') }}</h2>
       <div class="page-header-actions">
-        <el-button
-          :loading="dlna.discovering"
-          :icon="Search"
-          @click="dlna.discover()"
-        >
-          {{ dlna.discovering ? $t('dlna.searching') : $t('dlna.searchDevices') }}
-        </el-button>
-        <el-button :icon="Refresh" circle @click="dlna.fetchDevices()" />
+        <el-tooltip :content="$t('dlna.searchDevices')" :show-after="400">
+          <el-button
+            :loading="dlna.discovering"
+            :icon="Search"
+            @click="dlna.discover()"
+          >
+            {{ dlna.discovering ? $t('dlna.searching') : $t('dlna.searchDevices') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip :content="$t('common.refresh')" :show-after="400">
+          <el-button :icon="Refresh" circle @click="dlna.fetchDevices()" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -207,14 +211,16 @@ function handleFileRemove() {
               </div>
               <div class="device-card-state">
                 <el-tag v-if="dlna.transportState" :type="stateType" size="small">{{ stateLabel }}</el-tag>
-                <el-button
-                  :loading="dlna.statusLoading"
-                  :icon="Refresh"
-                  size="small"
-                  circle
-                  style="margin-left: 6px"
-                  @click="dlna.refreshStatus()"
-                />
+                <el-tooltip :content="$t('common.refresh')" :show-after="400">
+                  <el-button
+                    :loading="dlna.statusLoading"
+                    :icon="Refresh"
+                    size="small"
+                    circle
+                    style="margin-left: 6px"
+                    @click="dlna.refreshStatus()"
+                  />
+                </el-tooltip>
               </div>
             </div>
           </div>
@@ -273,28 +279,34 @@ function handleFileRemove() {
           <div class="control-section">
             <div class="section-title">{{ $t('dlna.playbackControl') }}</div>
             <div class="playback-controls">
+            <el-tooltip :content="$t('dlna.play')" :show-after="400">
               <el-button
                 type="success"
                 :icon="VideoPlay"
                 :loading="playLoading"
                 size="large"
                 @click="handlePlay"
-              >{{ $t('dlna.play') }}</el-button>
+              />
+            </el-tooltip>
+            <el-tooltip :content="$t('dlna.pause')" :show-after="400">
               <el-button
                 type="warning"
                 :icon="VideoPause"
                 :loading="playLoading"
                 size="large"
                 @click="handlePause"
-              >{{ $t('dlna.pause') }}</el-button>
+              />
+            </el-tooltip>
+            <el-tooltip :content="$t('dlna.stop')" :show-after="400">
               <el-button
                 type="danger"
                 :icon="SwitchButton"
                 :loading="playLoading"
                 size="large"
                 @click="handleStop"
-              >{{ $t('dlna.stop') }}</el-button>
-            </div>
+              />
+            </el-tooltip>
+          </div>
           </div>
 
           <!-- 传输状态详情 -->

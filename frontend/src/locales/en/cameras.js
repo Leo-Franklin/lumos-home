@@ -58,6 +58,7 @@ export default {
   saved: 'Saved',
   saveFailed: 'Save failed',
   deleted: 'Deleted',
+  delete: 'Delete',
   deleteConfirm: 'Delete camera {host}?',
   recordStarted: 'Record started',
   recordStopped: 'Record stopped',
