@@ -418,9 +418,6 @@ function cameraLabel(mac) {
   color: var(--color-text-secondary);
 }
 
-/* Action buttons with priority */
-.action-group {
-
 /* ── Stats dialog ─────────────────────────── */
 .stats-header {
   display: flex;
