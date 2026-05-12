@@ -110,7 +110,6 @@ function formatTime(timestamp) {
   flex: 1;
   position: relative;
   padding-right: var(--space-2);
-  max-height: v-bind('maxHeight + "px"');
 }
 
 .activity-list::-webkit-scrollbar {
