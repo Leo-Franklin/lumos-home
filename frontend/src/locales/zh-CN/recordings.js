@@ -40,4 +40,7 @@ export default {
   statsFailed: '统计加载失败',
   close: '关闭',
   cancel: '取消',
+  file: '文件',
+  openLocalFolder: '打开本地文件夹',
+  openNasFolder: '打开 NAS 文件夹',
 }

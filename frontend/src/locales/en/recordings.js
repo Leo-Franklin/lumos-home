@@ -40,4 +40,7 @@ export default {
   statsFailed: 'Failed to load stats',
   close: 'Close',
   cancel: 'Cancel',
+  file: 'File',
+  openLocalFolder: 'Open Local Folder',
+  openNasFolder: 'Open NAS Folder',
 }
