@@ -198,19 +198,39 @@ function cameraLabel(mac) {
       </el-tooltip>
     </div>
 
-    <el-form :inline="true" :model="filter" class="filter-bar">
-      <el-form-item :label="$t('recordings.camera')">
-        <el-select v-model="filter.camera_mac" :placeholder="$t('recordings.all')" clearable style="width: 200px">
-          <el-option v-for="c in cameras" :key="c.device_mac" :label="c.onvif_host" :value="c.device_mac" />
+    <div class="filter-section">
+      <div class="filter-row">
+        <el-select
+          v-model="filter.camera_mac"
+          :placeholder="$t('recordings.all')"
+          clearable
+          style="width: 200px"
+        >
+          <el-option
+            v-for="c in cameras"
+            :key="c.device_mac"
+            :label="c.onvif_host"
+            :value="c.device_mac"
+          />
         </el-select>
-      </el-form-item>
-      <el-form-item :label="$t('recordings.date')">
-        <el-date-picker v-model="filter.date" type="date" value-format="YYYY-MM-DD" :placeholder="$t('recordings.allDates')" clearable />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="fetchRecordings">{{ $t('recordings.query') }}</el-button>
-      </el-form-item>
-    </el-form>
+
+        <el-date-picker
+          v-model="filter.date"
+          type="date"
+          value-format="YYYY-MM-DD"
+          :placeholder="$t('recordings.allDates')"
+          clearable
+        />
+
+        <el-button type="primary" @click="fetchRecordings">
+          {{ $t('recordings.query') }}
+        </el-button>
+      </div>
+
+      <div class="filter-summary" v-if="total > 0">
+        <span class="summary-count">{{ $t('recordings.totalCount', { count: total }) }}</span>
+      </div>
+    </div>
 
     <el-table v-loading="loading" :data="recordings" style="width: 100%">
       <el-table-column prop="camera_mac" :label="$t('recordings.cameraMac')" min-width="160" />
@@ -243,15 +263,16 @@ function cameraLabel(mac) {
           <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('recordings.actions')" width="180" align="center">
+      <el-table-column :label="$t('recordings.actions')" width="160" align="center">
         <template #default="{ row }">
           <div class="action-group">
+            <!-- Play - Primary action -->
             <el-tooltip
               :content="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
               :show-after="400"
             >
               <el-button
-                class="action-btn action-btn--primary"
+                class="action-btn action-btn--play"
                 size="small"
                 :icon="VideoPlay"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
@@ -259,6 +280,8 @@ function cameraLabel(mac) {
                 @click="playRecording(row)"
               />
             </el-tooltip>
+
+            <!-- Download - Secondary -->
             <el-tooltip :content="$t('recordings.download')" :show-after="400">
               <el-button
                 class="action-btn"
@@ -268,8 +291,15 @@ function cameraLabel(mac) {
                 @click="downloadRecording(row)"
               />
             </el-tooltip>
+
+            <!-- Delete - Danger -->
             <el-tooltip :content="$t('common.delete')" :show-after="400">
-              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
+              <el-button
+                class="action-btn action-btn--danger"
+                size="small"
+                :icon="Delete"
+                @click="handleDelete(row)"
+              />
             </el-tooltip>
           </div>
         </template>
@@ -349,8 +379,82 @@ function cameraLabel(mac) {
 </template>
 
 <style scoped>
-.filter-bar {
-  margin-bottom: 16px;
+/* Filter section */
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-count {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Action buttons with priority */
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.action-btn {
+  height: 28px;
+  width: 28px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--easing-standard);
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-btn--play {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.action-btn--play:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: white;
+}
+
+.action-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
 }
 
 /* ── Stats dialog ─────────────────────────── */
@@ -514,7 +618,7 @@ function cameraLabel(mac) {
   padding: 12px 0 4px;
 }
 
-/* ── Table styling ──────────────────────────── */
+/* Table styling */
 :deep(.el-table) {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
@@ -539,14 +643,6 @@ function cameraLabel(mac) {
 
 :deep(.el-table__inner-wrapper::before) {
   display: none;
-}
-
-/* Action buttons */
-.action-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
 }
 
 .file-cell {
@@ -581,11 +677,6 @@ function cameraLabel(mac) {
               color var(--duration-fast) ease-out;
 }
 
-.action-btn--primary {
-  --el-button-hover-bg-color: rgba(94, 92, 230, 0.1);
-  --el-button-hover-text-color: var(--color-primary);
-  --el-button-active-bg-color: rgba(94, 92, 230, 0.15);
-}
 
 .action-btn--danger {
   --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
