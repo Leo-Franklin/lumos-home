@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import {
   listRecordings, deleteRecording, streamUrl, downloadUrl,
   requestRecordingHls, recordingHlsUrl, getRecordingStats,
@@ -31,6 +31,15 @@ onMounted(async () => {
 })
 
 watch(() => notifications.lastRecordingEvent, () => { fetchRecordings() })
+
+watch(() => [filter.value.camera_mac, filter.value.date], () => {
+  filter.value.page = 1
+  fetchRecordings()
+})
+
+onUnmounted(() => {
+  if (hlsPollTimer) clearInterval(hlsPollTimer)
+})
 
 async function fetchRecordings() {
   loading.value = true
@@ -411,51 +420,6 @@ function cameraLabel(mac) {
 
 /* Action buttons with priority */
 .action-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-}
-
-.action-btn {
-  height: 28px;
-  width: 28px;
-  padding: 3px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--easing-standard);
-}
-
-.action-btn:hover:not(:disabled) {
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-}
-
-.action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.action-btn--play {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.action-btn--play:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-  color: white;
-}
-
-.action-btn--danger:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-error);
-}
 
 /* ── Stats dialog ─────────────────────────── */
 .stats-header {
