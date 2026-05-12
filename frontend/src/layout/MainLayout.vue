@@ -62,40 +62,66 @@ function logout() {
 
     <div class="app-body">
       <nav class="app-sidebar">
-        <div class="nav-section-label">{{ $t('layout.controlCenter') }}</div>
-        <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
-          <el-icon :size="16"><DataAnalysis /></el-icon><span>{{ $t('layout.dashboard') }}</span>
-        </RouterLink>
-        <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
-          <el-icon :size="16"><Monitor /></el-icon><span>{{ $t('layout.devices') }}</span>
-        </RouterLink>
-        <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
-          <el-icon :size="16"><TrendCharts /></el-icon><span>{{ $t('layout.analytics') }}</span>
-        </RouterLink>
-        <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
-          <el-icon :size="16"><Share /></el-icon><span>{{ $t('layout.topology') }}</span>
-        </RouterLink>
-        <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
-          <el-icon :size="16"><VideoCameraFilled /></el-icon><span>{{ $t('layout.cameras') }}</span>
-        </RouterLink>
-        <RouterLink to="/recordings" class="nav-item" :class="{ active: $route.path === '/recordings' }">
-          <el-icon :size="16"><Film /></el-icon><span>{{ $t('layout.recordings') }}</span>
-        </RouterLink>
-        <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
-          <el-icon :size="16"><Clock /></el-icon><span>{{ $t('layout.schedule') }}</span>
-        </RouterLink>
-        <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
-          <el-icon :size="16"><UserFilled /></el-icon><span>{{ $t('layout.members') }}</span>
-        </RouterLink>
-        <RouterLink to="/dlna" class="nav-item" :class="{ active: $route.path === '/dlna' }">
-          <el-icon :size="16"><Promotion /></el-icon><span>{{ $t('layout.dlna') }}</span>
-        </RouterLink>
-        <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
-          <el-icon :size="16"><Setting /></el-icon><span>{{ $t('layout.settings') }}</span>
-        </RouterLink>
+        <div class="nav-section">
+          <div class="nav-section-label">{{ $t('layout.overview') }}</div>
+          <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
+            <el-icon :size="16"><DataAnalysis /></el-icon>
+            <span>{{ $t('layout.dashboard') }}</span>
+          </RouterLink>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">{{ $t('layout.devices') }}</div>
+          <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
+            <el-icon :size="16"><Monitor /></el-icon>
+            <span>{{ $t('layout.devices') }}</span>
+          </RouterLink>
+          <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
+            <el-icon :size="16"><VideoCameraFilled /></el-icon>
+            <span>{{ $t('layout.cameras') }}</span>
+          </RouterLink>
+          <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
+            <el-icon :size="16"><Share /></el-icon>
+            <span>{{ $t('layout.topology') }}</span>
+          </RouterLink>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">{{ $t('layout.media') }}</div>
+          <RouterLink to="/recordings" class="nav-item" :class="{ active: $route.path === '/recordings' }">
+            <el-icon :size="16"><Film /></el-icon>
+            <span>{{ $t('layout.recordings') }}</span>
+          </RouterLink>
+          <RouterLink to="/dlna" class="nav-item" :class="{ active: $route.path === '/dlna' }">
+            <el-icon :size="16"><Promotion /></el-icon>
+            <span>{{ $t('layout.dlna') }}</span>
+          </RouterLink>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">{{ $t('layout.system') }}</div>
+          <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
+            <el-icon :size="16"><UserFilled /></el-icon>
+            <span>{{ $t('layout.members') }}</span>
+          </RouterLink>
+          <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
+            <el-icon :size="16"><Clock /></el-icon>
+            <span>{{ $t('layout.schedule') }}</span>
+          </RouterLink>
+          <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
+            <el-icon :size="16"><Setting /></el-icon>
+            <span>{{ $t('layout.settings') }}</span>
+          </RouterLink>
+        </div>
       </nav>
 
       <main class="app-content">
+        <div class="content-header">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item to="/dashboard">{{ $t('layout.dashboard') }}</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="$route.meta.title">{{ $route.meta.title }}</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
         <router-view />
       </main>
     </div>
@@ -225,32 +251,46 @@ function logout() {
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   flex-shrink: 0;
-  padding: 8px 0;
+  padding: var(--space-2) 0;
   overflow-y: auto;
 }
 
+.nav-section {
+  padding: var(--space-1) 0;
+}
+
+.nav-section + .nav-section {
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+}
+
+.nav-section:first-child {
+  border-top: none;
+}
+
 .nav-section-label {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--color-text-muted);
-  padding: 16px 12px 4px;
+  padding: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-1);
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 12px;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-4);
   font-size: 13px;
   color: var(--color-text-secondary);
   text-decoration: none;
-  border-radius: 0;
   position: relative;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition: background var(--duration-fast) var(--easing-standard),
+              color var(--duration-fast) var(--easing-standard);
 }
 .nav-item:hover {
   background: var(--color-surface-raised);
@@ -258,24 +298,22 @@ function logout() {
 }
 .nav-item.active {
   background: var(--color-primary-subtle);
-  color: var(--color-text-primary);
-}
-.nav-item.active :deep(.el-icon) {
   color: var(--color-primary);
 }
 .nav-item.active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
   background: var(--color-primary);
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
 }
-.nav-item :deep(.el-icon) {
-  color: inherit;
+.nav-item .el-icon {
   flex-shrink: 0;
+  font-size: 16px;
 }
 
 /* ── Content ───────────────────────────── */
@@ -283,6 +321,30 @@ function logout() {
   flex: 1;
   overflow-y: auto;
   background: var(--color-bg);
-  padding: 24px;
+  padding: var(--space-6);
+}
+
+.content-header {
+  margin-bottom: var(--space-6);
+}
+
+:deep(.el-breadcrumb) {
+  font-size: 13px;
+}
+
+:deep(.el-breadcrumb__item) {
+  color: var(--color-text-muted);
+}
+
+:deep(.el-breadcrumb__inner) {
+  color: var(--color-text-secondary);
+}
+
+:deep(.el-breadcrumb__inner.is-link:hover) {
+  color: var(--color-primary);
+}
+
+:deep(.el-breadcrumb__separator) {
+  color: var(--color-text-muted);
 }
 </style>
