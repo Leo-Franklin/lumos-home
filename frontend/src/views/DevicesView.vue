@@ -159,7 +159,7 @@ onMounted(() => {
         :style="devicesStore.filterTypes.includes(opt.value) ? { color: opt.hex, borderColor: opt.hex + '66', background: opt.rgba + '0.1)' } : {}"
         @click="devicesStore.toggleFilter(opt.value)"
       >
-        {{ opt.label }}
+        {{ $t(`common.deviceTypes.${opt.value}`) }}
       </button>
       <button
         v-if="devicesStore.filterTypes.length > 0"
