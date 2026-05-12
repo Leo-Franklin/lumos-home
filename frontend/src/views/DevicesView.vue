@@ -4,7 +4,9 @@ import { useRoute } from 'vue-router'
 import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice } from '@/api/devices'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import FilterChip from '@/components/FilterChip.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import { Refresh, Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
@@ -141,36 +143,46 @@ onMounted(() => {
         v-model="searchInput"
         :placeholder="$t('devices.searchPlaceholder')"
         clearable
-        style="width: 200px"
+        class="search-input"
         @input="devicesStore.setSearch(searchInput)"
-      />
-      <button
-        class="filter-btn"
-        :class="{ active: devicesStore.filterTypes.length === 0 }"
-        @click="onAllClick"
       >
-        {{ $t('common.all') }}
-      </button>
-      <button
-        v-for="opt in filterOptions"
-        :key="opt.value"
-        class="filter-btn"
-        :class="{ active: devicesStore.filterTypes.includes(opt.value) }"
-        :style="devicesStore.filterTypes.includes(opt.value) ? { color: opt.hex, borderColor: opt.hex + '66', background: opt.rgba + '0.1)' } : {}"
-        @click="devicesStore.toggleFilter(opt.value)"
-      >
-        {{ $t(`common.deviceTypes.${opt.value}`) }}
-      </button>
-      <button
-        v-if="devicesStore.filterTypes.length > 0"
-        class="filter-btn filter-btn--clear"
-        @click="onAllClick"
-      >
-        {{ $t('devices.clearFilter') }}
-      </button>
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+
+      <div class="filter-chips">
+        <FilterChip
+          :label="$t('common.all')"
+          :active="devicesStore.filterTypes.length === 0"
+          @click="onAllClick"
+        />
+        <FilterChip
+          v-for="opt in filterOptions"
+          :key="opt.value"
+          :label="$t(`common.deviceTypes.${opt.value}`)"
+          :active="devicesStore.filterTypes.includes(opt.value)"
+          :color="opt.hex"
+          @click="devicesStore.toggleFilter(opt.value)"
+        />
+      </div>
     </div>
 
-    <div class="device-list" v-loading="devicesStore.loading">
+    <div v-if="devicesStore.loading" class="device-grid">
+      <div v-for="i in 6" :key="i" class="device-skeleton glass-card" />
+    </div>
+
+    <div v-else-if="devicesStore.items.length === 0" class="empty-container">
+      <EmptyState
+        :title="$t('devices.noDevices')"
+        :description="$t('devices.noDevicesHint')"
+        icon="device"
+        :action-label="$t('devices.scan')"
+        @action="devicesStore.scan()"
+      />
+    </div>
+
+    <div v-else class="device-grid">
       <DeviceCard
         v-for="device in devicesStore.items"
         :key="device.mac"
@@ -179,9 +191,6 @@ onMounted(() => {
         @edit="openEdit"
         @delete="handleDelete"
       />
-      <div v-if="!devicesStore.loading && devicesStore.items.length === 0" class="empty-state">
-        {{ devicesStore.filterTypes.length > 0 ? $t('devices.noFilteredDevices') : $t('devices.noDevices') }}
-      </div>
     </div>
 
     <!-- 分页 -->
@@ -265,56 +274,52 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 过滤栏 */
+/* Filter bar */
 .filter-bar {
   display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.search-input {
+  width: 280px;
+}
+
+.filter-chips {
+  display: flex;
   flex-wrap: wrap;
-}
-.filter-btn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-family: var(--font-sans);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  line-height: 1.5;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out,
-              border-color var(--duration-fast) ease-out;
-}
-.filter-btn:hover:not(.active) {
-  background: var(--color-surface-overlay);
-  color: var(--color-text-primary);
-}
-.filter-btn.active {
-  font-weight: 500;
-}
-.filter-btn--clear {
-  color: var(--color-text-muted);
-  border-color: transparent;
-}
-.filter-btn--clear:hover {
-  color: var(--color-error, #f05252);
-  border-color: rgba(240, 82, 82, 0.3);
-  background: rgba(240, 82, 82, 0.08);
+  gap: var(--space-2);
 }
 
-.device-list {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--color-surface);
+/* Device grid */
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
 }
 
-.empty-state {
-  padding: 40px 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-muted);
+.device-skeleton {
+  height: 200px;
+  animation: shimmer 1.4s ease infinite;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 25%,
+    var(--color-surface-overlay) 37%,
+    var(--color-surface-raised) 63%
+  );
+  background-size: 400% 100%;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.empty-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-12) 0;
 }
 
 /* 详情弹窗 */
