@@ -235,10 +235,6 @@ function cameraLabel(mac) {
           {{ $t('recordings.query') }}
         </el-button>
       </div>
-
-      <div class="filter-summary" v-if="total > 0">
-        <span class="summary-count">{{ $t('recordings.totalCount', { count: total }) }}</span>
-      </div>
     </div>
 
     <el-table v-loading="loading" :data="recordings" style="width: 100%">

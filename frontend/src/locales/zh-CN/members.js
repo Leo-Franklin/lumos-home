@@ -48,4 +48,5 @@ export default {
   statsFailed: '统计加载失败',
   zeroMinute: '0 分钟',
   cancel: '取消',
+  avatarUrl: '头像 URL',
 }

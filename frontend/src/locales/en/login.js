@@ -6,5 +6,6 @@ export default {
   password: 'Password',
   submit: 'Login',
   fillRequired: 'Please enter username and password',
-  loginFailed: 'Login failed, please check username and password',
+  langChinese: '中文',
+  langEnglish: 'English',
 }

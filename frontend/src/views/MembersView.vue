@@ -242,7 +242,7 @@ const unboundDevices = () =>
       <el-table-column :label="$t('members.autoRecord')" min-width="120">
         <template #default="{ row }">
           <span v-if="row.auto_record_cameras?.length" class="text-muted">
-            {{ row.auto_record_cameras.length }} 台
+            {{ row.auto_record_cameras.length }}{{ $t('members.cameraCount') }}
           </span>
           <span v-else class="text-muted">—</span>
         </template>
@@ -277,7 +277,7 @@ const unboundDevices = () =>
         <el-form-item :label="$t('members.name')" required>
           <el-input v-model="memberForm.name" :placeholder="$t('members.namePlaceholder')" />
         </el-form-item>
-        <el-form-item label="头像 URL">
+        <el-form-item :label="$t('members.avatarUrl')">
           <el-input v-model="memberForm.avatar_url" :placeholder="$t('members.avatarOptional')" />
         </el-form-item>
         <el-form-item :label="$t('members.webhook')">

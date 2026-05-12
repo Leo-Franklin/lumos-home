@@ -376,7 +376,7 @@ onMounted(loadTopology)
         <!-- Zoom controls -->
         <div class="zoom-controls">
           <button class="zoom-btn" @click="zoomIn">+</button>
-          <button class="zoom-btn" @click="resetZoom" title="重置视角">⊙</button>
+          <button class="zoom-btn" @click="resetZoom" :title="$t('topology.resetView')">⊙</button>
           <button class="zoom-btn" @click="zoomOut">−</button>
         </div>
 

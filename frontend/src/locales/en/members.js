@@ -33,7 +33,7 @@ export default {
   triggeredBy: 'Trigger Device MAC',
   time: 'Time',
   event: 'Event',
-  cameraCount: '',
+  cameraCount: ' devices',
   namePlaceholder: 'e.g. John Doe',
   avatarOptional: 'Optional',
   webhookPlaceholder: 'Push on arrival/departure, optional',
@@ -48,4 +48,5 @@ export default {
   statsFailed: 'Failed to load stats',
   zeroMinute: '0 min',
   cancel: 'Cancel',
+  avatarUrl: 'Avatar URL',
 }

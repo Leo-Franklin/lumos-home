@@ -3,6 +3,9 @@ import {
   VideoCameraFilled, Monitor, Iphone, Cpu, QuestionFilled,
   Connection, Grid, Film, Printer, Microphone, Trophy, Box, Watch,
 } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps({
   device: { type: Object, required: true },
@@ -60,9 +63,9 @@ function formatLastSeen(timestamp) {
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)
 
-  if (diffMins < 1) return '刚刚'
-  if (diffMins < 60) return `${diffMins}分钟前`
-  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}小时前`
+  if (diffMins < 1) return t('common.justNow')
+  if (diffMins < 60) return t('common.minutesAgo', { n: diffMins })
+  if (diffMins < 1440) return t('common.hoursAgo', { n: Math.floor(diffMins / 60) })
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 </script>
@@ -84,7 +87,7 @@ function formatLastSeen(timestamp) {
 
       <div class="device-meta">
         <div class="meta-item">
-          <span class="meta-label">IP</span>
+          <span class="meta-label">{{ $t('devices.ipAddress') }}</span>
           <span class="meta-value mono">{{ device.ip || '—' }}</span>
         </div>
         <div class="meta-item" v-if="device.last_seen">

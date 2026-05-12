@@ -17,4 +17,7 @@ export default {
   reconnecting: '重连中',
   switchLang: 'EN',
   logout: '退出登录',
+  overview: '概览',
+  media: '媒体',
+  system: '系统',
 }

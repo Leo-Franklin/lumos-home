@@ -11,8 +11,8 @@ const { t, locale } = useI18n()
 const localeStore = useLocaleStore()
 
 const langOptions = [
-  { label: '中文', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
+  { label: t('login.langChinese'), value: 'zh-CN' },
+  { label: t('login.langEnglish'), value: 'en' },
 ]
 
 function switchLang(lang) {
@@ -46,7 +46,7 @@ async function handleLogin() {
     <div class="lang-bar">
       <el-dropdown @command="switchLang">
         <span class="lang-trigger">
-          {{ locale === 'zh-CN' ? '中文' : 'English' }}
+          {{ locale === 'zh-CN' ? $t('login.langChinese') : $t('login.langEnglish') }}
           <el-icon :size="12" style="margin-left: 4px"><ArrowDown /></el-icon>
         </span>
         <template #dropdown>

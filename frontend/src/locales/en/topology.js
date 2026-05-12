@@ -18,5 +18,6 @@ export default {
   atHome: 'Home',
   away: 'Away',
   noDevices: 'No devices, click "Scan Network" to discover LAN devices',
+  resetView: 'Reset View',
   loadFailed: 'Failed to load topology data',
 }

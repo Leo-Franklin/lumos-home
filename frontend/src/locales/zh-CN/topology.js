@@ -18,5 +18,6 @@ export default {
   atHome: '在家',
   away: '外出',
   noDevices: '暂无设备数据，请点击「扫描网络」发现局域网设备',
+  resetView: '重置视角',
   loadFailed: '加载拓扑数据失败',
 }

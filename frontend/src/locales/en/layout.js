@@ -17,4 +17,7 @@ export default {
   reconnecting: 'Reconnecting',
   switchLang: '中文',
   logout: 'Logout',
+  overview: 'Overview',
+  media: 'Media',
+  system: 'System',
 }
