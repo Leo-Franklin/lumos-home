@@ -104,6 +104,14 @@ function closePlay() {
   playUrl.value = ''
 }
 
+function openFolder(row) {
+  if (row.storage_type === 'local') {
+    window.open('file://' + row.file_path)
+  } else if (row.storage_type === 'nas' && row.nas_access_url) {
+    window.open(row.nas_access_url)
+  }
+}
+
 async function handleDelete(rec) {
   try {
     await ElMessageBox.confirm(t('recordings.deleteConfirm'), t('common.confirmDelete'), { type: 'warning' })
@@ -197,6 +205,21 @@ function cameraLabel(mac) {
 
     <el-table v-loading="loading" :data="recordings" style="width: 100%">
       <el-table-column prop="camera_mac" :label="$t('recordings.cameraMac')" min-width="160" />
+      <el-table-column :label="$t('recordings.file')" width="220">
+        <template #default="{ row }">
+          <div class="file-cell">
+            <span class="file-name" :title="row.file_name">{{ row.file_name }}</span>
+            <el-tooltip :content="row.storage_type === 'local' ? $t('recordings.openLocalFolder') : $t('recordings.openNasFolder')" :show-after="400">
+              <el-button
+                class="action-btn"
+                size="small"
+                :icon="FolderOpened"
+                @click="openFolder(row)"
+              />
+            </el-tooltip>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column :label="$t('recordings.startTime')" width="170">
         <template #default="{ row }">{{ new Date(row.started_at).toLocaleString('zh-CN') }}</template>
       </el-table-column>
@@ -518,6 +541,21 @@ function cameraLabel(mac) {
   align-items: center;
   justify-content: center;
   gap: 1px;
+}
+
+.file-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
 }
 
 .action-btn {
