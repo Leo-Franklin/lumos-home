@@ -12,5 +12,5 @@ export function useFormatDuration() {
     return `${m} ${t('common.minute')}`
   }
 
-  return { formatDuration }
+  return { formatDuration, formatDurationLong: formatDuration }
 }
