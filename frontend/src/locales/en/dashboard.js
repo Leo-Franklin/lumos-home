@@ -31,4 +31,8 @@ export default {
   zeroMinutes: '0 min',
   durationFormat: '{h}h {m}m',
   durationMinutesOnly: '{m}m',
+  timeJustNow: 'just now',
+  timeMinutesAgo: '{m}m ago',
+  timeHoursAgo: '{h}h ago',
+  timeDaysAgo: '{d} days ago',
 }

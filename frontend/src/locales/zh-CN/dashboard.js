@@ -31,4 +31,8 @@ export default {
   zeroMinutes: '0 分钟',
   durationFormat: '{h} 小时 {m} 分钟',
   durationMinutesOnly: '{m} 分钟',
+  timeJustNow: '刚刚',
+  timeMinutesAgo: '{m} 分钟前',
+  timeHoursAgo: '{h} 小时前',
+  timeDaysAgo: '{d} 天前',
 }

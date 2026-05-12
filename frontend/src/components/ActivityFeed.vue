@@ -29,10 +29,10 @@ function formatTime(timestamp) {
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)
 
-  if (diffMins < 1) return '刚刚'
-  if (diffMins < 60) return `${diffMins}分钟前`
-  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}小时前`
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  if (diffMins < 1) return t('dashboard.timeJustNow')
+  if (diffMins < 60) return t('dashboard.timeMinutesAgo', { m: diffMins })
+  if (diffMins < 1440) return t('dashboard.timeHoursAgo', { h: Math.floor(diffMins / 60) })
+  return t('dashboard.timeDaysAgo', { d: Math.floor(diffMins / 1440) })
 }
 </script>
 
@@ -80,7 +80,6 @@ function formatTime(timestamp) {
 <style scoped>
 .activity-panel {
   padding: var(--space-5);
-  max-height: v-bind('maxHeight + 60 + "px"');
   display: flex;
   flex-direction: column;
 }
@@ -111,6 +110,7 @@ function formatTime(timestamp) {
   flex: 1;
   position: relative;
   padding-right: var(--space-2);
+  max-height: v-bind('maxHeight + "px"');
 }
 
 .activity-list::-webkit-scrollbar {
