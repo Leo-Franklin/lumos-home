@@ -88,6 +88,8 @@ npm run build
 ```
 
 ## Project Structure
+
+```
 src/
 ├── api/            # API client modules
 ├── components/     # Reusable Vue components
@@ -99,6 +101,7 @@ src/
 ├── composables/    # Vue composables
 ├── locales/        # i18n translation files
 └── assets/         # Static assets
+```
 
 ---
 
