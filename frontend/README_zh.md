@@ -1,5 +1,7 @@
 # 智能家居管理系统
 
+[English](./README_en.md) | 中文
+
 基于 Vue 3 + Vite + Element Plus 构建的智能家居管理前端。支持网络设备监控、摄像头管理、数据分析等功能。
 
 ## 功能模块
@@ -100,3 +102,7 @@ src/
 ├── locales/        # 国际化翻译文件
 └── assets/         # 静态资源
 ```
+
+---
+
+[English](./README_en.md)

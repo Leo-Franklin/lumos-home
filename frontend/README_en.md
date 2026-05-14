@@ -4,8 +4,6 @@
 
 A Vue 3 + Vite + Element Plus based smart home management frontend. Monitor network devices, manage cameras, view analytics, and more.
 
-## Features
-
 ### Dashboard
 Overview of home status including members present, camera status, network devices, today's recordings, and unknown device alerts. Real-time activity feed shows recent events.
 
@@ -88,6 +86,8 @@ npm run build
 ```
 
 ## Project Structure
+
+```
 src/
 ├── api/            # API client modules
 ├── components/     # Reusable Vue components
@@ -99,8 +99,8 @@ src/
 ├── composables/    # Vue composables
 ├── locales/        # i18n translation files
 └── assets/         # Static assets
+```
 
 ---
 
 [中文](./README_zh.md)
-```
