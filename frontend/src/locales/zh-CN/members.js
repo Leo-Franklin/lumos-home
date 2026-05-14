@@ -49,4 +49,5 @@ export default {
   zeroMinute: '0 分钟',
   cancel: '取消',
   avatarUrl: '头像 URL',
+  logRecords: '条记录',
 }

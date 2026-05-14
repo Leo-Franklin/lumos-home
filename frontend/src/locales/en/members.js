@@ -49,4 +49,5 @@ export default {
   zeroMinute: '0 min',
   cancel: 'Cancel',
   avatarUrl: 'Avatar URL',
+  logRecords: 'records',
 }

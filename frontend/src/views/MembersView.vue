@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatDuration } from '@/composables/useFormatDuration'
 import { useMembersStore } from '@/stores/members'
@@ -25,7 +25,7 @@ const allCameras = ref([])
 onMounted(async () => {
   await membersStore.fetchMembers()
   const [devRes, camRes] = await Promise.all([
-    listDevices({ page: 1, page_size: 100 }),
+    listDevices({ page: 1, page_size: 200, device_type: 'phone' }),
     listCameras(),
   ])
   allDevices.value = devRes.data.items
@@ -197,6 +197,33 @@ function deviceLabel(d) {
 
 const unboundDevices = () =>
   allDevices.value.filter((d) => !boundDevices.value.some((b) => b.mac === d.mac))
+
+// ── Logs helpers ───────────────────────────────────────────
+const groupedLogs = computed(() => {
+  const groups = {}
+  for (const log of logs.value) {
+    const d = new Date(log.occurred_at)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const dateKey = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    let label
+    if (dateKey.getTime() === today.getTime()) label = '今天'
+    else if (dateKey.getTime() === yesterday.getTime()) label = '昨天'
+    else label = `${d.getMonth() + 1}月${d.getDate()}日`
+    if (!groups[label]) groups[label] = []
+    groups[label].push(log)
+  }
+  return groups
+})
+
+function formatLogTime(iso) {
+  const d = new Date(iso)
+  const h = d.getHours().toString().padStart(2, '0')
+  const m = d.getMinutes().toString().padStart(2, '0')
+  return `${h}:${m}`
+}
 </script>
 
 <template>
@@ -352,34 +379,56 @@ const unboundDevices = () =>
     <el-dialog
       v-model="logsDialog"
       :title="$t('members.logsTitle', { name: logsMember?.name })"
-      width="520px"
+      width="480px"
+      class="logs-dialog"
     >
-      <el-table v-loading="logsLoading" :data="logs" size="small">
-        <el-table-column :label="$t('members.event')" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.event === 'arrived' ? 'success' : 'warning'" size="small">
-              {{ row.event === 'arrived' ? $t('members.arrived') : $t('members.left') }}
-            </el-tag>
+      <div class="logs-container">
+        <div v-loading="logsLoading" class="logs-scroll">
+          <template v-if="logs.length">
+            <div
+              v-for="(group, dateLabel) in groupedLogs"
+              :key="dateLabel"
+              class="log-group"
+            >
+              <div class="log-date-header">{{ dateLabel }}</div>
+              <div class="log-timeline">
+                <div
+                  v-for="(log, idx) in group"
+                  :key="log.id"
+                  class="log-item"
+                  :class="{ 'log-item--last': idx === group.length - 1 }"
+                >
+                  <div class="log-dot" :class="log.event === 'arrived' ? 'log-dot--arrive' : 'log-dot--leave'" />
+                  <div class="log-content">
+                    <span class="log-time">{{ formatLogTime(log.occurred_at) }}</span>
+                    <span class="log-badge" :class="log.event === 'arrived' ? 'log-badge--arrive' : 'log-badge--leave'">
+                      {{ log.event === 'arrived' ? $t('members.arrived') : $t('members.left') }}
+                    </span>
+                  </div>
+                  <span class="log-device">{{ log.triggered_by_mac || '—' }}</span>
+                </div>
+              </div>
+            </div>
           </template>
-        </el-table-column>
-        <el-table-column :label="$t('members.triggeredBy')" min-width="150">
-          <template #default="{ row }">{{ row.triggered_by_mac || '—' }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('members.time')" min-width="170">
-          <template #default="{ row }">{{ $d(row.occurred_at, 'short') }}</template>
-        </el-table-column>
-      </el-table>
-
-      <div style="margin-top: 12px; text-align: right">
-        <el-pagination
-          small
-          layout="total, prev, pager, next"
-          :total="logsTotal"
-          :page-size="20"
-          :current-page="logsPage"
-          @current-change="handleLogsPageChange"
-        />
+          <div v-else-if="!logsLoading" class="logs-empty">
+            <span>{{ $t('members.noData') }}</span>
+          </div>
+        </div>
       </div>
+
+      <template #footer>
+        <div class="logs-footer">
+          <span class="logs-count">{{ logsTotal }} {{ $t('members.logRecords') }}</span>
+          <el-pagination
+            small
+            layout="prev, pager, next"
+            :total="logsTotal"
+            :page-size="20"
+            :current-page="logsPage"
+            @current-change="handleLogsPageChange"
+          />
+        </div>
+      </template>
     </el-dialog>
 
     <!-- Stats dialog (C1) -->
@@ -489,6 +538,163 @@ const unboundDevices = () =>
   font-size: 13px;
   color: var(--color-text-muted);
   margin: auto;
+}
+
+/* ── Logs dialog ──────────────────────────────── */
+.logs-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+}
+
+.logs-scroll {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding-right: 4px;
+}
+
+.logs-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.logs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.logs-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 2px;
+}
+
+.log-group {
+  margin-bottom: 20px;
+}
+
+.log-date-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-left: 28px;
+}
+
+.log-timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.log-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--color-border-subtle);
+}
+
+.log-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  min-height: 32px;
+}
+
+.log-item--last .log-timeline::before {
+  bottom: calc(100% - 8px);
+}
+
+.log-dot {
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+  background: var(--color-surface-base);
+  z-index: 1;
+}
+
+.log-dot--arrive {
+  border-color: var(--color-success, #67c23a);
+}
+
+.log-dot--leave {
+  border-color: var(--color-warning, #e6a23c);
+}
+
+.log-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.log-time {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+}
+
+.log-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.log-badge--arrive {
+  background: rgba(103, 194, 58, 0.1);
+  color: var(--color-success, #67c23a);
+}
+
+.log-badge--leave {
+  background: rgba(230, 162, 60, 0.1);
+  color: var(--color-warning, #e6a23c);
+}
+
+.log-device {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.logs-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.logs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.logs-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+:deep(.logs-dialog .el-dialog__body) {
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+:deep(.logs-dialog .el-dialog__footer) {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 /* ── Table styling ──────────────────────────── */

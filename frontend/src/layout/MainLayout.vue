@@ -68,6 +68,10 @@ function logout() {
             <el-icon :size="16"><DataAnalysis /></el-icon>
             <span>{{ $t('layout.dashboard') }}</span>
           </RouterLink>
+          <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
+            <el-icon :size="16"><TrendCharts /></el-icon>
+            <span>{{ $t('layout.analytics') }}</span>
+          </RouterLink>
         </div>
 
         <div class="nav-section">
