@@ -1,8 +1,10 @@
 # Smart Home Management System
 
-[中文](./README_zh.md) | English
+[中文](./README.md) | English
 
 A Vue 3 + Vite + Element Plus based smart home management frontend. Monitor network devices, manage cameras, view analytics, and more.
+
+## Features
 
 ### Dashboard
 Overview of home status including members present, camera status, network devices, today's recordings, and unknown device alerts. Real-time activity feed shows recent events.
@@ -103,4 +105,4 @@ src/
 
 ---
 
-[中文](./README_zh.md)
+[中文](./README.md)
