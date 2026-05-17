@@ -2,8 +2,32 @@ import asyncio
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 from loguru import logger
+
+
+@dataclass
+class RecordingParams:
+    resolution: str = "1920x1080"
+    segment_seconds: int = 1800
+    bitrate: Optional[int] = None  # kbps
+    fps: Optional[int] = None
+
+    def bitrate_or_default(self) -> int:
+        if self.bitrate:
+            return self.bitrate
+        # 自动匹配：基于分辨率
+        w = int(self.resolution.split("x")[0])
+        if w >= 1920:
+            return 2048
+        elif w >= 1280:
+            return 1024
+        else:
+            return 512
+
+    def fps_or_default(self) -> int:
+        return self.fps or 25
 
 
 @dataclass
@@ -19,6 +43,7 @@ class RecordingTask:
     last_check: datetime | None = None
     session_start: datetime | None = None
     segment_index: int = 0
+    params: RecordingParams = field(default_factory=RecordingParams)
 
 
 class Recorder:
@@ -45,7 +70,7 @@ class Recorder:
             self._monitor_task.cancel()
             logger.info("RecordingMonitor 已停止")
 
-    async def start_recording(self, camera_mac: str, rtsp_url: str, segment_seconds: int = 1800) -> str:
+    async def start_recording(self, camera_mac: str, rtsp_url: str, params: RecordingParams) -> str:
         if camera_mac in self.active:
             raise RuntimeError(f"摄像头 {camera_mac} 已在录制中")
 
@@ -53,16 +78,7 @@ class Recorder:
         safe_mac = camera_mac.replace(":", "")
         output_path = self.temp_dir / f"{safe_mac}_{ts}.mp4"
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-rtsp_transport", "tcp",
-            "-i", rtsp_url,
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-t", str(segment_seconds),
-            "-movflags", "+frag_keyframe+empty_moov",
-            str(output_path),
-        ]
+        cmd = self._build_ffmpeg_cmd(rtsp_url, output_path, params)
 
         logger.info(f"启动录制: {camera_mac} → {output_path}")
         loop = asyncio.get_event_loop()
@@ -76,12 +92,30 @@ class Recorder:
             process=proc,
             output_path=output_path,
             started_at=datetime.now(),
-            segment_seconds=segment_seconds,
+            segment_seconds=params.segment_seconds,
             rtsp_url=rtsp_url,
             session_start=datetime.now(),
             segment_index=0,
+            params=params,
         )
         return str(output_path)
+
+    def _build_ffmpeg_cmd(self, rtsp_url: str, output_path: Path, params: RecordingParams) -> list:
+        cmd = [
+            "ffmpeg", "-y",
+            "-rtsp_transport", "tcp",
+            "-i", rtsp_url,
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-b:v", f"{params.bitrate_or_default()}k",
+            "-r", str(params.fps_or_default()),
+            "-s", params.resolution,
+            "-c:a", "aac",
+            "-t", str(params.segment_seconds),
+            "-movflags", "+frag_keyframe+empty_moov",
+            str(output_path),
+        ]
+        return cmd
 
     async def stop_recording(self, camera_mac: str) -> Path | None:
         task = self.active.pop(camera_mac, None)
@@ -172,16 +206,7 @@ class Recorder:
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 safe_mac = mac.replace(":", "")
                 seg_path = self.temp_dir / f"{safe_mac}_{ts}_seg{next_index}.mp4"
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-rtsp_transport", "tcp",
-                    "-i", task.rtsp_url,
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-t", str(task.segment_seconds),
-                    "-movflags", "+frag_keyframe+empty_moov",
-                    str(seg_path),
-                ]
+                cmd = self._build_ffmpeg_cmd(task.rtsp_url, seg_path, task.params)
                 loop = asyncio.get_event_loop()
                 proc = await loop.run_in_executor(
                     None,
@@ -198,6 +223,7 @@ class Recorder:
                     last_bytes=0,
                     last_check=None,
                     segment_index=next_index,
+                    params=task.params,
                 )
                 self.active[mac] = new_task
                 logger.info(f"[{mac}] 立即重启segment {next_index}: {seg_path}")
@@ -218,16 +244,7 @@ class Recorder:
                         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                         safe_mac = mac.replace(":", "")
                         seg_path = self.temp_dir / f"{safe_mac}_{ts}_seg{next_index}.mp4"
-                        cmd = [
-                            "ffmpeg", "-y",
-                            "-rtsp_transport", "tcp",
-                            "-i", task.rtsp_url,
-                            "-c:v", "copy",
-                            "-c:a", "aac",
-                            "-t", str(task.segment_seconds),
-                            "-movflags", "+frag_keyframe+empty_moov",
-                            str(seg_path),
-                        ]
+                        cmd = self._build_ffmpeg_cmd(task.rtsp_url, seg_path, task.params)
                         loop = asyncio.get_event_loop()
                         proc = await loop.run_in_executor(
                             None,
@@ -244,6 +261,7 @@ class Recorder:
                             last_bytes=0,
                             last_check=None,
                             segment_index=next_index,
+                            params=task.params,
                         )
                         self.active[mac] = new_task
                         logger.info(f"[{mac}] 自动继续录制segment {next_index}: {seg_path}")

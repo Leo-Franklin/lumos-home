@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 import shutil
 import subprocess
 import threading
@@ -10,11 +11,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from app.deps import DBDep, CurrentUser, StreamUser, RecorderDep, NasSyncerDep
 from app.models.camera import Camera
+from app.domain.models.camera import RecordingPreset
 from app.models.recording import Recording
-from app.schemas.camera import CameraCreate, CameraUpdate, CameraOut
+from app.schemas.camera import CameraCreate, CameraUpdate, CameraOut, RecordingPresetCreate, RecordingPresetUpdate, StartRecordingRequest
 from app.services.onvif_client import OnvifClient
 from app.config import get_settings
 from app.services.ws_manager import ws_manager
+from app.domain.services.recorder import Recorder, RecordingParams
 from loguru import logger
 
 router = APIRouter(prefix="/cameras", tags=["cameras"])
@@ -108,7 +111,7 @@ async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
 
 
 @router.post("/{mac}/record/start", status_code=status.HTTP_202_ACCEPTED)
-async def start_recording(mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep):
+async def start_recording(mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep, request: StartRecordingRequest | None = None):
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -117,6 +120,29 @@ async def start_recording(mac: str, db: DBDep, _: CurrentUser, recorder: Recorde
         raise HTTPException(status_code=409, detail="该摄像头已在录制中")
     if not camera.rtsp_url:
         raise HTTPException(status_code=422, detail="摄像头 rtsp_url 未设置，请先通过 PUT 接口配置 RTSP 地址")
+
+    # Build RecordingParams from preset or defaults
+    params = RecordingParams()
+    if request and request.preset_id:
+        presets = camera.get_presets()
+        preset = next((p for p in presets if p.id == request.preset_id), None)
+        if not preset:
+            raise HTTPException(status_code=404, detail="预设不存在")
+        params = RecordingParams(
+            resolution=preset.resolution,
+            segment_seconds=preset.segment_duration,
+            bitrate=preset.bitrate,
+            fps=preset.fps,
+        )
+    if request and request.overrides:
+        if "resolution" in request.overrides:
+            params.resolution = request.overrides["resolution"]
+        if "segment_seconds" in request.overrides:
+            params.segment_seconds = request.overrides["segment_seconds"]
+        if "bitrate" in request.overrides:
+            params.bitrate = request.overrides["bitrate"]
+        if "fps" in request.overrides:
+            params.fps = request.overrides["fps"]
 
     settings = get_settings()
 
@@ -143,7 +169,7 @@ async def start_recording(mac: str, db: DBDep, _: CurrentUser, recorder: Recorde
     await db.refresh(rec)
 
     try:
-        await recorder.start_recording(mac, rtsp_url, settings.recording_segment_seconds)
+        await recorder.start_recording(mac, rtsp_url, params)
     except Exception as e:
         camera.is_recording = False
         rec.status = "failed"
@@ -168,7 +194,6 @@ async def stop_recording(mac: str, db: DBDep, _: CurrentUser, recorder: Recorder
 
     task = recorder.active.get(mac)
     recording_id = task.recording_id if task else None
-    started_at = task.started_at if task else None
 
     # 服务重启后内存中没有 task，兜底从数据库查最近一条卡住的记录
     if recording_id is None:
@@ -181,7 +206,6 @@ async def stop_recording(mac: str, db: DBDep, _: CurrentUser, recorder: Recorder
         orphan = orphan_result.scalar_one_or_none()
         if orphan:
             recording_id = orphan.id
-            started_at = orphan.started_at
 
     try:
         output_path = await recorder.stop_recording(mac)
@@ -211,8 +235,10 @@ async def stop_recording(mac: str, db: DBDep, _: CurrentUser, recorder: Recorder
                 rec.status = "failed"
                 rec.error_msg = "录制文件不存在或过小，请检查摄像头RTSP连接是否正常"
             rec.ended_at = ended_at
-            if started_at:
-                rec.duration = int((ended_at - started_at).total_seconds())
+            # 使用数据库中原始的 started_at（当 auto-continue 多 segment 时，
+            # task.started_at 已被新 segment 覆盖，不能用于计算总时长）
+            if rec.started_at:
+                rec.duration = int((ended_at - rec.started_at).total_seconds())
 
     await db.commit()
     await ws_manager.broadcast("recording_completed", {"camera_mac": mac, "recording_id": recording_id})
@@ -432,3 +458,82 @@ async def stop_live(mac: str, _: CurrentUser):
     if output_dir.exists():
         shutil.rmtree(output_dir, ignore_errors=True)
     return {"message": "HLS 直播已停止"}
+
+
+# ── Recording Presets ───────────────────────────────────────────
+
+@router.get("/{mac}/presets")
+async def list_presets(mac: str, db: DBDep, _: CurrentUser):
+    result = await db.execute(select(Camera).where(Camera.device_mac == mac))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(status_code=404, detail="摄像头未配置")
+    return camera.get_presets()
+
+
+@router.post("/{mac}/presets", status_code=status.HTTP_201_CREATED)
+async def create_preset(mac: str, body: RecordingPresetCreate, db: DBDep, _: CurrentUser):
+    result = await db.execute(select(Camera).where(Camera.device_mac == mac))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(status_code=404, detail="摄像头未配置")
+
+    preset = RecordingPreset(
+        id=str(uuid.uuid4()),
+        name=body.name,
+        resolution=body.resolution,
+        segment_duration=body.segment_duration,
+        bitrate=body.bitrate,
+        fps=body.fps,
+    )
+    camera.add_preset(preset)
+    await db.commit()
+    return preset.to_dict()
+
+
+@router.put("/{mac}/presets/{preset_id}", status_code=status.HTTP_200_OK)
+async def update_preset(mac: str, preset_id: str, body: RecordingPresetUpdate, db: DBDep, _: CurrentUser):
+    result = await db.execute(select(Camera).where(Camera.device_mac == mac))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(status_code=404, detail="摄像头未配置")
+
+    presets = camera.get_presets()
+    if not any(p.id == preset_id for p in presets):
+        raise HTTPException(status_code=404, detail="预设不存在")
+
+    camera.update_preset(preset_id, body.model_dump(exclude_unset=True))
+    await db.commit()
+    updated = next(p for p in camera.get_presets() if p.id == preset_id)
+    return updated.to_dict()
+
+
+@router.delete("/{mac}/presets/{preset_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_preset(mac: str, preset_id: str, db: DBDep, _: CurrentUser):
+    result = await db.execute(select(Camera).where(Camera.device_mac == mac))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(status_code=404, detail="摄像头未配置")
+
+    presets = camera.get_presets()
+    if not any(p.id == preset_id for p in presets):
+        raise HTTPException(status_code=404, detail="预设不存在")
+
+    camera.remove_preset(preset_id)
+    await db.commit()
+
+
+@router.post("/{mac}/presets/default", status_code=status.HTTP_200_OK)
+async def set_default_preset(mac: str, body: dict, db: DBDep, _: CurrentUser):
+    result = await db.execute(select(Camera).where(Camera.device_mac == mac))
+    camera = result.scalar_one_or_none()
+    if not camera:
+        raise HTTPException(status_code=404, detail="摄像头未配置")
+    preset_id = body.get("preset_id")
+    if preset_id:
+        presets = camera.get_presets()
+        if not any(p.id == preset_id for p in presets):
+            raise HTTPException(status_code=404, detail="预设不存在")
+    camera.default_preset_id = preset_id
+    await db.commit()
+    return {"default_preset_id": camera.default_preset_id}

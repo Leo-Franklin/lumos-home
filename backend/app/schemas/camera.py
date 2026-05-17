@@ -4,6 +4,36 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
+class RecordingPresetCreate(BaseModel):
+    name: str
+    resolution: str = "1920x1080"
+    segment_duration: int = 600
+    bitrate: int | None = None
+    fps: int | None = None
+
+    @field_validator("segment_duration")
+    @classmethod
+    def segment_duration_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("segment_duration must be positive")
+        return v
+
+
+class RecordingPresetUpdate(BaseModel):
+    name: str | None = None
+    resolution: str | None = None
+    segment_duration: int | None = None
+    bitrate: int | None = None
+    fps: int | None = None
+
+    @field_validator("segment_duration")
+    @classmethod
+    def segment_duration_positive(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("segment_duration must be positive")
+        return v
+
+
 class RecordingPresetSchema(BaseModel):
     id: str
     name: str
@@ -11,6 +41,11 @@ class RecordingPresetSchema(BaseModel):
     segment_duration: int = 600
     bitrate: Optional[int] = None
     fps: Optional[int] = None
+
+
+class StartRecordingRequest(BaseModel):
+    preset_id: str | None = None
+    overrides: dict | None = None
 
 
 class CameraCreate(BaseModel):
