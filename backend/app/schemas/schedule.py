@@ -8,6 +8,8 @@ class ScheduleCreate(BaseModel):
     cron_expr: str
     segment_duration: int = 1800
     enabled: bool = True
+    preset_id: str | None = None
+    overrides: dict | None = None
 
 
 class ScheduleUpdate(BaseModel):
@@ -15,6 +17,8 @@ class ScheduleUpdate(BaseModel):
     cron_expr: str | None = None
     segment_duration: int | None = None
     enabled: bool | None = None
+    preset_id: str | None = None
+    overrides: dict | None = None
 
 
 class ScheduleOut(BaseModel):
@@ -26,5 +30,7 @@ class ScheduleOut(BaseModel):
     enabled: bool
     created_at: datetime
     updated_at: datetime | None
+    preset_id: str | None = None
+    overrides: dict | None = None
 
     model_config = {"from_attributes": True}

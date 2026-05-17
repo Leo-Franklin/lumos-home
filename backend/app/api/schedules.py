@@ -83,7 +83,12 @@ async def create_schedule(body: ScheduleCreate, request: Request, db: DBDep, _: 
     parts = body.cron_expr.split()
     if len(parts) != 5:
         raise HTTPException(status_code=400, detail="cron 表达式必须是 5 字段格式")
-    schedule = Schedule(**body.model_dump())
+    data = body.model_dump(exclude={"preset_id", "overrides"})
+    schedule = Schedule(**data)
+    if body.preset_id is not None:
+        schedule.preset_id = body.preset_id
+    if body.overrides is not None:
+        schedule.set_overrides(body.overrides)
     db.add(schedule)
     await db.commit()
     await db.refresh(schedule)
@@ -120,7 +125,12 @@ async def update_schedule(schedule_id: int, body: ScheduleUpdate, request: Reque
     if body.cron_expr is not None and len(body.cron_expr.split()) != 5:
         raise HTTPException(status_code=400, detail="cron 表达式必须是 5 字段格式")
     for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(schedule, field, value)
+        if field == "overrides":
+            schedule.set_overrides(value)
+        elif field == "preset_id":
+            schedule.preset_id = value
+        else:
+            setattr(schedule, field, value)
     await db.commit()
     await db.refresh(schedule)
 
