@@ -7,6 +7,11 @@ export default defineConfig({
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },
+  base: './',
+  build: {
+    outDir: resolve(__dirname, '../backend/frontend'),
+    emptyOutDir: true,
+  },
   server: {
     proxy: {
       '/api': {

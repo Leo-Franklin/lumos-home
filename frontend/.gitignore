@@ -25,3 +25,6 @@ dist-ssr
 
 # worktrees
 .worktrees/
+
+# Built frontend (synced to backend/frontend for packaging)
+backend/frontend/
