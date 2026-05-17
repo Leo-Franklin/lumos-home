@@ -46,4 +46,11 @@ export default {
   deleted: 'Deleted',
   // ScheduleView messages
   cancel: 'Cancel',
+  preset: 'Preset',
+  selectPreset: 'Select preset (optional)',
+  showOverrides: 'Show override options',
+  hideOverrides: 'Hide override options',
+  resolution: 'Resolution',
+  bitrate: 'Bitrate (kbps)',
+  frameRate: 'Frame Rate (fps)',
 }

@@ -306,8 +306,7 @@ async function handlePresetDelete(preset) {
 async function handlePresetSetDefault(preset) {
   if (!presetCam.value) return
   try {
-    await setDefaultPreset(presetCam.value.device_mac, preset.id)
-    camerasStore.defaultPresetId[presetCam.value.device_mac] = preset.id
+    await camerasStore.setDefault(presetCam.value.device_mac, preset.id)
     const { data } = await listPresets(presetCam.value.device_mac)
     presetList.value = data
     ElMessage.success('Default preset set')

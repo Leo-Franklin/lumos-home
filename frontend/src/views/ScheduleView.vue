@@ -1,13 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '@/api/schedules'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import CronSelector from '@/components/CronSelector.vue'
+import { useCamerasStore } from '@/stores/cameras'
 
 const { t } = useI18n()
+const camerasStore = useCamerasStore()
 
 const schedules = ref([])
 const cameras = ref([])
@@ -15,13 +17,32 @@ const loading = ref(false)
 const dialog = ref(false)
 const isEdit = ref(false)
 
-const form = ref({ camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true })
+const form = ref({ camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true, preset_id: null, overrides: {} })
 const editId = ref(null)
+const showOverrides = ref(false)
 
 onMounted(async () => {
   const { data } = await listCameras()
   cameras.value = data
   fetch()
+})
+
+watch(() => form.value.camera_mac, async (newMac) => {
+  if (newMac) {
+    const mac = newMac
+    await camerasStore.loadPresets(mac)
+    const presets = camerasStore.presets[mac] || []
+    if (presets.length > 0) {
+      const defaultPreset = presets.find(p => p.id === camerasStore.defaultPresetId[mac]) || presets[0]
+      form.value.preset_id = defaultPreset.id
+    } else {
+      form.value.preset_id = null
+    }
+  } else {
+    form.value.preset_id = null
+  }
+  form.value.overrides = {}
+  showOverrides.value = false
 })
 
 async function fetch() {
@@ -36,25 +57,30 @@ async function fetch() {
 
 function openAdd() {
   isEdit.value = false
-  form.value = { camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true }
+  form.value = { camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true, preset_id: null, overrides: {} }
   editId.value = null
+  showOverrides.value = false
   dialog.value = true
 }
 
 function openEdit(row) {
   isEdit.value = true
   editId.value = row.id
-  form.value = { camera_mac: row.camera_mac, name: row.name || '', cron_expr: row.cron_expr, segment_duration: row.segment_duration, enabled: row.enabled }
+  form.value = { camera_mac: row.camera_mac, name: row.name || '', cron_expr: row.cron_expr, segment_duration: row.segment_duration, enabled: row.enabled, preset_id: row.preset_id || null, overrides: row.overrides || {} }
+  showOverrides.value = !!(row.overrides && Object.keys(row.overrides).length > 0)
   dialog.value = true
 }
 
 async function handleSubmit() {
   try {
+    const payload = { ...form.value }
+    if (!payload.preset_id) delete payload.preset_id
+    if (!payload.overrides || Object.keys(payload.overrides).length === 0) delete payload.overrides
     if (isEdit.value) {
-      await updateSchedule(editId.value, form.value)
+      await updateSchedule(editId.value, payload)
       ElMessage.success(t('schedule.updated'))
     } else {
-      await createSchedule(form.value)
+      await createSchedule(payload)
       ElMessage.success(t('schedule.created'))
     }
     dialog.value = false
@@ -123,6 +149,16 @@ async function handleDelete(row) {
             />
           </el-select>
         </el-form-item>
+        <el-form-item :label="$t('schedule.preset')">
+          <el-select v-model="form.preset_id" :placeholder="$t('schedule.selectPreset')" style="width: 100%" clearable>
+            <el-option
+              v-for="p in (camerasStore.presets[form.camera_mac] || [])"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="$t('schedule.scheduleName')">
           <el-input v-model="form.name" :placeholder="$t('schedule.namePlaceholder')" />
         </el-form-item>
@@ -132,6 +168,26 @@ async function handleDelete(row) {
         <el-form-item :label="$t('schedule.segmentLabel')">
           <el-input-number v-model="form.segment_duration" :min="60" :step="300" />
         </el-form-item>
+        <el-form-item>
+          <el-button text type="primary" @click="showOverrides = !showOverrides">
+            {{ showOverrides ? $t('schedule.hideOverrides') : $t('schedule.showOverrides') }}
+          </el-button>
+        </el-form-item>
+        <template v-if="showOverrides">
+          <el-form-item :label="$t('schedule.resolution')">
+            <el-select v-model="form.overrides.resolution" style="width: 100%" clearable>
+              <el-option value="1920x1080" label="1920x1080" />
+              <el-option value="1280x720" label="1280x720" />
+              <el-option value="640x360" label="640x360" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('schedule.bitrate')">
+            <el-input-number v-model="form.overrides.bitrate" :min="256" :max="20000" :step="256" style="width: 100%" clearable placeholder="kbps" />
+          </el-form-item>
+          <el-form-item :label="$t('schedule.frameRate')">
+            <el-input-number v-model="form.overrides.frame_rate" :min="5" :max="60" style="width: 100%" clearable placeholder="fps" />
+          </el-form-item>
+        </template>
         <el-form-item :label="$t('schedule.enabled')">
           <el-switch v-model="form.enabled" />
         </el-form-item>

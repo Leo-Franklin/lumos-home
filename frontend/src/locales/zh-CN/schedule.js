@@ -51,4 +51,11 @@ export default {
   deleted: '已删除',
   // ScheduleView messages
   cancel: '取消',
+  preset: '预设',
+  selectPreset: '选择预设（可选）',
+  showOverrides: '显示覆盖选项',
+  hideOverrides: '隐藏覆盖选项',
+  resolution: '分辨率',
+  bitrate: '码率 (kbps)',
+  frameRate: '帧率 (fps)',
 }
