@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class ScheduleCreate(BaseModel):
@@ -34,3 +34,14 @@ class ScheduleOut(BaseModel):
     overrides: dict | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("overrides", mode="before")
+    @classmethod
+    def deserialize_overrides(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except Exception:
+                return None
+        return v
