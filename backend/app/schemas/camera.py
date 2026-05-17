@@ -1,5 +1,16 @@
 from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel, field_validator
+
+
+class RecordingPresetSchema(BaseModel):
+    id: str
+    name: str
+    resolution: str = "1920x1080"
+    segment_duration: int = 600
+    bitrate: Optional[int] = None
+    fps: Optional[int] = None
 
 
 class CameraCreate(BaseModel):
@@ -45,5 +56,7 @@ class CameraOut(BaseModel):
     last_probe_at: datetime | None
     auto_cast_dlna: str | None
     created_at: datetime
+    recording_presets: list[RecordingPresetSchema] = []
+    default_preset_id: str | None = None
 
     model_config = {"from_attributes": True}

@@ -1,7 +1,40 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, Integer, DateTime, Text, func, ForeignKey
+from sqlalchemy import String, Boolean, Integer, DateTime, Text, func, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
+from dataclasses import dataclass, field
+from typing import Optional
+
+
+@dataclass
+class RecordingPreset:
+    id: str
+    name: str
+    resolution: str = "1920x1080"  # 宽x高
+    segment_duration: int = 600  # 秒
+    bitrate: Optional[int] = None  # kbps，None=自动
+    fps: Optional[int] = None  # None=25
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "resolution": self.resolution,
+            "segment_duration": self.segment_duration,
+            "bitrate": self.bitrate,
+            "fps": self.fps,
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> "RecordingPreset":
+        return RecordingPreset(
+            id=data["id"],
+            name=data["name"],
+            resolution=data.get("resolution", "1920x1080"),
+            segment_duration=data.get("segment_duration", 600),
+            bitrate=data.get("bitrate"),
+            fps=data.get("fps"),
+        )
 
 
 class Camera(Base):
@@ -23,3 +56,58 @@ class Camera(Base):
     last_probe_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     auto_cast_dlna: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    recording_presets: Mapped[dict] = mapped_column(JSON, default=list)  # JSON 存储
+    default_preset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    def get_presets(self) -> list[RecordingPreset]:
+        import json
+
+        if not self.recording_presets:
+            return []
+        if isinstance(self.recording_presets, list):
+            return [
+                RecordingPreset.from_dict(p) if isinstance(p, dict) else p
+                for p in self.recording_presets
+            ]
+        try:
+            parsed = json.loads(self.recording_presets)
+            return [RecordingPreset.from_dict(p) for p in parsed]
+        except Exception:
+            return []
+
+    def set_presets(self, presets: list[RecordingPreset]):
+        self.recording_presets = [p.to_dict() for p in presets]
+
+    def add_preset(self, preset: RecordingPreset):
+        presets = self.get_presets()
+        presets.append(preset)
+        self.set_presets(presets)
+
+    def remove_preset(self, preset_id: str):
+        presets = self.get_presets()
+        self.recording_presets = [p for p in presets if p.id != preset_id]
+        if self.default_preset_id == preset_id:
+            self.default_preset_id = None
+
+    def update_preset(self, preset_id: str, data: dict):
+        presets = self.get_presets()
+        for i, p in enumerate(presets):
+            if p.id == preset_id:
+                for key in [
+                    "name",
+                    "resolution",
+                    "segment_duration",
+                    "bitrate",
+                    "fps",
+                ]:
+                    if key in data:
+                        setattr(p, key, data[key])
+                presets[i] = p
+                break
+        self.set_presets(presets)
+
+    def get_default_preset(self) -> RecordingPreset | None:
+        if not self.default_preset_id:
+            return None
+        presets = self.get_presets()
+        return next((p for p in presets if p.id == self.default_preset_id), None)
