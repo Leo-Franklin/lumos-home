@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { listCameras } from '@/api/cameras'
+import { listCameras, listPresets, createPreset, deletePreset, setDefaultPreset } from '@/api/cameras'
 
 export const useCamerasStore = defineStore('cameras', () => {
   const items = ref([])
   const loading = ref(false)
+  const presets = ref({})       // { mac: [preset1, preset2] }
+  const defaultPresetId = ref({}) // { mac: presetId }
 
   async function fetchCameras() {
     loading.value = true
@@ -14,6 +16,27 @@ export const useCamerasStore = defineStore('cameras', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  async function loadPresets(mac) {
+    const res = await listPresets(mac)
+    presets.value[mac] = res.data
+  }
+
+  async function addPreset(mac, data) {
+    const res = await createPreset(mac, data)
+    await loadPresets(mac)
+    return res.data
+  }
+
+  async function removePreset(mac, presetId) {
+    await deletePreset(mac, presetId)
+    await loadPresets(mac)
+  }
+
+  async function setDefault(mac, presetId) {
+    await setDefaultPreset(mac, presetId)
+    defaultPresetId.value[mac] = presetId
   }
 
   function onRecordingStarted(mac) {
@@ -36,5 +59,5 @@ export const useCamerasStore = defineStore('cameras', () => {
     if (cam) cam.is_online = true
   }
 
-  return { items, loading, fetchCameras, onRecordingStarted, onRecordingStopped, onCameraOffline, onCameraOnline }
+  return { items, loading, presets, defaultPresetId, fetchCameras, loadPresets, addPreset, removePreset, setDefault, onRecordingStarted, onRecordingStopped, onCameraOffline, onCameraOnline }
 })
