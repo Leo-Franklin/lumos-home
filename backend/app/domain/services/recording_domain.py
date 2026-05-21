@@ -109,9 +109,7 @@ class RecordingDomainService:
         if task.output_path.exists():
             loop = asyncio.get_running_loop()
             try:
-                actual_duration = await loop.run_in_executor(
-                    None, lambda: self._probe_duration(task.output_path)
-                )
+                actual_duration = await self._probe_duration(task.output_path)
             except Exception:
                 pass
 

@@ -167,7 +167,7 @@ async def list_presence_logs(
     items = (await db.execute(q.offset((page - 1) * page_size).limit(page_size))).scalars().all()
 
     return PagedResponse(
-        items=items,
+        items=list(items),
         total=total,
         page=page,
         page_size=page_size,

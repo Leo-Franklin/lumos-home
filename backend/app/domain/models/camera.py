@@ -71,13 +71,13 @@ class Camera(Base):
                 for p in self.recording_presets
             ]
         try:
-            parsed = json.loads(self.recording_presets)
+            parsed = json.loads(str(self.recording_presets))
             return [RecordingPreset.from_dict(p) for p in parsed]
         except Exception:
             return []
 
     def set_presets(self, presets: list[RecordingPreset]):
-        self.recording_presets = [p.to_dict() for p in presets]
+        self.recording_presets = [p.to_dict() for p in presets]  # type: ignore[assignment]
 
     def add_preset(self, preset: RecordingPreset):
         presets = self.get_presets()

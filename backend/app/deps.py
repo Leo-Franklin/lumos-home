@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import verify_token
 from app.config import get_settings
 from app.database import get_db
+from app.domain.services.recorder import Recorder
 from app.services.nas_syncer import NasSyncer
-from app.services.recorder import Recorder
 
 bearer = HTTPBearer(auto_error=False)
 

@@ -47,7 +47,7 @@ async def list_devices(
     items = result.scalars().all()
 
     return PagedResponse(
-        items=items,
+        items=list(items),
         total=total,
         page=page,
         page_size=page_size,

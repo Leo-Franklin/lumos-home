@@ -7,7 +7,7 @@ from loguru import logger
 
 
 class WebSocketManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self._connections: set[WebSocket] = set()
         self._lock = asyncio.Lock()
 

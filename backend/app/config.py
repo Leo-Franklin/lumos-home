@@ -18,7 +18,7 @@ def is_packaged() -> bool:
     return getattr(sys, 'frozen', False)
 
 
-def _read_app_cfg() -> configparser.ConfigParser:
+def _read_app_cfg() -> configparser.ConfigParser | None:
     """Read app.cfg for packaged mode."""
     if not is_packaged():
         return None

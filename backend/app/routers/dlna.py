@@ -120,7 +120,7 @@ async def cast_url(body: CastRequest, db: DBDep, _: CurrentUser):
     """Push an external media URL directly to a DLNA device."""
     device = await _require_renderer(body.device_id, db)
     try:
-        ctrl = DLNAController(device.av_transport_url)
+        ctrl = DLNAController(device.av_transport_url)  # type: ignore[arg-type]
         await ctrl.set_uri(body.media_url)
         await ctrl.play()
     except Exception as e:
@@ -183,7 +183,7 @@ async def cast_file(
     media_url = f'http://{_local_ip()}:{port}/dlna-media/{fname}'
 
     try:
-        ctrl = DLNAController(device.av_transport_url)
+        ctrl = DLNAController(device.av_transport_url)  # type: ignore[arg-type]
         await ctrl.set_uri(media_url)
         await ctrl.play()
     except Exception as e:
@@ -216,7 +216,7 @@ async def _cleanup_media_file(path: Path, delay_seconds: int):
 async def play(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
-        await DLNAController(device.av_transport_url).play()
+        await DLNAController(device.av_transport_url).play()  # type: ignore[arg-type]
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -225,7 +225,7 @@ async def play(device_id: int, db: DBDep, _: CurrentUser):
 async def pause(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
-        await DLNAController(device.av_transport_url).pause()
+        await DLNAController(device.av_transport_url).pause()  # type: ignore[arg-type]
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -234,7 +234,7 @@ async def pause(device_id: int, db: DBDep, _: CurrentUser):
 async def stop(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
-        await DLNAController(device.av_transport_url).stop()
+        await DLNAController(device.av_transport_url).stop()  # type: ignore[arg-type]
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -243,7 +243,7 @@ async def stop(device_id: int, db: DBDep, _: CurrentUser):
 async def get_status(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
-        return await DLNAController(device.av_transport_url).get_transport_info()
+        return await DLNAController(device.av_transport_url).get_transport_info()  # type: ignore[arg-type]
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

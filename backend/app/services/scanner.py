@@ -14,7 +14,7 @@ from loguru import logger
 _IO_EXECUTOR = ThreadPoolExecutor(max_workers=128, thread_name_prefix='scanner_io')
 
 try:
-    from scapy.all import ARP, Ether, srp
+    from scapy.all import ARP, Ether, srp  # type: ignore[attr-defined]
 
     _SCAPY_AVAILABLE = True
 except ImportError:

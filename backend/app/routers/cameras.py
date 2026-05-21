@@ -282,7 +282,7 @@ async def stop_recording(
 
 def _rtsp_with_creds(camera: Camera) -> str:
     """Embed ONVIF credentials into the RTSP URL if present."""
-    url = camera.rtsp_url
+    url = camera.rtsp_url or ''
     if camera.onvif_user or camera.onvif_password:
         parsed = urlparse(url)
         netloc = f'{camera.onvif_user or ""}:{camera.onvif_password or ""}@{parsed.hostname or ""}'
@@ -490,7 +490,7 @@ async def start_live(mac: str, db: DBDep, _: CurrentUser):
     stderr_file.close()
     _live_procs[mac] = proc
     m3u8_path = output_dir / 'index.m3u8'
-    for _ in range(60):  # poll up to 30 s (60 × 0.5 s)
+    for _ in range(60):  # type: ignore[assignment]
         await asyncio.sleep(0.5)
         if proc.poll() is not None:
             _live_procs.pop(mac, None)

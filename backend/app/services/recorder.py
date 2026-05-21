@@ -98,9 +98,10 @@ class Recorder:
             return None
         logger.info(f'停止录制: {camera_mac}')
         try:
-            task.process.stdin.write(b'q')
-            task.process.stdin.flush()
-            task.process.stdin.close()
+            if task.process.stdin:
+                task.process.stdin.write(b'q')
+                task.process.stdin.flush()
+                task.process.stdin.close()
         except Exception:
             pass
         loop = asyncio.get_event_loop()
@@ -109,16 +110,16 @@ class Recorder:
         except subprocess.TimeoutExpired:
             logger.warning(f'FFmpeg 未在15秒内退出，强制终止: {camera_mac}')
             task.process.kill()
-            # Windows 需要额外时间释放文件句柄
             await asyncio.sleep(2.0)
         if task.process.poll() is None:
             task.process.kill()
             await asyncio.sleep(2.0)
         # Read stderr for diagnostics before checking the file
         try:
-            stderr_out = task.process.stderr.read(8192).decode(errors='replace').strip()
-            if stderr_out:
-                logger.debug(f'FFmpeg stderr [{camera_mac}]: {stderr_out[-300:]}')
+            if task.process.stderr:
+                stderr_out = task.process.stderr.read(8192).decode(errors='replace').strip()
+                if stderr_out:
+                    logger.debug(f'FFmpeg stderr [{camera_mac}]: {stderr_out[-300:]}')
         except Exception:
             pass
 
@@ -142,6 +143,7 @@ class Recorder:
                 else:
                     logger.error(f'文件持续被占用，跳过删除: {task.output_path}')
                     return None
+        return None
 
     async def _monitor_loop(self):
         while True:

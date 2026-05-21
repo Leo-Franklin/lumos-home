@@ -31,12 +31,12 @@ from app.domain.models.camera import Camera
 from app.domain.models.recording import Recording
 from app.domain.models.schedule import Schedule as ScheduleModel
 from app.domain.services.camera_health import CameraHealthChecker
-from app.domain.services.nas_syncer import NasSyncer
 from app.domain.services.presence_domain import PresenceDomainService
 from app.domain.services.presence_service import presence_service
 from app.domain.services.recorder import Recorder, RecordingParams
 from app.domain.services.recording_domain import RecordingDomainService
 from app.domain.services.scheduler_service import scheduler_service
+from app.services.nas_syncer import NasSyncer
 
 settings = get_settings()
 if is_packaged():

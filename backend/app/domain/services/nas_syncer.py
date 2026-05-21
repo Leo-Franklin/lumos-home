@@ -55,6 +55,7 @@ class NasSyncer:
         return dest
 
     def _sync_via_mount(self, src: Path, relative: str) -> Path:
+        assert self.mount_path is not None, 'mount_path must be set for mount mode'
         dest = self.mount_path / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f'NAS同步(mount): {src} → {dest}')
