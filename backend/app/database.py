@@ -1,27 +1,69 @@
+from typing import AsyncGenerator
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-
-from app.config import get_settings
 
 
 class Base(DeclarativeBase):
     pass
 
 
-_settings = get_settings()
-engine = create_async_engine(
-    _settings.database_url,
-    echo=_settings.debug,
-    connect_args={'check_same_thread': False},
-)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+# Lazy import to avoid triggering settings validation at import time
+# (settings validation requires real .env values which aren't available during test collection)
+_engine = None
+_AsyncSessionLocal = None
+
+
+class _LazySessionMaker:
+    """Lazy proxy for AsyncSessionLocal — defers settings access until first use."""
+
+    def __call__(self):
+        return _get_session_maker()()
+
+    def begin(self, **kwargs):
+        return _get_session_maker().begin(**kwargs)
+
+    @property
+    def engine(self):
+        return _get_engine()
+
+
+# Backwards-compatible API entry point (matches original AsyncSessionLocal interface)
+AsyncSessionLocal = _LazySessionMaker()
+
+
+def _get_engine():
+    global _engine
+    if _engine is None:
+        from app.config import get_settings
+
+        settings = get_settings()
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        _engine = create_async_engine(
+            settings.database_url,
+            echo=settings.debug,
+            connect_args={'check_same_thread': False},
+        )
+    return _engine
+
+
+def _get_session_maker():
+    global _AsyncSessionLocal
+    if _AsyncSessionLocal is None:
+        from app.config import get_settings
+
+        settings = get_settings()
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        _AsyncSessionLocal = async_sessionmaker(_get_engine(), expire_on_commit=False)
+    return _AsyncSessionLocal
 
 
 async def init_db() -> None:
     # Import all models so create_all picks them up
 
-    async with engine.begin() as conn:
+    async with _get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Idempotent column migrations — wrapped individually so one failure doesn't block others
         for stmt in (
@@ -44,6 +86,6 @@ async def init_db() -> None:
                 pass
 
 
-async def get_db() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with _get_session_maker()() as session:
         yield session
