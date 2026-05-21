@@ -1,12 +1,14 @@
 from typing import Annotated
+
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
+
 from app.auth import verify_token
 from app.config import get_settings
-from app.services.recorder import Recorder
+from app.database import get_db
 from app.services.nas_syncer import NasSyncer
+from app.services.recorder import Recorder
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -17,11 +19,13 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> str:
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authenticated')
     settings = get_settings()
     username = verify_token(credentials.credentials, settings.jwt_secret_key)
     if username is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid or expired token'
+        )
     return username
 
 
@@ -32,11 +36,13 @@ async def get_stream_user(
     """Accept Bearer header OR ?token= query param — for endpoints used directly in <video>/<img> src."""
     raw = credentials.credentials if credentials else token
     if not raw:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authenticated')
     settings = get_settings()
     username = verify_token(raw, settings.jwt_secret_key)
     if username is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid or expired token'
+        )
     return username
 
 

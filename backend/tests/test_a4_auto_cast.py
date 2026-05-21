@@ -1,9 +1,9 @@
-import pytest
-import socket
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 @dataclass
@@ -14,7 +14,7 @@ class FakeTask:
     recording_id: int | None = None
 
 
-def _make_cast_context(auto_cast_dlna: str | None, av_transport_url: str | None = "http://tv/avt"):
+def _make_cast_context(auto_cast_dlna: str | None, av_transport_url: str | None = 'http://tv/avt'):
     """Return mocks for DB session that simulates the _on_recording_complete DB queries."""
     recording = MagicMock()
     recording.id = 1
@@ -25,7 +25,7 @@ def _make_cast_context(auto_cast_dlna: str | None, av_transport_url: str | None 
     recording.duration = None
 
     camera = MagicMock()
-    camera.device_mac = "AA:BB:CC:DD:EE:FF"
+    camera.device_mac = 'AA:BB:CC:DD:EE:FF'
     camera.is_recording = True
     camera.auto_cast_dlna = auto_cast_dlna
 
@@ -40,26 +40,26 @@ async def test_auto_cast_dlna_calls_controller_when_configured(tmp_path):
     """When camera.auto_cast_dlna is set, DLNAController.set_uri + play are called."""
     from app.domain.services.recording_domain import RecordingDomainService
 
-    output_file = tmp_path / "rec.mp4"
-    output_file.write_bytes(b"0" * 1024 * 20)  # 20 KB fake video
+    output_file = tmp_path / 'rec.mp4'
+    output_file.write_bytes(b'0' * 1024 * 20)  # 20 KB fake video
 
     task = FakeTask(
-        camera_mac="AA:BB:CC:DD:EE:FF",
+        camera_mac='AA:BB:CC:DD:EE:FF',
         output_path=output_file,
         started_at=datetime(2026, 4, 29, 10, 0, 0),
         recording_id=1,
     )
 
-    recording, camera, dlna_device = _make_cast_context(auto_cast_dlna="uuid:some-udn-123")
+    recording, camera, dlna_device = _make_cast_context(auto_cast_dlna='uuid:some-udn-123')
 
     mock_session = AsyncMock()
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
     execute_results = [
-        MagicMock(**{"scalar_one_or_none.return_value": recording}),
-        MagicMock(**{"scalar_one_or_none.return_value": camera}),
-        MagicMock(**{"scalar_one_or_none.return_value": dlna_device}),
+        MagicMock(**{'scalar_one_or_none.return_value': recording}),
+        MagicMock(**{'scalar_one_or_none.return_value': camera}),
+        MagicMock(**{'scalar_one_or_none.return_value': dlna_device}),
     ]
     mock_session.execute = AsyncMock(side_effect=execute_results)
     mock_session.commit = AsyncMock()
@@ -71,9 +71,9 @@ async def test_auto_cast_dlna_calls_controller_when_configured(tmp_path):
     mock_ws_manager.broadcast = AsyncMock()
 
     with (
-        patch("app.domain.services.recording_domain.AsyncSessionLocal", return_value=mock_session),
-        patch("app.domain.services.recording_domain.DLNAController", return_value=mock_ctrl),
-        patch("app.domain.services.recording_domain.ws_manager", mock_ws_manager),
+        patch('app.domain.services.recording_domain.AsyncSessionLocal', return_value=mock_session),
+        patch('app.domain.services.recording_domain.DLNAController', return_value=mock_ctrl),
+        patch('app.domain.services.recording_domain.ws_manager', mock_ws_manager),
     ):
         svc = RecordingDomainService(nas_syncer=mock_nas_syncer)
         await svc.on_recording_complete(task)
@@ -87,11 +87,11 @@ async def test_no_auto_cast_when_field_is_none(tmp_path):
     """When auto_cast_dlna is None, DLNAController is not called."""
     from app.domain.services.recording_domain import RecordingDomainService
 
-    output_file = tmp_path / "rec.mp4"
-    output_file.write_bytes(b"0" * 1024 * 20)
+    output_file = tmp_path / 'rec.mp4'
+    output_file.write_bytes(b'0' * 1024 * 20)
 
     task = FakeTask(
-        camera_mac="BB:CC:DD:EE:FF:00",
+        camera_mac='BB:CC:DD:EE:FF:00',
         output_path=output_file,
         started_at=datetime(2026, 4, 29, 10, 0, 0),
         recording_id=2,
@@ -104,8 +104,8 @@ async def test_no_auto_cast_when_field_is_none(tmp_path):
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
     execute_results = [
-        MagicMock(**{"scalar_one_or_none.return_value": recording}),
-        MagicMock(**{"scalar_one_or_none.return_value": camera}),
+        MagicMock(**{'scalar_one_or_none.return_value': recording}),
+        MagicMock(**{'scalar_one_or_none.return_value': camera}),
     ]
     mock_session.execute = AsyncMock(side_effect=execute_results)
     mock_session.commit = AsyncMock()
@@ -115,9 +115,9 @@ async def test_no_auto_cast_when_field_is_none(tmp_path):
     mock_ws_manager.broadcast = AsyncMock()
 
     with (
-        patch("app.domain.services.recording_domain.AsyncSessionLocal", return_value=mock_session),
-        patch("app.domain.services.recording_domain.DLNAController") as mock_ctrl_cls,
-        patch("app.domain.services.recording_domain.ws_manager", mock_ws_manager),
+        patch('app.domain.services.recording_domain.AsyncSessionLocal', return_value=mock_session),
+        patch('app.domain.services.recording_domain.DLNAController') as mock_ctrl_cls,
+        patch('app.domain.services.recording_domain.ws_manager', mock_ws_manager),
     ):
         svc = RecordingDomainService(nas_syncer=mock_nas_syncer)
         await svc.on_recording_complete(task)

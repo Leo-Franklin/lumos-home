@@ -1,4 +1,5 @@
 import asyncio
+
 from loguru import logger
 
 
@@ -15,8 +16,11 @@ class OnvifClient:
         if self._camera is None:
             from onvif import ONVIFCamera
             from zeep.transports import Transport
+
             transport = Transport(timeout=self.timeout, operation_timeout=self.timeout)
-            self._camera = ONVIFCamera(self.host, self.port, self.user, self.password, transport=transport)
+            self._camera = ONVIFCamera(
+                self.host, self.port, self.user, self.password, transport=transport
+            )
         return self._camera
 
     async def get_device_info(self) -> dict:
@@ -28,10 +32,10 @@ class OnvifClient:
         svc = cam.create_devicemgmt_service()
         info = svc.GetDeviceInformation()
         return {
-            "manufacturer": info.Manufacturer,
-            "model": info.Model,
-            "firmware": info.FirmwareVersion,
-            "serial": info.SerialNumber,
+            'manufacturer': info.Manufacturer,
+            'model': info.Model,
+            'firmware': info.FirmwareVersion,
+            'serial': info.SerialNumber,
         }
 
     async def get_stream_uri(self, profile_index: int = 0) -> str:
@@ -45,10 +49,12 @@ class OnvifClient:
         if profile_index >= len(profiles):
             profile_index = 0
         token = profiles[profile_index].token
-        uri = media.GetStreamUri({
-            "StreamSetup": {"Stream": "RTP-Unicast", "Transport": {"Protocol": "RTSP"}},
-            "ProfileToken": token,
-        })
+        uri = media.GetStreamUri(
+            {
+                'StreamSetup': {'Stream': 'RTP-Unicast', 'Transport': {'Protocol': 'RTSP'}},
+                'ProfileToken': token,
+            }
+        )
         return uri.Uri
 
     async def get_snapshot_uri(self) -> str:
@@ -60,7 +66,7 @@ class OnvifClient:
         media = cam.create_media_service()
         profiles = media.GetProfiles()
         token = profiles[0].token
-        uri = media.GetSnapshotUri({"ProfileToken": token})
+        uri = media.GetSnapshotUri({'ProfileToken': token})
         return uri.Uri
 
     async def get_profiles(self) -> list[dict]:
@@ -73,9 +79,9 @@ class OnvifClient:
         profiles = media.GetProfiles()
         return [
             {
-                "index": i,
-                "name": p.Name,
-                "token": p.token,
+                'index': i,
+                'name': p.Name,
+                'token': p.token,
             }
             for i, p in enumerate(profiles)
         ]
@@ -85,5 +91,5 @@ class OnvifClient:
             await self.get_device_info()
             return True
         except Exception as e:
-            logger.debug(f"ONVIF 不可达 {self.host}:{self.port}: {e}")
+            logger.debug(f'ONVIF 不可达 {self.host}:{self.port}: {e}')
             return False

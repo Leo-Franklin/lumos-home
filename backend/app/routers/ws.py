@@ -1,13 +1,13 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
 from app.auth import verify_token
 from app.config import get_settings
 from app.services.ws_manager import ws_manager
-from loguru import logger
 
-router = APIRouter(tags=["websocket"])
+router = APIRouter(tags=['websocket'])
 
 
-@router.websocket("/ws")
+@router.websocket('/ws')
 async def websocket_endpoint(ws: WebSocket, token: str = Query(...)):
     settings = get_settings()
     username = verify_token(token, settings.jwt_secret_key)

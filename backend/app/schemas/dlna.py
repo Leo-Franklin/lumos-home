@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -17,7 +18,7 @@ class DLNADeviceOut(BaseModel):
     last_seen: datetime | None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class CastRequest(BaseModel):

@@ -1,7 +1,9 @@
-import pytest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 
 # Test RecordingDomainService.on_recording_complete
 @pytest.mark.asyncio
@@ -11,8 +13,8 @@ async def test_on_recording_complete_updates_recording_and_camera():
 
     # Setup mock task
     task = MagicMock()
-    task.camera_mac = "AA:BB:CC:DD:EE:FF"
-    task.output_path = Path("/tmp/test.mp4")
+    task.camera_mac = 'AA:BB:CC:DD:EE:FF'
+    task.output_path = Path('/tmp/test.mp4')
     task.started_at = datetime.now()
     task.recording_id = 1
 
@@ -26,10 +28,10 @@ async def test_on_recording_complete_updates_recording_and_camera():
 
     # Setup mock DB session
     mock_rec = MagicMock()
-    mock_rec.status = "recording"
+    mock_rec.status = 'recording'
     mock_cam = MagicMock()
     mock_cam.is_recording = True
-    mock_cam.device_mac = "AA:BB:CC:DD:EE:FF"
+    mock_cam.device_mac = 'AA:BB:CC:DD:EE:FF'
     mock_cam.auto_cast_dlna = None
 
     mock_result = MagicMock()
@@ -49,12 +51,13 @@ async def test_on_recording_complete_updates_recording_and_camera():
     svc._ws_manager = MagicMock()
     svc._ws_manager.broadcast = AsyncMock()
 
-    with patch("app.domain.services.recording_domain.AsyncSessionLocal", AsyncSessionLocal):
+    with patch('app.domain.services.recording_domain.AsyncSessionLocal', AsyncSessionLocal):
         await svc.on_recording_complete(task)
 
     mock_db.commit.assert_called()
-    assert mock_rec.status == "completed"
-    assert mock_cam.is_recording == False
+    assert mock_rec.status == 'completed'
+    assert not mock_cam.is_recording
+
 
 @pytest.mark.asyncio
 async def test_on_recording_complete_triggers_dlna_cast():
@@ -62,8 +65,8 @@ async def test_on_recording_complete_triggers_dlna_cast():
     from app.domain.services.recording_domain import RecordingDomainService
 
     task = MagicMock()
-    task.camera_mac = "AA:BB:CC:DD:EE:FF"
-    task.output_path = Path("/tmp/test.mp4")
+    task.camera_mac = 'AA:BB:CC:DD:EE:FF'
+    task.output_path = Path('/tmp/test.mp4')
     task.started_at = datetime.now()
     task.recording_id = 1
 
@@ -75,12 +78,12 @@ async def test_on_recording_complete_triggers_dlna_cast():
     mock_nas_syncer.sync_file = MagicMock(return_value=mock_dest)
 
     mock_dlna_dev = MagicMock()
-    mock_dlna_dev.av_transport_url = "http://192.168.1.100:8080/av_transport"
+    mock_dlna_dev.av_transport_url = 'http://192.168.1.100:8080/av_transport'
 
     mock_rec = MagicMock()
     mock_cam = MagicMock()
     mock_cam.is_recording = True
-    mock_cam.auto_cast_dlna = "uuid:dlna-device-1"
+    mock_cam.auto_cast_dlna = 'uuid:dlna-device-1'
 
     mock_result = MagicMock()
     mock_result.scalar_one_or_none = MagicMock(side_effect=[mock_rec, mock_cam, mock_dlna_dev])
@@ -99,10 +102,11 @@ async def test_on_recording_complete_triggers_dlna_cast():
     svc._ws_manager.broadcast = AsyncMock()
     svc._cast_recording = AsyncMock()
 
-    with patch("app.domain.services.recording_domain.AsyncSessionLocal", AsyncSessionLocal):
+    with patch('app.domain.services.recording_domain.AsyncSessionLocal', AsyncSessionLocal):
         await svc.on_recording_complete(task)
 
     svc._cast_recording.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_on_recording_failed_updates_recording():
@@ -110,7 +114,7 @@ async def test_on_recording_failed_updates_recording():
     from app.domain.services.recording_domain import RecordingDomainService
 
     task = MagicMock()
-    task.camera_mac = "AA:BB:CC:DD:EE:FF"
+    task.camera_mac = 'AA:BB:CC:DD:EE:FF'
     task.recording_id = 1
 
     mock_rec = MagicMock()
@@ -133,9 +137,9 @@ async def test_on_recording_failed_updates_recording():
     svc._ws_manager = MagicMock()
     svc._ws_manager.broadcast = AsyncMock()
 
-    with patch("app.domain.services.recording_domain.AsyncSessionLocal", AsyncSessionLocal):
-        await svc.on_recording_failed(task, retcode=1, stderr="test error")
+    with patch('app.domain.services.recording_domain.AsyncSessionLocal', AsyncSessionLocal):
+        await svc.on_recording_failed(task, retcode=1, stderr='test error')
 
-    assert mock_rec.status == "failed"
-    assert "test error" in mock_rec.error_msg
+    assert mock_rec.status == 'failed'
+    assert 'test error' in mock_rec.error_msg
     mock_db.commit.assert_called()

@@ -1,48 +1,49 @@
+from dataclasses import dataclass
 from datetime import datetime
-from sqlalchemy import String, Boolean, Integer, DateTime, Text, func, ForeignKey, JSON
+
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
-from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
 class RecordingPreset:
     id: str
     name: str
-    resolution: str = "1920x1080"  # 宽x高
+    resolution: str = '1920x1080'  # 宽x高
     segment_duration: int = 600  # 秒
-    bitrate: Optional[int] = None  # kbps，None=自动
-    fps: Optional[int] = None  # None=25
+    bitrate: int | None = None  # kbps，None=自动
+    fps: int | None = None  # None=25
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "name": self.name,
-            "resolution": self.resolution,
-            "segment_duration": self.segment_duration,
-            "bitrate": self.bitrate,
-            "fps": self.fps,
+            'id': self.id,
+            'name': self.name,
+            'resolution': self.resolution,
+            'segment_duration': self.segment_duration,
+            'bitrate': self.bitrate,
+            'fps': self.fps,
         }
 
     @staticmethod
-    def from_dict(data: dict) -> "RecordingPreset":
+    def from_dict(data: dict) -> 'RecordingPreset':
         return RecordingPreset(
-            id=data["id"],
-            name=data["name"],
-            resolution=data.get("resolution", "1920x1080"),
-            segment_duration=data.get("segment_duration", 600),
-            bitrate=data.get("bitrate"),
-            fps=data.get("fps"),
+            id=data['id'],
+            name=data['name'],
+            resolution=data.get('resolution', '1920x1080'),
+            segment_duration=data.get('segment_duration', 600),
+            bitrate=data.get('bitrate'),
+            fps=data.get('fps'),
         )
 
 
 class Camera(Base):
-    __tablename__ = "cameras"
+    __tablename__ = 'cameras'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     device_mac: Mapped[str] = mapped_column(
-        String(17), ForeignKey("devices.mac"), unique=True, nullable=False
+        String(17), ForeignKey('devices.mac'), unique=True, nullable=False
     )
     onvif_host: Mapped[str] = mapped_column(String(64), nullable=False)
     onvif_port: Mapped[int] = mapped_column(Integer, default=2020)
@@ -50,7 +51,7 @@ class Camera(Base):
     onvif_password: Mapped[str | None] = mapped_column(String(256))  # AES-encrypted
     rtsp_port: Mapped[int] = mapped_column(Integer, default=554)
     rtsp_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    stream_profile: Mapped[str] = mapped_column(String(32), default="mainStream")
+    stream_profile: Mapped[str] = mapped_column(String(32), default='mainStream')
     is_recording: Mapped[bool] = mapped_column(Boolean, default=False)
     is_online: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_probe_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -85,7 +86,7 @@ class Camera(Base):
 
     def remove_preset(self, preset_id: str):
         presets = self.get_presets()
-        self.recording_presets = [p for p in presets if p.id != preset_id]
+        self.set_presets([p for p in presets if p.id != preset_id])
         if self.default_preset_id == preset_id:
             self.default_preset_id = None
 
@@ -94,11 +95,11 @@ class Camera(Base):
         for i, p in enumerate(presets):
             if p.id == preset_id:
                 for key in [
-                    "name",
-                    "resolution",
-                    "segment_duration",
-                    "bitrate",
-                    "fps",
+                    'name',
+                    'resolution',
+                    'segment_duration',
+                    'bitrate',
+                    'fps',
                 ]:
                     if key in data:
                         setattr(p, key, data[key])

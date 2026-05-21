@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import datetime
+
 from fastapi import WebSocket
 from loguru import logger
 
@@ -14,16 +15,16 @@ class WebSocketManager:
         await ws.accept()
         async with self._lock:
             self._connections.add(ws)
-        logger.info(f"WebSocket connected: {ws.client}, total={len(self._connections)}")
+        logger.info(f'WebSocket connected: {ws.client}, total={len(self._connections)}')
 
     async def disconnect(self, ws: WebSocket):
         async with self._lock:
             self._connections.discard(ws)
-        logger.info(f"WebSocket disconnected: {ws.client}, total={len(self._connections)}")
+        logger.info(f'WebSocket disconnected: {ws.client}, total={len(self._connections)}')
 
     async def broadcast(self, event: str, data: dict):
         message = json.dumps(
-            {"event": event, "timestamp": datetime.now().isoformat(), "data": data},
+            {'event': event, 'timestamp': datetime.now().isoformat(), 'data': data},
             ensure_ascii=False,
         )
         async with self._lock:

@@ -1,24 +1,24 @@
 import asyncio
 import subprocess
-from pathlib import Path
-from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime
+from pathlib import Path
+
 from loguru import logger
 
 
 @dataclass
 class RecordingParams:
-    resolution: str = "1920x1080"
+    resolution: str = '1920x1080'
     segment_seconds: int = 1800
-    bitrate: Optional[int] = None  # kbps
-    fps: Optional[int] = None
+    bitrate: int | None = None  # kbps
+    fps: int | None = None
 
     def bitrate_or_default(self) -> int:
         if self.bitrate:
             return self.bitrate
         # 自动匹配：基于分辨率
-        w = int(self.resolution.split("x")[0])
+        w = int(self.resolution.split('x')[0])
         if w >= 1920:
             return 2048
         elif w >= 1280:
@@ -63,28 +63,30 @@ class Recorder:
 
     async def start_monitor(self):
         self._monitor_task = asyncio.create_task(self._monitor_loop())
-        logger.info("RecordingMonitor 已启动")
+        logger.info('RecordingMonitor 已启动')
 
     async def stop_monitor(self):
         if self._monitor_task:
             self._monitor_task.cancel()
-            logger.info("RecordingMonitor 已停止")
+            logger.info('RecordingMonitor 已停止')
 
     async def start_recording(self, camera_mac: str, rtsp_url: str, params: RecordingParams) -> str:
         if camera_mac in self.active:
-            raise RuntimeError(f"摄像头 {camera_mac} 已在录制中")
+            raise RuntimeError(f'摄像头 {camera_mac} 已在录制中')
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_mac = camera_mac.replace(":", "")
-        output_path = self.temp_dir / f"{safe_mac}_{ts}.mp4"
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_mac = camera_mac.replace(':', '')
+        output_path = self.temp_dir / f'{safe_mac}_{ts}.mp4'
 
         cmd = self._build_ffmpeg_cmd(rtsp_url, output_path, params)
 
-        logger.info(f"启动录制: {camera_mac} → {output_path}")
+        logger.info(f'启动录制: {camera_mac} → {output_path}')
         loop = asyncio.get_event_loop()
         proc = await loop.run_in_executor(
             None,
-            lambda: subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+            lambda: subprocess.Popen(
+                cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+            ),
         )
 
         self.active[camera_mac] = RecordingTask(
@@ -102,17 +104,28 @@ class Recorder:
 
     def _build_ffmpeg_cmd(self, rtsp_url: str, output_path: Path, params: RecordingParams) -> list:
         cmd = [
-            "ffmpeg", "-y",
-            "-rtsp_transport", "tcp",
-            "-i", rtsp_url,
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-b:v", f"{params.bitrate_or_default()}k",
-            "-r", str(params.fps_or_default()),
-            "-s", params.resolution,
-            "-c:a", "aac",
-            "-t", str(params.segment_seconds),
-            "-movflags", "+frag_keyframe+empty_moov",
+            'ffmpeg',
+            '-y',
+            '-rtsp_transport',
+            'tcp',
+            '-i',
+            rtsp_url,
+            '-c:v',
+            'libx264',
+            '-preset',
+            'medium',
+            '-b:v',
+            f'{params.bitrate_or_default()}k',
+            '-r',
+            str(params.fps_or_default()),
+            '-s',
+            params.resolution,
+            '-c:a',
+            'aac',
+            '-t',
+            str(params.segment_seconds),
+            '-movflags',
+            '+frag_keyframe+empty_moov',
             str(output_path),
         ]
         return cmd
@@ -121,9 +134,9 @@ class Recorder:
         task = self.active.pop(camera_mac, None)
         if not task:
             return None
-        logger.info(f"停止录制: {camera_mac}")
+        logger.info(f'停止录制: {camera_mac}')
         try:
-            task.process.stdin.write(b"q")
+            task.process.stdin.write(b'q')
             task.process.stdin.flush()
             task.process.stdin.close()
         except Exception:
@@ -132,7 +145,7 @@ class Recorder:
         try:
             await loop.run_in_executor(None, lambda: task.process.wait(timeout=15))
         except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg 未在15秒内退出，强制终止: {camera_mac}")
+            logger.warning(f'FFmpeg 未在15秒内退出，强制终止: {camera_mac}')
             task.process.kill()
             # Windows 需要额外时间释放文件句柄
             await asyncio.sleep(2.0)
@@ -141,9 +154,9 @@ class Recorder:
             await asyncio.sleep(2.0)
         # Read stderr for diagnostics before checking the file
         try:
-            stderr_out = task.process.stderr.read(8192).decode(errors="replace").strip()
+            stderr_out = task.process.stderr.read(8192).decode(errors='replace').strip()
             if stderr_out:
-                logger.debug(f"FFmpeg stderr [{camera_mac}]: {stderr_out[-300:]}")
+                logger.debug(f'FFmpeg stderr [{camera_mac}]: {stderr_out[-300:]}')
         except Exception:
             pass
 
@@ -152,20 +165,20 @@ class Recorder:
         for attempt in range(3):
             try:
                 if not task.output_path.exists():
-                    logger.warning(f"录制文件不存在（FFmpeg未写入数据）: {task.output_path}")
+                    logger.warning(f'录制文件不存在（FFmpeg未写入数据）: {task.output_path}')
                     return None
                 size = task.output_path.stat().st_size
                 if size > min_valid_bytes:
                     return task.output_path
-                logger.warning(f"录制文件过小({size}字节，丢弃): {task.output_path}")
+                logger.warning(f'录制文件过小({size}字节，丢弃): {task.output_path}')
                 task.output_path.unlink()
                 return None
             except PermissionError:
                 if attempt < 2:
-                    logger.warning(f"文件被占用，重试 ({attempt + 1}/3): {task.output_path}")
+                    logger.warning(f'文件被占用，重试 ({attempt + 1}/3): {task.output_path}')
                     await asyncio.sleep(0.5)
                 else:
-                    logger.error(f"文件持续被占用，跳过删除: {task.output_path}")
+                    logger.error(f'文件持续被占用，跳过删除: {task.output_path}')
                     return None
 
     async def _monitor_loop(self):
@@ -196,21 +209,26 @@ class Recorder:
                     pass
             # Handle stalled streams — kill then immediately restart new segment
             for mac, task in stalled:
-                logger.warning(f"[{mac}] RTSP流中断（90s无数据写入），终止segment并立即重启")
+                logger.warning(f'[{mac}] RTSP流中断（90s无数据写入），终止segment并立即重启')
                 task.process.kill()
                 # Fire on_failed so DB records this segment (completed if ≥30s, failed otherwise)
                 if self._on_failed_cb:
-                    await self._on_failed_cb(task, -1, "RTSP stream stalled, auto-restart")
+                    await self._on_failed_cb(task, -1, 'RTSP stream stalled, auto-restart')
                 # Immediately start next segment — same camera, same session
                 next_index = task.segment_index + 1
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                safe_mac = mac.replace(":", "")
-                seg_path = self.temp_dir / f"{safe_mac}_{ts}_seg{next_index}.mp4"
+                ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+                safe_mac = mac.replace(':', '')
+                seg_path = self.temp_dir / f'{safe_mac}_{ts}_seg{next_index}.mp4'
                 cmd = self._build_ffmpeg_cmd(task.rtsp_url, seg_path, task.params)
                 loop = asyncio.get_event_loop()
                 proc = await loop.run_in_executor(
                     None,
-                    lambda: subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+                    lambda: subprocess.Popen(
+                        cmd,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                    ),
                 )
                 new_task = RecordingTask(
                     camera_mac=mac,
@@ -226,29 +244,38 @@ class Recorder:
                     params=task.params,
                 )
                 self.active[mac] = new_task
-                logger.info(f"[{mac}] 立即重启segment {next_index}: {seg_path}")
+                logger.info(f'[{mac}] 立即重启segment {next_index}: {seg_path}')
             # Handle normally finished
             for mac, retcode, task in finished:
                 self.active.pop(mac, None)
                 if retcode == 0:
-                    logger.info(f"录制正常完成: {mac}")
+                    logger.info(f'录制正常完成: {mac}')
                     # Check should_continue_cb to decide whether to auto-continue
                     try:
-                        should_continue = await self._should_continue_cb(mac) if self._should_continue_cb else False
+                        should_continue = (
+                            await self._should_continue_cb(mac)
+                            if self._should_continue_cb
+                            else False
+                        )
                     except Exception:
-                        logger.warning(f"[{mac}] should_continue_cb 异常，降级为False")
+                        logger.warning(f'[{mac}] should_continue_cb 异常，降级为False')
                         should_continue = False
                     if should_continue:
                         # Auto-continue: start new segment with same recording_id
                         next_index = task.segment_index + 1
-                        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        safe_mac = mac.replace(":", "")
-                        seg_path = self.temp_dir / f"{safe_mac}_{ts}_seg{next_index}.mp4"
+                        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        safe_mac = mac.replace(':', '')
+                        seg_path = self.temp_dir / f'{safe_mac}_{ts}_seg{next_index}.mp4'
                         cmd = self._build_ffmpeg_cmd(task.rtsp_url, seg_path, task.params)
                         loop = asyncio.get_event_loop()
                         proc = await loop.run_in_executor(
                             None,
-                            lambda: subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE),
+                            lambda: subprocess.Popen(
+                                cmd,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.PIPE,
+                            ),
                         )
                         new_task = RecordingTask(
                             camera_mac=mac,
@@ -264,11 +291,11 @@ class Recorder:
                             params=task.params,
                         )
                         self.active[mac] = new_task
-                        logger.info(f"[{mac}] 自动继续录制segment {next_index}: {seg_path}")
+                        logger.info(f'[{mac}] 自动继续录制segment {next_index}: {seg_path}')
                     elif self._on_complete_cb:
                         await self._on_complete_cb(task)
                 else:
-                    stderr = task.process.stderr.read().decode(errors="replace")[-500:]
-                    logger.error(f"录制异常退出: {mac}, code={retcode}, stderr={stderr}")
+                    stderr = task.process.stderr.read().decode(errors='replace')[-500:]
+                    logger.error(f'录制异常退出: {mac}, code={retcode}, stderr={stderr}')
                     if self._on_failed_cb:
                         await self._on_failed_cb(task, retcode, stderr)

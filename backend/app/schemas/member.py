@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel
+
 from app.schemas.device import DeviceOut
 
 
@@ -28,7 +30,7 @@ class MemberOut(BaseModel):
     auto_record_cameras: list[str]
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class MemberDeviceCreate(BaseModel):
@@ -43,7 +45,7 @@ class MemberDeviceOut(BaseModel):
     label: str | None
     device_info: DeviceOut | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class PresenceLogOut(BaseModel):
@@ -53,11 +55,11 @@ class PresenceLogOut(BaseModel):
     triggered_by_mac: str | None
     occurred_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class DailyStats(BaseModel):
-    date: str    # "YYYY-MM-DD"
+    date: str  # "YYYY-MM-DD"
     minutes: int
 
 

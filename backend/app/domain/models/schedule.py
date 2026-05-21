@@ -1,15 +1,17 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, Integer, DateTime, ForeignKey, Text, func
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
 
 
 class Schedule(Base):
-    __tablename__ = "schedules"
+    __tablename__ = 'schedules'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     camera_mac: Mapped[str] = mapped_column(
-        String(17), ForeignKey("cameras.device_mac"), nullable=False
+        String(17), ForeignKey('cameras.device_mac'), nullable=False
     )
     name: Mapped[str | None] = mapped_column(String(128))
     cron_expr: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -22,6 +24,7 @@ class Schedule(Base):
 
     def get_overrides(self) -> dict | None:
         import json
+
         if not self.overrides:
             return None
         try:
@@ -31,11 +34,12 @@ class Schedule(Base):
 
     def set_overrides(self, data: dict | None):
         import json
+
         self.overrides = json.dumps(data) if data else None
 
     def get_effective_segment_duration(self) -> int:
         """Compatibility: prefer overrides.segment_duration, then self.segment_duration"""
         overrides = self.get_overrides()
-        if overrides and "segment_duration" in overrides:
-            return overrides["segment_duration"]
+        if overrides and 'segment_duration' in overrides:
+            return overrides['segment_duration']
         return self.segment_duration

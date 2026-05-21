@@ -1,7 +1,7 @@
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -17,10 +17,10 @@ async def test_arrived_triggers_auto_start_recording():
 
     member = MagicMock()
     member.id = 1
-    member.name = "Alice"
+    member.name = 'Alice'
     member.is_home = False
     member.webhook_url = None
-    member.auto_record_cameras = ["AA:BB:CC:DD:EE:FF"]
+    member.auto_record_cameras = ['AA:BB:CC:DD:EE:FF']
 
     session = AsyncMock()
     session.add = MagicMock()
@@ -28,13 +28,13 @@ async def test_arrived_triggers_auto_start_recording():
 
     svc._initialized = True  # skip first-run baseline
 
-    with patch.object(svc, "_send_webhook", new_callable=AsyncMock):
-        await svc._fire_event(session, member, is_home=True, triggered_mac="AA:BB:CC:DD:EE:FF")
+    with patch.object(svc, '_send_webhook', new_callable=AsyncMock):
+        await svc._fire_event(session, member, is_home=True, triggered_mac='AA:BB:CC:DD:EE:FF')
 
     # Give create_task callbacks time to be scheduled
     await asyncio.sleep(0)
 
-    auto_start_cb.assert_called_once_with("AA:BB:CC:DD:EE:FF")
+    auto_start_cb.assert_called_once_with('AA:BB:CC:DD:EE:FF')
     auto_stop_cb.assert_not_called()
 
 
@@ -51,10 +51,10 @@ async def test_left_triggers_auto_stop_when_no_other_home_member():
 
     member = MagicMock()
     member.id = 1
-    member.name = "Alice"
+    member.name = 'Alice'
     member.is_home = True
     member.webhook_url = None
-    member.auto_record_cameras = ["AA:BB:CC:DD:EE:FF"]
+    member.auto_record_cameras = ['AA:BB:CC:DD:EE:FF']
 
     # No other members home
     session = AsyncMock()
@@ -67,12 +67,12 @@ async def test_left_triggers_auto_stop_when_no_other_home_member():
 
     svc._initialized = True
 
-    with patch.object(svc, "_send_webhook", new_callable=AsyncMock):
-        await svc._fire_event(session, member, is_home=False, triggered_mac="AA:BB:CC:DD:EE:FF")
+    with patch.object(svc, '_send_webhook', new_callable=AsyncMock):
+        await svc._fire_event(session, member, is_home=False, triggered_mac='AA:BB:CC:DD:EE:FF')
 
     await asyncio.sleep(0)
 
-    auto_stop_cb.assert_called_once_with("AA:BB:CC:DD:EE:FF")
+    auto_stop_cb.assert_called_once_with('AA:BB:CC:DD:EE:FF')
     auto_start_cb.assert_not_called()
 
 
@@ -89,7 +89,7 @@ async def test_no_auto_record_cameras_no_callback():
 
     member = MagicMock()
     member.id = 2
-    member.name = "Bob"
+    member.name = 'Bob'
     member.is_home = False
     member.webhook_url = None
     member.auto_record_cameras = []  # empty list
@@ -100,7 +100,7 @@ async def test_no_auto_record_cameras_no_callback():
 
     svc._initialized = True
 
-    with patch.object(svc, "_send_webhook", new_callable=AsyncMock):
+    with patch.object(svc, '_send_webhook', new_callable=AsyncMock):
         await svc._fire_event(session, member, is_home=True, triggered_mac=None)
 
     await asyncio.sleep(0)
