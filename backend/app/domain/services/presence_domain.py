@@ -113,5 +113,7 @@ class PresenceDomainService:
                 if rec.started_at:
                     rec.duration = int((ended_at - rec.started_at).total_seconds())
 
+            await db.commit()
+
         await self._ws_manager.broadcast('recording_completed', {'camera_mac': camera_mac})
         logger.info(f'[A1] 自动停止录制完成: {camera_mac}')

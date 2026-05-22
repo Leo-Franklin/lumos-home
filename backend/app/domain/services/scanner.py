@@ -230,9 +230,9 @@ class Scanner:
                 addr_out = subprocess.check_output(['ip', 'addr'], text=True, timeout=5)
                 iface_match = re.search(rf'(\w+).*\n.*{re.escape(local_ip)}', addr_out)
                 if iface_match:
-                    iface = iface_match.group(1)
+                    matched_iface = iface_match.group(1)
                     mac_match = re.search(
-                        rf'{re.escape(iface)}.*\n.*link/ether\s+([0-9a-f:]+)', out
+                        rf'{re.escape(matched_iface)}.*\n.*link/ether\s+([0-9a-f:]+)', out
                     )
                     if mac_match:
                         return mac_match.group(1).upper()

@@ -21,6 +21,10 @@ jobs:
         run: uv sync --dev
 
       - name: Run tests
+        env:
+          JWT_SECRET_KEY: test_secret_key_that_is_at_least_32_characters_long
+          ADMIN_PASSWORD: testpassword_for_ci_only
+          CORS_ALLOW_ORIGINS: http://localhost:5173
         run: uv run pytest tests/ -v
 
   lint:

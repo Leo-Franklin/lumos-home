@@ -63,6 +63,8 @@ class RecordingDomainService:
             cam = (
                 await db.execute(select(Camera).where(Camera.device_mac == task.camera_mac))
             ).scalar_one_or_none()
+            if cam:
+                cam.is_recording = False
 
             await db.commit()
 
