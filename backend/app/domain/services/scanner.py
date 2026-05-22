@@ -423,6 +423,30 @@ class Scanner:
         return None
 
     @staticmethod
+    def _detect_by_hostname(hostname: str | None) -> str | None:
+        """Detect device type by hostname keywords. Returns None if no match."""
+        if not hostname:
+            return None
+        h = hostname.lower()
+        if any(kw in h for kw in _PHONE_HOSTNAME_KW):
+            return 'phone'
+        if any(kw in h for kw in _COMPUTER_HOSTNAME_KW):
+            return 'computer'
+        if any(kw in h for kw in _PRINTER_HOSTNAME_KW):
+            return 'printer'
+        if any(kw in h for kw in _TV_HOSTNAME_KW):
+            return 'tv'
+        if any(kw in h for kw in _SMART_SPEAKER_HOSTNAME_KW):
+            return 'smart_speaker'
+        if any(kw in h for kw in _GAME_CONSOLE_HOSTNAME_KW):
+            return 'game_console'
+        if any(kw in h for kw in _TABLET_HOSTNAME_KW):
+            return 'tablet'
+        if any(kw in h for kw in _CAMERA_HOSTNAME_KW):
+            return 'camera'
+        return None
+
+    @staticmethod
     def guess_device_type(vendor: str, open_ports: list[int], hostname: str | None = None) -> str:
         """Infer device type from vendor OUI name, open ports, and hostname."""
         # --- Port-based detection (highest priority) ---
