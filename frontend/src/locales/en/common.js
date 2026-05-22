@@ -9,6 +9,7 @@ export default {
   confirm: 'Confirm',
   search: 'Search',
   create: 'Create',
+  add: 'Add',
   download: 'Download',
   play: 'Play',
   pause: 'Pause',

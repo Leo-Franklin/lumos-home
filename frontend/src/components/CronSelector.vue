@@ -179,7 +179,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
       <span class="preview-icon">{{ valid ? '✓' : '✗' }}</span>
       <span class="preview-text">
         {{ description }}
-        <span class="preview-cron">（{{ modelValue }}）</span>
+        <span class="preview-cron">({{ modelValue }})</span>
       </span>
     </div>
   </div>

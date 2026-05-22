@@ -9,6 +9,7 @@ export default {
   confirm: '确认',
   search: '查询',
   create: '创建',
+  add: '添加',
   download: '下载',
   play: '播放',
   pause: '暂停',

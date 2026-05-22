@@ -275,10 +275,10 @@ async function handlePresetSave() {
   try {
     if (presetEditing.value) {
       await updatePreset(presetCam.value.device_mac, presetEditing.value, presetForm.value)
-      ElMessage.success('Preset updated')
+      ElMessage.success(t('cameras.presetUpdated'))
     } else {
       await createPreset(presetCam.value.device_mac, presetForm.value)
-      ElMessage.success('Preset created')
+      ElMessage.success(t('cameras.presetCreated'))
     }
     const { data } = await listPresets(presetCam.value.device_mac)
     presetList.value = data
@@ -292,14 +292,14 @@ async function handlePresetSave() {
 
 async function handlePresetDelete(preset) {
   if (!presetCam.value) return
-  await ElMessageBox.confirm(`Delete preset "${preset.name}"?`, 'Confirm Delete', { type: 'warning' })
+  await ElMessageBox.confirm(t('cameras.presetDeleteConfirm', { name: preset.name }), t('common.confirmDelete'), { type: 'warning' })
   try {
     await deletePreset(presetCam.value.device_mac, preset.id)
     const { data } = await listPresets(presetCam.value.device_mac)
     presetList.value = data
-    ElMessage.success('Preset deleted')
+    ElMessage.success(t('cameras.presetDeleted'))
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || 'Failed to delete preset')
+    ElMessage.error(e.response?.data?.detail || t('common.operationFailed'))
   }
 }
 
@@ -309,7 +309,7 @@ async function handlePresetSetDefault(preset) {
     await camerasStore.setDefault(presetCam.value.device_mac, preset.id)
     const { data } = await listPresets(presetCam.value.device_mac)
     presetList.value = data
-    ElMessage.success('Default preset set')
+    ElMessage.success(t('cameras.defaultPresetSet'))
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || 'Failed to set default preset')
   }
@@ -349,11 +349,11 @@ async function handleStartRecord() {
       preset_id: recordSelectedPresetId.value || undefined,
       overrides: Object.keys(overrides).length ? overrides : undefined,
     })
-    ElMessage.success('Recording started')
+    ElMessage.success(t('cameras.recordStarted'))
     recordDialog.value = false
     await camerasStore.fetchCameras()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || 'Failed to start recording')
+    ElMessage.error(e.response?.data?.detail || t('cameras.recordStartFailed'))
   } finally {
     recordSaving.value = false
   }
@@ -399,7 +399,7 @@ onMounted(async () => {
       <el-table-column :label="$t('cameras.lastProbe')" width="160">
         <template #default="{ row }">{{ $d(row.last_probe_at, 'short') }}</template>
       </el-table-column>
-      <el-table-column :label="$t('cameras.actions')" min-width="200" align="center">
+      <el-table-column :label="$t('cameras.actions')" min-width="240" align="center">
         <template #default="{ row }">
           <div class="action-group">
             <!-- Probe -->
@@ -604,54 +604,56 @@ onMounted(async () => {
     </el-dialog>
 
     <!-- 预设管理 -->
-    <el-dialog v-model="presetDialog" :title="presetCam ? `Manage Presets - ${presetCam.onvif_host}` : 'Manage Presets'" width="640px" :destroy-on-close="true">
-      <div v-loading="presetLoading">
+    <el-dialog v-model="presetDialog" :title="presetCam ? $t('cameras.managePresetsTitle', { host: presetCam.onvif_host }) : $t('cameras.managePresets')" width="900px" :destroy-on-close="true">
+      <div v-loading="presetLoading" style="padding-right: 8px">
         <!-- Preset list -->
         <div v-if="presetList.length" style="margin-bottom: 16px">
           <el-table :data="presetList" size="small" border>
-            <el-table-column prop="name" label="Name" />
-            <el-table-column prop="resolution" label="Resolution" width="100" />
-            <el-table-column prop="segment_duration" label="Segment (s)" width="90" />
-            <el-table-column prop="bitrate" label="Bitrate (kbps)" width="100" />
-            <el-table-column prop="frame_rate" label="FPS" width="60" />
-            <el-table-column label="Default" width="70" align="center">
+            <el-table-column prop="name" :label="$t('cameras.presetName')" width="120" />
+            <el-table-column prop="resolution" :label="$t('cameras.resolution')" width="100" />
+            <el-table-column prop="segment_duration" :label="$t('cameras.segmentSec')" width="90" />
+            <el-table-column prop="bitrate" :label="$t('cameras.bitrateKbps')" width="100" />
+            <el-table-column prop="frame_rate" :label="$t('cameras.fps')" width="60" />
+            <el-table-column :label="$t('cameras.isDefault')" width="70" align="center">
               <template #default="{ row }">
                 <el-icon v-if="row.is_default" color="var(--color-primary)"><StarFilled /></el-icon>
               </template>
             </el-table-column>
-            <el-table-column label="Actions" width="160" align="center">
+            <el-table-column :label="$t('cameras.actions')" width="280" align="center">
               <template #default="{ row }">
-                <el-button size="small" :icon="Edit" @click="openPresetEdit(row)">{{ $t('common.edit') }}</el-button>
-                <el-button size="small" :icon="Star" @click="handlePresetSetDefault(row)" :disabled="row.is_default">{{ $t('cameras.setDefault') }}</el-button>
-                <el-button size="small" type="danger" :icon="Delete" @click="handlePresetDelete(row)" />
+                <div class="preset-action-group">
+                  <el-button size="small" :icon="Edit" @click="openPresetEdit(row)">{{ $t('common.edit') }}</el-button>
+                  <el-button size="small" :icon="Star" @click="handlePresetSetDefault(row)" :disabled="row.is_default">{{ $t('cameras.setDefault') }}</el-button>
+                  <el-button size="small" type="danger" :icon="Delete" @click="handlePresetDelete(row)" />
+                </div>
               </template>
             </el-table-column>
           </el-table>
         </div>
-        <el-empty v-else description="No presets yet" :image-size="60" />
+        <el-empty v-else :description="$t('cameras.noPresets')" :image-size="60" />
 
         <!-- Add/Edit form -->
         <el-divider />
-        <h4 style="margin: 0 0 12px">{{ presetEditing ? 'Edit Preset' : 'Add Preset' }}</h4>
-        <el-form :model="presetForm" label-width="110px" inline @submit.prevent="handlePresetSave">
-          <el-form-item label="Name">
-            <el-input v-model="presetForm.name" placeholder="e.g. High Quality" style="width: 160px" />
+        <h4 style="margin: 0 0 12px">{{ presetEditing ? $t('cameras.editPreset') : $t('cameras.addPreset') }}</h4>
+        <el-form :model="presetForm" label-width="140px" style="max-width: 640px">
+          <el-form-item :label="$t('cameras.presetName')">
+            <el-input v-model="presetForm.name" :placeholder="$t('cameras.presetNamePlaceholder')" style="width: 160px" />
           </el-form-item>
-          <el-form-item label="Resolution">
-            <el-select v-model="presetForm.resolution" style="width: 130px">
-              <el-option value="1920x1080" label="1920x1080" />
-              <el-option value="1280x720" label="1280x720" />
-              <el-option value="640x360" label="640x360" />
+          <el-form-item :label="$t('cameras.resolution')">
+            <el-select v-model="presetForm.resolution" style="width: 140px">
+              <el-option value="1920x1080" :label="$t('cameras.res1920x1080')" />
+              <el-option value="1280x720" :label="$t('cameras.res1280x720')" />
+              <el-option value="640x360" :label="$t('cameras.res640x360')" />
             </el-select>
           </el-form-item>
-          <el-form-item label="Segment (s)">
-            <el-input-number v-model="presetForm.segment_duration" :min="60" :max="3600" style="width: 130px" />
+          <el-form-item :label="$t('cameras.segmentSec')">
+            <el-input-number v-model="presetForm.segment_duration" :min="60" :max="3600" style="width: 140px" />
           </el-form-item>
-          <el-form-item label="Bitrate (kbps)">
-            <el-input-number v-model="presetForm.bitrate" :min="256" :max="20000" :step="256" style="width: 130px" />
+          <el-form-item :label="$t('cameras.bitrateKbps')">
+            <el-input-number v-model="presetForm.bitrate" :min="256" :max="20000" :step="256" style="width: 140px" />
           </el-form-item>
-          <el-form-item label="Frame Rate">
-            <el-input-number v-model="presetForm.frame_rate" :min="5" :max="60" style="width: 100px" />
+          <el-form-item :label="$t('cameras.frameRate')">
+            <el-input-number v-model="presetForm.frame_rate" :min="5" :max="60" style="width: 140px" />
           </el-form-item>
         </el-form>
       </div>
@@ -662,50 +664,52 @@ onMounted(async () => {
     </el-dialog>
 
     <!-- 录制对话框 -->
-    <el-dialog v-model="recordDialog" :title="recordCam ? `Start Recording - ${recordCam.onvif_host}` : 'Start Recording'" width="540px" :destroy-on-close="true">
-      <template v-if="recordPresets.length">
-        <p style="margin: 0 0 12px; color: var(--color-text-muted); font-size: 13px">Select a preset (optional):</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px">
-          <el-card
-            v-for="p in recordPresets"
-            :key="p.id"
-            shadow="hover"
-            :class="['preset-card', { 'preset-card--selected': recordSelectedPresetId === p.id }]"
-            @click="recordSelectedPresetId = recordSelectedPresetId === p.id ? null : p.id"
-          >
-            <div class="preset-card__name">{{ p.name }}</div>
-            <div class="preset-card__meta">{{ p.resolution }} &middot; {{ p.segment_duration }}s &middot; {{ p.bitrate }}k</div>
-            <div class="preset-card__fps">{{ p.frame_rate }} fps</div>
-          </el-card>
-        </div>
-      </template>
-      <el-empty v-else description="No presets available — use defaults or enter overrides below" :image-size="50" />
+    <el-dialog v-model="recordDialog" :title="recordCam ? $t('cameras.startRecordingTitle', { host: recordCam.onvif_host }) : $t('cameras.startRecording')" width="860px" :destroy-on-close="true">
+      <el-scrollbar style="padding-right: 8px">
+        <template v-if="recordPresets.length">
+          <p style="margin: 0 0 12px; color: var(--color-text-muted); font-size: 13px">{{ $t('cameras.selectPresetOptional') }}</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px">
+            <el-card
+              v-for="p in recordPresets"
+              :key="p.id"
+              shadow="hover"
+              :class="['preset-card', { 'preset-card--selected': recordSelectedPresetId === p.id }]"
+              @click="recordSelectedPresetId = recordSelectedPresetId === p.id ? null : p.id"
+            >
+              <div class="preset-card__name">{{ p.name }}</div>
+              <div class="preset-card__meta">{{ p.resolution }} &middot; {{ p.segment_duration }}s &middot; {{ p.bitrate }}k</div>
+              <div class="preset-card__fps">{{ p.frame_rate }} fps</div>
+            </el-card>
+          </div>
+        </template>
+        <el-empty v-else :description="$t('cameras.noPresetsAvailable')" :image-size="50" />
 
-      <el-divider content-position="left">Parameter Overrides</el-divider>
-      <el-form label-width="130px" inline>
-        <el-form-item label="Segment Duration (s)">
-          <el-input-number v-model="recordOverrides.segment_duration" :min="60" :max="3600" placeholder="e.g. 300" style="width: 130px" clearable />
-        </el-form-item>
-        <el-form-item label="Bitrate (kbps)">
-          <el-input-number v-model="recordOverrides.bitrate" :min="256" :max="20000" :step="256" placeholder="e.g. 4096" style="width: 130px" clearable />
-        </el-form-item>
-        <el-form-item label="Frame Rate">
-          <el-input-number v-model="recordOverrides.frame_rate" :min="5" :max="60" placeholder="e.g. 25" style="width: 100px" clearable />
-        </el-form-item>
-        <el-form-item label="Resolution">
-          <el-select v-model="recordOverrides.resolution" placeholder="Select" style="width: 130px" clearable>
-            <el-option value="1920x1080" label="1920x1080" />
-            <el-option value="1280x720" label="1280x720" />
-            <el-option value="640x360" label="640x360" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <div style="margin-top: 12px; color: var(--color-text-muted); font-size: 12px">
-        Recording will be saved in segments. Leave empty to use camera defaults or selected preset values.
-      </div>
+        <el-divider content-position="left">{{ $t('cameras.parameterOverrides') }}</el-divider>
+        <el-form label-width="140px">
+          <el-form-item :label="$t('cameras.segmentSec')">
+            <el-input-number v-model="recordOverrides.segment_duration" :min="60" :max="3600" :placeholder="$t('cameras.segmentSecPlaceholder')" style="width: 160px" clearable />
+          </el-form-item>
+          <el-form-item :label="$t('cameras.bitrateKbps')">
+            <el-input-number v-model="recordOverrides.bitrate" :min="256" :max="20000" :step="256" :placeholder="$t('cameras.bitrateKbpsPlaceholder')" style="width: 160px" clearable />
+          </el-form-item>
+          <el-form-item :label="$t('cameras.frameRate')">
+            <el-input-number v-model="recordOverrides.frame_rate" :min="5" :max="60" :placeholder="$t('cameras.frameRatePlaceholder')" style="width: 160px" clearable />
+          </el-form-item>
+          <el-form-item :label="$t('cameras.resolution')">
+            <el-select v-model="recordOverrides.resolution" :placeholder="$t('cameras.selectResolution')" style="width: 160px" clearable>
+              <el-option value="1920x1080" :label="$t('cameras.res1920x1080')" />
+              <el-option value="1280x720" :label="$t('cameras.res1280x720')" />
+              <el-option value="640x360" :label="$t('cameras.res640x360')" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <div style="margin-top: 8px; color: var(--color-text-muted); font-size: 12px">
+          {{ $t('cameras.useDefaultsOrEnterBelow') }}
+        </div>
+      </el-scrollbar>
       <template #footer>
         <el-button @click="recordDialog = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="recordSaving" @click="handleStartRecord">{{ $t('cameras.startRecord') }}</el-button>
+        <el-button type="primary" :loading="recordSaving" @click="handleStartRecord">{{ $t('cameras.startRecording') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -852,5 +856,19 @@ onMounted(async () => {
   font-size: 11px;
   color: var(--color-text-muted);
   margin-top: 2px;
+}
+
+/* Preset table action group */
+.preset-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.preset-action-group .el-button {
+  flex-shrink: 0;
 }
 </style>

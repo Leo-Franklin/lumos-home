@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { listCameras, listPresets, createPreset, deletePreset, setDefaultPreset } from '@/api/cameras'
+import { listCameras, listPresets, createPreset, deletePreset, setDefaultPreset, getCamera } from '@/api/cameras'
 
 export const useCamerasStore = defineStore('cameras', () => {
   const items = ref([])
@@ -19,8 +19,28 @@ export const useCamerasStore = defineStore('cameras', () => {
   }
 
   async function loadPresets(mac) {
-    const res = await listPresets(mac)
-    presets.value[mac] = res.data
+    try {
+      const [presetsRes, camRes] = await Promise.all([listPresets(mac), getCamera(mac)])
+      presets.value[mac] = presetsRes.data || []
+      defaultPresetId.value[mac] = camRes.data.default_preset_id
+    } catch (e) {
+      if (e.response?.status === 404) {
+        try {
+          const presetsRes = await listPresets(mac)
+          presets.value[mac] = presetsRes.data || []
+          delete defaultPresetId.value[mac]
+        } catch (presetsErr) {
+          if (presetsErr.response?.status === 404) {
+            presets.value[mac] = []
+            delete defaultPresetId.value[mac]
+          } else {
+            throw presetsErr
+          }
+        }
+      } else {
+        throw e
+      }
+    }
   }
 
   async function addPreset(mac, data) {

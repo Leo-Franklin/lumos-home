@@ -9,6 +9,16 @@ import { useDLNAStore } from './dlna'
 export const useNotificationsStore = defineStore('notifications', () => {
   const messages = ref([])
   const lastRecordingEvent = ref(null)
+  let _scanRefreshTimer = null
+
+  function _scheduleDeviceRefresh() {
+    if (_scanRefreshTimer) return
+    _scanRefreshTimer = setTimeout(() => {
+      _scanRefreshTimer = null
+      const devicesStore = useDevicesStore()
+      devicesStore.fetchDevices()
+    }, 300)
+  }
 
   function handle(msg) {
     messages.value.unshift(msg)
@@ -21,6 +31,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     switch (msg.event) {
       case 'scan_completed':
+        if (_scanRefreshTimer) {
+          clearTimeout(_scanRefreshTimer)
+          _scanRefreshTimer = null
+        }
         devicesStore.onScanCompleted()
         break
       case 'device_online':
@@ -36,7 +50,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
           type: 'warning',
           duration: 8000,
         })
-        devicesStore.fetchDevices()
+        _scheduleDeviceRefresh()
         break
       }
       case 'camera_offline': {
