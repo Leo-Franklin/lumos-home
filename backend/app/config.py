@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     # App meta
     app_version: str = '0.2.0'
 
+    # Email (Resend)
+    resend_api_key: str = ''
+    resend_from_email: str = 'onboarding@resend.dev'
+    app_base_url: str = 'http://localhost:8000'
+
     @field_validator('jwt_secret_key')
     @classmethod
     def jwt_secret_must_be_changed(cls, v: str) -> str:
