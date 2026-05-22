@@ -36,6 +36,7 @@ def pytest_sessionstart(session):
         schedule,
         user_settings,
     )
+    from app.models import user  # noqa: F401
 
     settings = get_settings()
     Path('data').mkdir(exist_ok=True)

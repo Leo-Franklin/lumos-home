@@ -7,6 +7,7 @@ from app.domain.models.dlna_device import DLNADevice
 from app.domain.models.member import Member, MemberDevice
 from app.domain.models.recording import Recording
 from app.domain.models.schedule import Schedule
+from app.models.user import User
 from app.domain.models.user_settings import UserSettings
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     'MemberDevice',
     'Recording',
     'Schedule',
+    'User',
     'UserSettings',
 ]
