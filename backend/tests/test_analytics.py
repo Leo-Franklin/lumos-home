@@ -245,9 +245,9 @@ async def test_new_devices(seeded_client):
 
 @pytest.mark.asyncio
 async def test_log_scan_result_online_device(mem_db):
+    from app.domain.services.scanner import _log_scan_result
     from app.models.device import Device
     from app.models.device_online_log import DeviceOnlineLog
-    from app.routers.devices import _log_scan_result
 
     bucket = datetime(2024, 1, 15, 14, 0, 0)
 
@@ -270,9 +270,9 @@ async def test_log_scan_result_online_device(mem_db):
 
 @pytest.mark.asyncio
 async def test_log_scan_result_offline_device(mem_db):
+    from app.domain.services.scanner import _log_scan_result
     from app.models.device import Device
     from app.models.device_online_log import DeviceOnlineLog
-    from app.routers.devices import _log_scan_result
 
     bucket = datetime(2024, 1, 15, 14, 0, 0)
 
@@ -295,9 +295,9 @@ async def test_log_scan_result_offline_device(mem_db):
 
 @pytest.mark.asyncio
 async def test_log_scan_result_upserts_on_second_scan(mem_db):
+    from app.domain.services.scanner import _log_scan_result
     from app.models.device import Device
     from app.models.device_online_log import DeviceOnlineLog
-    from app.routers.devices import _log_scan_result
 
     bucket = datetime(2024, 1, 15, 14, 0, 0)
     enriched = [{'mac': 'CC:CC:CC:DD:EE:FF'}]

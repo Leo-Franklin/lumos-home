@@ -18,7 +18,6 @@ router = APIRouter(prefix='/recordings', tags=['recordings'])
 def _compute_recording_extra(file_path: str, settings) -> tuple[str, str | None, str]:
     """返回 (storage_type, nas_access_url, file_name)"""
     file_name = Path(file_path).name
-    local_storage = str(Path(settings.local_storage_path).resolve())
     nas_mount = settings.nas_mount_path.rstrip('/')
 
     if settings.nas_mode == 'local':

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from app.routers.devices import _find_unknown_devices
+from app.domain.services.scanner import _find_unknown_devices
 
 
 def test_new_mac_not_in_member_devices_is_unknown():

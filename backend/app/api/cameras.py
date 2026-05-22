@@ -12,7 +12,6 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
 
-from app.config import get_settings
 from app.deps import CurrentUser, DBDep, NasSyncerDep, RecorderDep, StreamUser
 from app.domain.models.camera import RecordingPreset
 from app.domain.services.recorder import RecordingParams
@@ -169,8 +168,6 @@ async def start_recording(
             params.bitrate = request.overrides['bitrate']
         if 'fps' in request.overrides:
             params.fps = request.overrides['fps']
-
-    settings = get_settings()
 
     rtsp_url = camera.rtsp_url
     if camera.onvif_user or camera.onvif_password:

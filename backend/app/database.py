@@ -52,9 +52,6 @@ def _get_engine():
 def _get_session_maker():
     global _AsyncSessionLocal
     if _AsyncSessionLocal is None:
-        from app.config import get_settings
-
-        settings = get_settings()
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
         _AsyncSessionLocal = async_sessionmaker(_get_engine(), expire_on_commit=False)
