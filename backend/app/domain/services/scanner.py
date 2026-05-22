@@ -413,6 +413,16 @@ class Scanner:
             return []
 
     @staticmethod
+    def _detect_by_ports(open_ports: list[int]) -> str | None:
+        """Detect device type by open ports. Returns None if no match."""
+        ports = frozenset(open_ports)
+        if ports & _CAMERA_PORTS:
+            return 'camera'
+        if ports & _PRINTER_PORTS:
+            return 'printer'
+        return None
+
+    @staticmethod
     def guess_device_type(vendor: str, open_ports: list[int], hostname: str | None = None) -> str:
         """Infer device type from vendor OUI name, open ports, and hostname."""
         # --- Port-based detection (highest priority) ---
