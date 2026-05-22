@@ -447,6 +447,52 @@ class Scanner:
         return None
 
     @staticmethod
+    def _detect_by_vendor(vendor: str, hostname: str | None = None) -> str | None:
+        """Detect device type by vendor OUI name. Returns None if no match."""
+        v = vendor.lower()
+        h = (hostname or '').lower()
+
+        # NAS (before router, since some NAS vendors appear in router list)
+        if any(kw in v for kw in _NAS_VENDOR_KW):
+            return 'nas'
+        # Router / Network equipment
+        if any(kw in v for kw in _ROUTER_VENDOR_KW):
+            return 'router'
+        # Phones / Tablets
+        if any(kw in v for kw in _PHONE_VENDOR_KW):
+            return 'phone'
+        # Computers
+        if any(kw in v for kw in _COMPUTER_VENDOR_KW):
+            return 'computer'
+        # Smart TVs / Streaming
+        if any(kw in v for kw in _TV_VENDOR_KW):
+            return 'tv'
+        # Smart speakers / Voice assistants (ambiguous vendors need hostname disambiguation)
+        if any(kw in v for kw in _SMART_SPEAKER_VENDOR_KW):
+            if any(kw in h for kw in ('echo', 'home', 'nest', 'homepod', 'xiaoai', 'tmall')):
+                return 'smart_speaker'
+            if 'apple' in v:
+                return 'phone'
+            return 'smart_speaker'
+        # Printers / Scanners
+        if any(kw in v for kw in _PRINTER_VENDOR_KW):
+            return 'printer'
+        # Cameras / Security
+        if any(kw in v for kw in _CAMERA_VENDOR_KW):
+            return 'camera'
+        # IoT / Smart home
+        if any(kw in v for kw in _IOT_VENDOR_KW):
+            return 'iot'
+        # Game consoles
+        if any(kw in v for kw in _GAME_CONSOLE_VENDOR_KW):
+            return 'game_console'
+        # Wearables
+        if any(kw in v for kw in _WEARABLE_VENDOR_KW):
+            return 'wearable'
+
+        return None
+
+    @staticmethod
     def guess_device_type(vendor: str, open_ports: list[int], hostname: str | None = None) -> str:
         """Infer device type from vendor OUI name, open ports, and hostname."""
         # --- Port-based detection (highest priority) ---
