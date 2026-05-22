@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.api import (
     analytics,
+    auth,
     cameras,
     devices,
     dlna,
@@ -230,6 +231,7 @@ app.include_router(members.router, prefix=P)
 app.include_router(user.router, prefix=P)
 app.include_router(dlna.router, prefix=P)
 app.include_router(analytics.router, prefix=P)
+app.include_router(auth.router, prefix=P)
 app.include_router(ws.router)
 _Path('data/dlna_media').mkdir(parents=True, exist_ok=True)
 app.mount('/dlna-media', StaticFiles(directory='data/dlna_media'), name='dlna-media')

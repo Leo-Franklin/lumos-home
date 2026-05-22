@@ -1,6 +1,7 @@
 """API layer - REST endpoint routers."""
 
 from app.api.analytics import router as analytics_router
+from app.api.auth import router as auth_router
 from app.api.cameras import router as cameras_router
 from app.api.devices import router as devices_router
 from app.api.dlna import router as dlna_router
@@ -13,6 +14,7 @@ from app.api.ws import router as ws_router
 
 __all__ = [
     'analytics_router',
+    'auth_router',
     'cameras_router',
     'devices_router',
     'dlna_router',
