@@ -43,7 +43,7 @@ def _detect_prefix_length(local_ip: str) -> int:
             # routes: (net_int, mask_int, gw, iface, src_ip, metric)
             for entry in conf.route.routes:
                 net_int, mask_int, _gw, _iface, src, _metric = entry
-                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000):
+                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000, 0x0):
                     netmask_str = socket.inet_ntoa(struct.pack('>I', mask_int))
                     return ipaddress.IPv4Network(f'0.0.0.0/{netmask_str}').prefixlen
         except Exception:
