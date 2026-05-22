@@ -1,22 +1,24 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import hash_password, verify_password, create_access_token
-from app.database import get_db
-from app.deps import DBDep
-from app.models.user import User
-from app.models.email_token import EmailVerificationToken, PasswordResetToken
-from app.schemas.auth import (
-    RegisterRequest, LoginRequest, VerifyEmailRequest,
-    ForgotPasswordRequest, ResetPasswordRequest, TokenResponse, MessageResponse,
-)
-from app.services.email import get_email_service, EmailService
+from app.auth import create_access_token, hash_password, verify_password
 from app.config import get_settings
+from app.deps import DBDep
+from app.models.email_token import EmailVerificationToken, PasswordResetToken
+from app.models.user import User
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    MessageResponse,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    VerifyEmailRequest,
+)
+from app.services.email import get_email_service
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
