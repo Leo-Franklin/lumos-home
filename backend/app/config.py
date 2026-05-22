@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     database_url: str = f'sqlite+aiosqlite:///{_data_dir / "smart_home.db"}'
 
     # App meta
-    app_version: str = '1.0.0'
+    app_version: str = '0.2.0'
 
     @field_validator('jwt_secret_key')
     @classmethod
