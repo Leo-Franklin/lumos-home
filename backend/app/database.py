@@ -83,6 +83,37 @@ async def init_db() -> None:
             except Exception:
                 pass
 
+    # Backward compatibility: if users table is empty after migration,
+    # create a superuser from ADMIN_USERNAME/ADMIN_PASSWORD env vars
+    await _migrate_admin_user()
+
+
+async def _migrate_admin_user() -> None:
+    """Create superuser from env vars if users table is empty."""
+    from sqlalchemy import select
+
+    from app.auth import hash_password
+    from app.models.user import User
+
+    async with _get_session_maker()() as session:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+
+        if len(users) > 0:
+            return  # Users exist, no migration needed
+
+        from app.config import get_settings
+        settings = get_settings()
+
+        admin_user = User(
+            email=settings.admin_username,
+            password_hash=hash_password(settings.admin_password),
+            is_active=True,
+            is_superuser=True,
+        )
+        session.add(admin_user)
+        await session.commit()
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with _get_session_maker()() as session:

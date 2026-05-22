@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import pytest
+import pytest_asyncio
 from sqlalchemy import create_engine
 
 os.environ['JWT_SECRET_KEY'] = 'test_secret_key_that_is_at_least_32_characters_long'
@@ -13,6 +15,15 @@ def pytest_configure(config):
     os.environ['JWT_SECRET_KEY'] = 'test_secret_key_that_is_at_least_32_characters_long'
     os.environ['ADMIN_PASSWORD'] = 'testpassword_for_ci_only'
     os.environ['CORS_ALLOW_ORIGINS'] = 'http://localhost:5173'
+
+
+@pytest_asyncio.fixture
+async def db():
+    """Provide a test database session."""
+    from app.database import _get_session_maker
+
+    async with _get_session_maker()() as session:
+        yield session
 
 
 def pytest_sessionstart(session):
