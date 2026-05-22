@@ -14,6 +14,7 @@ wheels/
 
 # Local runtime data
 data/
+*.log
 
 # Git worktrees
 .worktrees/
@@ -26,3 +27,14 @@ tools/
 
 # Claude Code settings (local plugin config)
 .claude/
+
+# Caches and temporary files
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+
+# Build files
+*.spec
+
