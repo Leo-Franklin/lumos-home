@@ -19,15 +19,15 @@ graph TB
     end
 
     subgraph API_Layer["接口层 (API)"]
-        AUTH[/auth/login]
-        DEV[/devices/*]
-        CAM[/cameras/*]
-        REC[/recordings/*]
-        SCH[/schedules/*]
-        MEM[/members/*]
-        DLNA[/dlna/*]
-        ANLYT[/analytics/*]
-        HEALTH[/health]
+        AUTH["/auth/login"]
+        DEV["/devices/*"]
+        CAM["/cameras/*"]
+        REC["/recordings/*"]
+        SCH["/schedules/*"]
+        MEM["/members/*"]
+        DLNA["/dlna/*"]
+        ANLYT["/analytics/*"]
+        HEALTH["/health"]
     end
 
     subgraph Service_Layer["服务层 (Services)"]
