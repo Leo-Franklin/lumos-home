@@ -10,10 +10,10 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
+from app.domain.services.dlna_service import DLNAController
 from app.models.camera import Camera
 from app.models.dlna_device import DLNADevice
 from app.models.recording import Recording
-from app.services.dlna_service import DLNAController
 from app.services.nas_syncer import NasSyncer
 from app.services.ws_manager import ws_manager
 

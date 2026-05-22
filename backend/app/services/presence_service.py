@@ -23,6 +23,11 @@ _PRIVATE_NETWORKS = [
     ipaddress.ip_network('fc00::/7'),
 ]
 
+# Ping timeout in milliseconds (Windows)
+PING_TIMEOUT_MS = 1000
+# Ping timeout in seconds (Linux)
+PING_TIMEOUT_SECONDS = 1
+
 
 def _validate_webhook_url(url: str) -> None:
     parsed = urlparse(url)
@@ -233,9 +238,9 @@ class PresenceService:
     async def _ping_ip(self, ip: str) -> bool:
         try:
             if sys.platform == 'win32':
-                cmd = ['ping', '-n', '1', '-w', '1000', ip]
+                cmd = ['ping', '-n', '1', '-w', str(PING_TIMEOUT_MS), ip]
             else:
-                cmd = ['ping', '-c', '1', '-W', '1', ip]
+                cmd = ['ping', '-c', '1', '-W', str(PING_TIMEOUT_SECONDS), ip]
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None,

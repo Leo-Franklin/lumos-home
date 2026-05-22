@@ -1,4 +1,4 @@
-from app.services.scanner import Scanner
+from app.domain.services.scanner import Scanner
 
 
 def test_guess_device_type_camera():

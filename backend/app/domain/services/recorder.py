@@ -30,6 +30,10 @@ class RecordingParams:
         return self.fps or 25
 
 
+# 流中断判定：若无数据写入超过此秒数，认为流已中断
+STALL_THRESHOLD_SECONDS = 90
+
+
 @dataclass
 class RecordingTask:
     camera_mac: str
@@ -202,7 +206,11 @@ class Recorder:
                             elapsed = (now - task.last_check).total_seconds()
                             grew = current_bytes - task.last_bytes
                             # If no growth for 90s, stream is dead — terminate segment
-                            if elapsed >= 90 and grew == 0 and current_bytes > 0:
+                            if (
+                                elapsed >= STALL_THRESHOLD_SECONDS
+                                and grew == 0
+                                and current_bytes > 0
+                            ):
                                 stalled.append((mac, task))
                                 continue
                         task.last_bytes = current_bytes

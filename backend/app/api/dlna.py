@@ -20,9 +20,9 @@ from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.deps import CurrentUser, DBDep
+from app.domain.services.dlna_service import DLNAController, fetch_device_info, ssdp_search
 from app.models.dlna_device import DLNADevice
 from app.schemas.dlna import CastRequest, DLNADeviceOut, TransportInfoOut
-from app.services.dlna_service import DLNAController, fetch_device_info, ssdp_search
 from app.services.ws_manager import ws_manager
 
 router = APIRouter(prefix='/dlna', tags=['dlna'])

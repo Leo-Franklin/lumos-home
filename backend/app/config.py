@@ -85,7 +85,9 @@ class Settings(BaseSettings):
 
     # Recording
     recording_temp_dir: str = str(_data_dir / 'recordings' / 'tmp')
+    # 录制分段时长: 30分钟
     recording_segment_seconds: int = 1800
+    # 录制文件保留天数
     recording_retention_days: int = 30
 
     # App
