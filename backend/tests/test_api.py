@@ -40,11 +40,30 @@ async def test_health():
 
 @pytest.mark.asyncio
 async def test_login_success(test_env):
+    from sqlalchemy import select
+    from app.database import AsyncSessionLocal
+    from app.models.user import User
+
+    # Create admin user for login test
+    async with AsyncSessionLocal() as db:
+        # Check if user already exists to avoid UNIQUE constraint failures on re-run
+        result = await db.execute(select(User).where(User.email == 'admin@test.com'))
+        if result.scalar_one_or_none() is None:
+            admin = User(
+                email='admin@test.com',
+                password_hash='$2b$12$LQv3c1yqBWV9kZN7t8pMGOKmRj9pVxD9y5xY7zX8J2K4L5M6N7O8P9Q0R',
+                is_active=True,
+                is_superuser=False,
+            )
+            db.add(admin)
+            await db.commit()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
-        resp = await client.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await client.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
     assert resp.status_code == 200
     assert 'access_token' in resp.json()
 
@@ -54,6 +73,6 @@ async def test_login_fail():
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
         resp = await client.post(
             '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'wrong'},
+            json={'email': 'nonexistent@example.com', 'password': 'wrong'},
         )
     assert resp.status_code == 401

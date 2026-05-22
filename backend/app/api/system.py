@@ -3,12 +3,10 @@ import subprocess
 import time
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import exists, func, not_, select
 
-from app.auth import create_access_token, verify_password
 from app.config import get_settings
 from app.deps import CurrentUser, DBDep
 from app.models.camera import Camera
@@ -73,26 +71,6 @@ async def health_check(request: Request):
     return JSONResponse(content=response_data.model_dump(), status_code=status_code)
 
 
-@router.post('/auth/login', response_model=TokenResponse, tags=['auth'])
-async def login(form: OAuth2PasswordRequestForm = Depends()):
-    settings = get_settings()
-    if form.username != settings.admin_username:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='用户名或密码错误')
-    # admin_password can be a bcrypt hash (production) or plaintext (development)
-    # Detect hash type explicitly rather than relying on exception handling
-    stored = settings.admin_password
-    if stored.startswith('$2b$') or stored.startswith('$2a$'):
-        password_ok = verify_password(form.password, stored)
-    else:
-        # plaintext password (development only) — use constant-time comparison
-        import hmac
-
-        password_ok = hmac.compare_digest(form.password, stored)
-
-    if not password_ok:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='用户名或密码错误')
-    token = create_access_token(form.username, settings.jwt_secret_key)
-    return TokenResponse(access_token=token)
 
 
 @router.get('/dashboard', tags=['system'])

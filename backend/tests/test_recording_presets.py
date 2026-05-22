@@ -204,15 +204,38 @@ def test_env(monkeypatch):
     mock_ns.check_writable.return_value = True
     app.state.nas_syncer = mock_ns
 
+    # Create admin user for login tests (new multi-user auth requires database user)
+    import asyncio
+    from app.database import AsyncSessionLocal
+    from app.models.user import User
+
+    async def _create_user():
+        async with AsyncSessionLocal() as db:
+            # Check if admin user already exists
+            from sqlalchemy import select
+            result = await db.execute(select(User).where(User.email == 'admin@test.com'))
+            if result.scalar_one_or_none() is None:
+                admin = User(
+                    email='admin@test.com',
+                    password_hash='$2b$12$LQv3c1yqBWV9kZN7t8pMGOKmRj9pVxD9y5xY7zX8J2K4L5M6N7O8P9Q0R',
+                    is_active=True,
+                    is_superuser=False,
+                )
+                db.add(admin)
+                await db.commit()
+
+    asyncio.get_event_loop().run_until_complete(_create_user())
+
 
 @pytest.mark.asyncio
 async def test_crud_presets(test_env, unique_mac):
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
         # Login first to get auth token
-        resp = await ac.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
         assert resp.status_code == 200
         token = resp.json()['access_token']
         headers = {'Authorization': f'Bearer {token}'}
@@ -288,10 +311,11 @@ async def test_end_to_end_recording_with_preset(test_env, unique_mac):
     """Test complete flow: create camera -> add preset -> start recording with preset -> verify -> stop"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
         # Login
-        resp = await ac.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
         assert resp.status_code == 200
         token = resp.json()['access_token']
         headers = {'Authorization': f'Bearer {token}'}
@@ -393,10 +417,11 @@ async def test_end_to_end_recording_with_preset(test_env, unique_mac):
 async def test_start_recording_with_overrides(test_env, unique_mac):
     """Start recording with overrides only (no preset)"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
-        resp = await ac.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
         assert resp.status_code == 200
         token = resp.json()['access_token']
         headers = {'Authorization': f'Bearer {token}'}
@@ -447,10 +472,11 @@ async def test_start_recording_with_overrides(test_env, unique_mac):
 async def test_start_recording_preset_plus_overrides(test_env, unique_mac):
     """Start recording with preset + overrides merged correctly (overrides win)"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
-        resp = await ac.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
         assert resp.status_code == 200
         token = resp.json()['access_token']
         headers = {'Authorization': f'Bearer {token}'}
@@ -511,10 +537,11 @@ async def test_start_recording_preset_plus_overrides(test_env, unique_mac):
 async def test_schedule_with_preset_and_overrides(test_env, unique_mac):
     """Schedule uses preset_id and overrides correctly"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
-        resp = await ac.post(
-            '/api/v1/auth/login',
-            data={'username': 'admin', 'password': 'testpassword_for_ci_only'},
-        )
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
         assert resp.status_code == 200
         token = resp.json()['access_token']
         headers = {'Authorization': f'Bearer {token}'}

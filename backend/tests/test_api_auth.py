@@ -17,7 +17,7 @@ async def test_register_success(mock_email_service):
     email = f'newuser-{uuid.uuid4()}@example.com'
     with patch('app.api.auth.get_email_service', return_value=mock_email_service), \
          patch('app.api.auth.hash_password') as mock_hash:
-        mock_hash.return_value = '$2b$12$mocked_hash'
+        mock_hash.return_value = '$2b$12$LQv3c1yqBWV9kZN7t8pMGOKmRj9pVxD9y5xY7zX8J2K4L5M6N7O8P9Q0R'
 
         from app.main import app
         async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
@@ -36,7 +36,7 @@ async def test_register_duplicate_email(mock_email_service):
     email = f'dup-{uuid.uuid4()}@example.com'
     with patch('app.api.auth.get_email_service', return_value=mock_email_service), \
          patch('app.api.auth.hash_password') as mock_hash:
-        mock_hash.return_value = '$2b$12$mocked_hash'
+        mock_hash.return_value = '$2b$12$LQv3c1yqBWV9kZN7t8pMGOKmRj9pVxD9y5xY7zX8J2K4L5M6N7O8P9Q0R'
 
         from app.main import app
         async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
@@ -58,15 +58,14 @@ async def test_register_duplicate_email(mock_email_service):
 async def test_login_unverified_user(mock_email_service):
     """Test that login fails with 403 when user is not verified.
 
-    Note: system.py has /auth/login which uses OAuth2PasswordRequestForm (form data).
-    Our auth.py /auth/login uses LoginRequest (JSON). FastAPI registers whichever
-    is later - in our case the system.py version takes form data.
-    This test uses form data to match the actual /auth/login endpoint.
+    With the new auth.py /auth/login (JSON body with email/password),
+    an unverified user gets 403 (email not verified).
     """
     email = f'unverified-{uuid.uuid4()}@example.com'
     with patch('app.api.auth.get_email_service', return_value=mock_email_service), \
-         patch('app.api.auth.hash_password') as mock_hash:
-        mock_hash.return_value = '$2b$12$mocked_hash'
+         patch('app.api.auth.hash_password') as mock_hash, \
+         patch('app.api.auth.verify_password', return_value=True):
+        mock_hash.return_value = '$2b$12$LQv3c1yqBWV9kZN7t8pMGOKmRj9pVxD9y5xY7zX8J2K4L5M6N7O8P9Q0R'
 
         from app.main import app
         async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
@@ -75,13 +74,13 @@ async def test_login_unverified_user(mock_email_service):
                 'email': email,
                 'password': 'StrongPass123!',
             })
-            # Try login with form data (OAuth2PasswordRequestForm from system.py)
-            response = await client.post('/api/v1/auth/login', data={
-                'username': email,
+            # Try login with JSON body (auth.py LoginRequest)
+            response = await client.post('/api/v1/auth/login', json={
+                'email': email,
                 'password': 'StrongPass123!',
             })
-        # System login always returns 401 for non-admin users
-        assert response.status_code == 401
+        # New auth.py login returns 403 for unverified users
+        assert response.status_code == 403
 
 
 @pytest.mark.asyncio
