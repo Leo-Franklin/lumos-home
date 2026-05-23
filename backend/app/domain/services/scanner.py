@@ -844,6 +844,13 @@ async def _run_scan(network_range: str):
                             existing.device_type = new_type
                 else:
                     results['new'] += 1
+                    # Never auto-classify a new device as 'camera' — cameras must
+                    # be added explicitly via the camera management API.  Port
+                    # detection (554/2020/8000) can produce false positives for
+                    # NVRs, routers, and other devices that expose RTSP/ONVIF ports.
+                    device_type = data['device_type']
+                    if device_type == 'camera':
+                        device_type = 'unknown'
                     db.add(
                         Device(
                             mac=mac,
@@ -851,7 +858,7 @@ async def _run_scan(network_range: str):
                             vendor=data['vendor'],
                             hostname=data['hostname'],
                             response_time_ms=data['latency'],
-                            device_type=data['device_type'],
+                            device_type=device_type,
                             is_online=True,
                             last_seen=now,
                         )

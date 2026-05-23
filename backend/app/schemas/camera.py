@@ -1,6 +1,9 @@
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, field_validator
+
+_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$')
 
 
 class RecordingPresetCreate(BaseModel):
@@ -51,6 +54,13 @@ class CameraCreate(BaseModel):
     device_mac: str
     onvif_host: str
     onvif_port: int = 2020
+
+    @field_validator('device_mac')
+    @classmethod
+    def device_mac_valid(cls, v: str) -> str:
+        if not _MAC_RE.match(v):
+            raise ValueError('device_mac 不是有效的 MAC 地址格式 (例如 AA:BB:CC:DD:EE:FF)')
+        return v.upper()
 
     @field_validator('onvif_host')
     @classmethod

@@ -121,6 +121,7 @@ async def lifespan(app: FastAPI):
     for sched in enabled_schedules:
 
         async def _trigger(mac, sd=sched['segment_duration']):
+            mac = mac.upper()
             rec_id = None
             async with AsyncSessionLocal() as _db:
                 cam = (
