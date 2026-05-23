@@ -87,22 +87,30 @@ async def fetch_device_info(location_url: str) -> dict | None:
         return None
 
     try:
-        # Strip namespace declarations so ElementTree can use plain tag names
-        xml_text = re.sub(r'\s+xmlns(?::[^=]+)?="[^"]+"', '', resp.text)
+        # Register namespaces so prefixed elements (e.g. dlna:X_DLNADOC) are parseable
+        for prefix, uri in (
+            ('upnp', 'urn:schemas-upnp-org:device-1-0'),
+            ('dlna', 'urn:schemas-dlna-org:device-1-0'),
+            ('ms', 'urn:schemas-microsoft-com:datatypes'),
+        ):
+            ET.register_namespace(prefix, uri)
+        # Strip xmlns from root element only so child elements retain their namespace declarations
+        xml_text = re.sub(r'^(<\s*root)\s+xmlns(?::[^=]+)?="[^"]+"', r'\1', resp.text)
         root = ET.fromstring(xml_text)
-        device = root.find('.//device')
+        device = root.find('.//{urn:schemas-upnp-org:device-1-0}device')
         if device is None:
             return None
 
         parsed = urlparse(location_url)
         base_url = f'{parsed.scheme}://{parsed.netloc}'
 
+        ns = 'urn:schemas-upnp-org:device-1-0'
         info: dict = {
-            'udn': (device.findtext('UDN') or '').strip(),
-            'friendly_name': device.findtext('friendlyName'),
-            'device_type': device.findtext('deviceType'),
-            'manufacturer': device.findtext('manufacturer'),
-            'model_name': device.findtext('modelName'),
+            'udn': (device.findtext(f'{{{ns}}}UDN') or '').strip(),
+            'friendly_name': device.findtext(f'{{{ns}}}friendlyName'),
+            'device_type': device.findtext(f'{{{ns}}}deviceType'),
+            'manufacturer': device.findtext(f'{{{ns}}}manufacturer'),
+            'model_name': device.findtext(f'{{{ns}}}modelName'),
             'ip': parsed.hostname,
             'location_url': location_url,
             'av_transport_url': None,
@@ -112,9 +120,9 @@ async def fetch_device_info(location_url: str) -> dict | None:
         if not info['udn']:
             return None
 
-        for service in root.findall('.//service'):
-            stype = service.findtext('serviceType') or ''
-            ctrl = service.findtext('controlURL') or ''
+        for service in root.findall(f'.//{{{ns}}}service'):
+            stype = service.findtext(f'{{{ns}}}serviceType') or ''
+            ctrl = service.findtext(f'{{{ns}}}controlURL') or ''
             if AV_TRANSPORT_SERVICE in stype:
                 info['av_transport_url'] = urljoin(base_url, ctrl)
             elif RENDERING_CONTROL_SERVICE in stype:

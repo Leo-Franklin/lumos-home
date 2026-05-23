@@ -7,10 +7,10 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "=== Pre-Push Checks ===" -ForegroundColor Cyan
 
-# 0. 自动修复 (先格式化 + 自动 fix，避免检查阶段才发现可自动修复的问题)
+# 0. 自动修复 (先 lint fix + 自动格式，确保最后一次操作是干净的格式化)
 Write-Host "`n[0/5] Auto-fixing..." -ForegroundColor Cyan
-uv run ruff format app/ tests/
 uv run ruff check --fix app/ tests/
+uv run ruff format app/ tests/
 Write-Host "[OK] 自动修复完成" -ForegroundColor Green
 
 # 1. ruff check (匹配 CI lint job: ruff check app/ tests/)
