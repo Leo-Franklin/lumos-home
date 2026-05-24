@@ -16,8 +16,10 @@ def _copy_with_retry(src: str, dest: str, max_retries: int = 5) -> None:
         except OSError as e:
             last_err = e
             if attempt < max_retries - 1:
-                wait = 0.5 * (2 ** attempt)
-                logger.warning(f'文件被占用，{wait:.1f}s后重试 ({attempt + 1}/{max_retries}): {src}')
+                wait = 0.5 * (2**attempt)
+                logger.warning(
+                    f'文件被占用，{wait:.1f}s后重试 ({attempt + 1}/{max_retries}): {src}'
+                )
                 time.sleep(wait)
     raise last_err  # type: ignore[misc]
 
