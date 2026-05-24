@@ -239,14 +239,14 @@ const presetForm = ref({
   resolution: '1920x1080',
   segment_duration: 300,
   bitrate: 4096,
-  frame_rate: 25,
+  fps: 25,
 })
 const presetEditing = ref(null) // null = add mode, number = edit presetId
 
 async function openPresets(cam) {
   presetCam.value = cam
   presetEditing.value = null
-  presetForm.value = { name: '', resolution: '1920x1080', segment_duration: 300, bitrate: 4096, frame_rate: 25 }
+  presetForm.value = { name: '', resolution: '1920x1080', segment_duration: 300, bitrate: 4096, fps: 25 }
   presetLoading.value = true
   presetDialog.value = true
   try {
@@ -261,12 +261,12 @@ async function openPresets(cam) {
 
 function openPresetAdd() {
   presetEditing.value = null
-  presetForm.value = { name: '', resolution: '1920x1080', segment_duration: 300, bitrate: 4096, frame_rate: 25 }
+  presetForm.value = { name: '', resolution: '1920x1080', segment_duration: 300, bitrate: 4096, fps: 25 }
 }
 
 function openPresetEdit(preset) {
   presetEditing.value = preset.id
-  presetForm.value = { name: preset.name, resolution: preset.resolution, segment_duration: preset.segment_duration, bitrate: preset.bitrate, frame_rate: preset.frame_rate }
+  presetForm.value = { name: preset.name, resolution: preset.resolution, segment_duration: preset.segment_duration, bitrate: preset.bitrate, fps: preset.fps }
 }
 
 async function handlePresetSave() {
@@ -320,14 +320,14 @@ const recordDialog = ref(false)
 const recordCam = ref(null)
 const recordPresets = ref([])
 const recordSelectedPresetId = ref(null)
-const recordOverrides = ref({ segment_duration: null, bitrate: null, frame_rate: null, resolution: null })
+const recordOverrides = ref({ segment_duration: null, bitrate: null, fps: null, resolution: null })
 const recordLoading = ref(false)
 const recordSaving = ref(false)
 
 async function openRecordDialog(cam) {
   recordCam.value = cam
   recordSelectedPresetId.value = null
-  recordOverrides.value = { segment_duration: null, bitrate: null, frame_rate: null, resolution: null }
+  recordOverrides.value = { segment_duration: null, bitrate: null, fps: null, resolution: null }
   recordDialog.value = true
   try {
     const { data } = await listPresets(cam.device_mac)
@@ -342,7 +342,7 @@ async function handleStartRecord() {
     const overrides = {}
     if (recordOverrides.value.segment_duration) overrides.segment_duration = recordOverrides.value.segment_duration
     if (recordOverrides.value.bitrate) overrides.bitrate = recordOverrides.value.bitrate
-    if (recordOverrides.value.frame_rate) overrides.frame_rate = recordOverrides.value.frame_rate
+    if (recordOverrides.value.fps) overrides.fps = recordOverrides.value.fps
     if (recordOverrides.value.resolution) overrides.resolution = recordOverrides.value.resolution
 
     await startRecord(recordCam.value.device_mac, {
@@ -613,7 +613,7 @@ onMounted(async () => {
             <el-table-column prop="resolution" :label="$t('cameras.resolution')" width="100" />
             <el-table-column prop="segment_duration" :label="$t('cameras.segmentSec')" width="90" />
             <el-table-column prop="bitrate" :label="$t('cameras.bitrateKbps')" width="100" />
-            <el-table-column prop="frame_rate" :label="$t('cameras.fps')" width="60" />
+            <el-table-column prop="fps" :label="$t('cameras.fps')" width="60" />
             <el-table-column :label="$t('cameras.isDefault')" width="70" align="center">
               <template #default="{ row }">
                 <el-icon v-if="row.is_default" color="var(--color-primary)"><StarFilled /></el-icon>
@@ -653,7 +653,7 @@ onMounted(async () => {
             <el-input-number v-model="presetForm.bitrate" :min="256" :max="20000" :step="256" style="width: 140px" />
           </el-form-item>
           <el-form-item :label="$t('cameras.frameRate')">
-            <el-input-number v-model="presetForm.frame_rate" :min="5" :max="60" style="width: 140px" />
+            <el-input-number v-model="presetForm.fps" :min="5" :max="60" style="width: 140px" />
           </el-form-item>
         </el-form>
       </div>
@@ -678,7 +678,7 @@ onMounted(async () => {
             >
               <div class="preset-card__name">{{ p.name }}</div>
               <div class="preset-card__meta">{{ p.resolution }} &middot; {{ p.segment_duration }}s &middot; {{ p.bitrate }}k</div>
-              <div class="preset-card__fps">{{ p.frame_rate }} fps</div>
+              <div class="preset-card__fps">{{ p.fps }} fps</div>
             </el-card>
           </div>
         </template>
@@ -693,7 +693,7 @@ onMounted(async () => {
             <el-input-number v-model="recordOverrides.bitrate" :min="256" :max="20000" :step="256" :placeholder="$t('cameras.bitrateKbpsPlaceholder')" style="width: 160px" clearable />
           </el-form-item>
           <el-form-item :label="$t('cameras.frameRate')">
-            <el-input-number v-model="recordOverrides.frame_rate" :min="5" :max="60" :placeholder="$t('cameras.frameRatePlaceholder')" style="width: 160px" clearable />
+            <el-input-number v-model="recordOverrides.fps" :min="5" :max="60" :placeholder="$t('cameras.frameRatePlaceholder')" style="width: 160px" clearable />
           </el-form-item>
           <el-form-item :label="$t('cameras.resolution')">
             <el-select v-model="recordOverrides.resolution" :placeholder="$t('cameras.selectResolution')" style="width: 160px" clearable>
