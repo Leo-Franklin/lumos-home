@@ -540,7 +540,9 @@ async def list_presets(mac: str, db: DBDep, _: CurrentUser):
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail='摄像头未配置')
-    return camera.get_presets()
+    presets = camera.get_presets()
+    default_id = camera.default_preset_id
+    return [p.to_dict(is_default=p.id == default_id) for p in presets]
 
 
 @router.post('/{mac}/presets', status_code=status.HTTP_201_CREATED)

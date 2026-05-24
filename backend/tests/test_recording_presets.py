@@ -17,6 +17,11 @@ def test_recording_preset_to_dict():
     assert data['name'] == '室外-1080p'
     assert data['resolution'] == '1920x1080'
     assert data['bitrate'] == 2048
+    assert data['fps'] == 25
+    assert data['is_default'] is False
+
+    data_default = preset.to_dict(is_default=True)
+    assert data_default['is_default'] is True
 
 
 def test_recording_preset_from_dict():

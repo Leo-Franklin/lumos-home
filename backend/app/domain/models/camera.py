@@ -16,7 +16,7 @@ class RecordingPreset:
     bitrate: int | None = None  # kbps，None=自动
     fps: int | None = None  # None=25
 
-    def to_dict(self) -> dict:
+    def to_dict(self, is_default: bool = False) -> dict:
         return {
             'id': self.id,
             'name': self.name,
@@ -24,6 +24,7 @@ class RecordingPreset:
             'segment_duration': self.segment_duration,
             'bitrate': self.bitrate,
             'fps': self.fps,
+            'is_default': is_default,
         }
 
     @staticmethod

@@ -71,9 +71,9 @@ nas_syncer = NasSyncer(
 recording_domain = RecordingDomainService(nas_syncer=nas_syncer)
 presence_domain = PresenceDomainService(recorder=recorder, nas_syncer=nas_syncer)
 recorder.set_callbacks(
-    on_complete=lambda t: recording_domain.on_recording_complete(t),
-    on_failed=lambda t, rc, err: recording_domain.on_recording_failed(t, rc, err),
-    should_continue=lambda mac: recording_domain.should_continue_recording(mac),
+    on_complete=recording_domain.on_recording_complete,
+    on_failed=recording_domain.on_recording_failed,
+    should_continue=recording_domain.should_continue_recording,
 )
 
 

@@ -107,7 +107,7 @@ class Recorder:
         return str(output_path)
 
     def _build_ffmpeg_cmd(self, rtsp_url: str, output_path: Path, params: RecordingParams) -> list:
-        cmd = [
+        return [
             'ffmpeg',
             '-y',
             '-rtsp_transport',
@@ -115,15 +115,7 @@ class Recorder:
             '-i',
             rtsp_url,
             '-c:v',
-            'libx264',
-            '-preset',
-            'medium',
-            '-b:v',
-            f'{params.bitrate_or_default()}k',
-            '-r',
-            str(params.fps_or_default()),
-            '-s',
-            params.resolution,
+            'copy',
             '-c:a',
             'aac',
             '-t',
@@ -132,31 +124,17 @@ class Recorder:
             '+frag_keyframe+empty_moov',
             str(output_path),
         ]
-        return cmd
 
     async def stop_recording(self, camera_mac: str) -> Path | None:
         task = self.active.pop(camera_mac, None)
         if not task:
             return None
         logger.info(f'停止录制: {camera_mac}')
-        try:
-            if task.process.stdin:
-                task.process.stdin.write(b'q')
-                task.process.stdin.flush()
-                task.process.stdin.close()
-        except Exception:
-            pass
-        loop = asyncio.get_event_loop()
-        try:
-            await loop.run_in_executor(None, lambda: task.process.wait(timeout=15))
-        except subprocess.TimeoutExpired:
-            logger.warning(f'FFmpeg 未在15秒内退出，强制终止: {camera_mac}')
-            task.process.kill()
-            await asyncio.sleep(2.0)
-        if task.process.poll() is None:
-            task.process.kill()
-            await asyncio.sleep(2.0)
-        # Read stderr for diagnostics before checking the file
+
+        self._terminate_ffmpeg(task.process, camera_mac)
+        await asyncio.sleep(1.0)
+
+        # Read stderr for diagnostics
         try:
             if task.process.stderr:
                 stderr_out = task.process.stderr.read(8192).decode(errors='replace').strip()
@@ -165,9 +143,8 @@ class Recorder:
         except Exception:
             pass
 
-        min_valid_bytes = 10 * 1024  # MP4 must contain at least ftyp + moov + mdat
-        # Retry file access — Windows may hold handles briefly after process exit
-        for attempt in range(3):
+        min_valid_bytes = 10 * 1024
+        for attempt in range(5):
             try:
                 if not task.output_path.exists():
                     logger.warning(f'录制文件不存在（FFmpeg未写入数据）: {task.output_path}')
@@ -176,16 +153,43 @@ class Recorder:
                 if size > min_valid_bytes:
                     return task.output_path
                 logger.warning(f'录制文件过小({size}字节，丢弃): {task.output_path}')
-                task.output_path.unlink()
+                task.output_path.unlink(missing_ok=True)
                 return None
             except PermissionError:
-                if attempt < 2:
-                    logger.warning(f'文件被占用，重试 ({attempt + 1}/3): {task.output_path}')
+                if attempt < 4:
+                    logger.warning(f'文件被占用，重试 ({attempt + 1}/5): {task.output_path}')
                     await asyncio.sleep(0.5)
                 else:
-                    logger.error(f'文件持续被占用，跳过删除: {task.output_path}')
+                    logger.error(f'文件持续被占用，跳过: {task.output_path}')
                     return None
         return None
+
+    @staticmethod
+    def _terminate_ffmpeg(proc: subprocess.Popen, camera_mac: str) -> None:
+        """Terminate ffmpeg gracefully, then forcefully if needed."""
+        if proc.poll() is not None:
+            return
+        # Best-effort graceful stop via stdin
+        try:
+            if proc.stdin:
+                proc.stdin.write(b'q')
+                proc.stdin.flush()
+                proc.stdin.close()
+        except Exception:
+            pass
+        # Wait briefly for graceful exit
+        try:
+            proc.wait(timeout=3)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+        # Force kill
+        logger.warning(f'FFmpeg 未在3秒内退出，强制终止: {camera_mac}')
+        try:
+            proc.kill()
+            proc.wait(timeout=3)
+        except (subprocess.TimeoutExpired, OSError):
+            logger.error(f'FFmpeg 强制终止失败: {camera_mac}')
 
     async def _monitor_loop(self):
         while True:
@@ -220,7 +224,7 @@ class Recorder:
             # Handle stalled streams — kill then immediately restart new segment
             for mac, task in stalled:
                 logger.warning(f'[{mac}] RTSP流中断（90s无数据写入），终止segment并立即重启')
-                task.process.kill()
+                self._terminate_ffmpeg(task.process, mac)
                 # Fire on_failed so DB records this segment (completed if ≥30s, failed otherwise)
                 if self._on_failed_cb:
                     await self._on_failed_cb(task, -1, 'RTSP stream stalled, auto-restart')
