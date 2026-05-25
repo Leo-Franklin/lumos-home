@@ -123,6 +123,7 @@ async def github_callback(
 
             if existing_by_email and not existing_by_email.github_id:
                 # Email exists but not bound to GitHub - need confirmation
+                settings = get_settings()
                 token = str(uuid.uuid4())
                 binding_token = GitHubBindingToken(
                     token=token,
@@ -134,6 +135,15 @@ async def github_callback(
                 )
                 db.add(binding_token)
                 await db.commit()
+
+                # Send confirmation email
+                email_service = get_email_service()
+                await email_service.send_binding_confirmation_email(
+                    to=user_info.email,
+                    username=user_info.username,
+                    token=token,
+                    base_url=settings.app_base_url,
+                )
                 return {'message': 'Please check your email to confirm binding'}
             else:
                 # Create new user
