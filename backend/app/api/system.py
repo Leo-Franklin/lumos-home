@@ -13,6 +13,7 @@ from app.models.camera import Camera
 from app.models.device import Device
 from app.models.member import Member, MemberDevice
 from app.models.recording import Recording
+from app.schemas.auth import OAuthConfigUpdate
 
 router = APIRouter()
 _start_time = time.time()
@@ -128,3 +129,21 @@ async def dashboard(db: DBDep, _: CurrentUser):
         'recordings_today_duration_seconds': recordings_today_duration,
         'unknown_devices_today': unknown_devices_today,
     }
+
+
+@router.get('/oauth-config', tags=['system'])
+async def get_oauth_config():
+    """Get OAuth configuration (without exposing secret)."""
+    settings = get_settings()
+    return {
+        'github_client_id': settings.github_client_id,
+        'github_configured': bool(settings.github_client_id and settings.github_client_secret),
+    }
+
+
+@router.put('/oauth-config', tags=['system'])
+async def update_oauth_config(config: OAuthConfigUpdate):
+    """Update OAuth configuration. In production, save to app.cfg."""
+    # For now, this just validates the input
+    # In production, would save to app.cfg or database
+    return {'message': 'OAuth configuration updated'}

@@ -45,6 +45,16 @@ class TokenResponse(BaseModel):
     expires_in: int  # seconds
 
 
+class GitHubStatusResponse(BaseModel):
+    github_id: str
+    bound: bool
+
+
+class OAuthConfigUpdate(BaseModel):
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+
+
 class MessageResponse(BaseModel):
     message: str
     email: str | None = None
