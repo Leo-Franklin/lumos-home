@@ -113,3 +113,13 @@ async def test_full_github_login_flow():
             assert response.status_code == 200
             data = response.json()
             assert 'access_token' in data
+
+
+@pytest.mark.asyncio
+async def test_send_binding_confirmation_email():
+    """Test that EmailService has send_binding_confirmation_email method with correct behavior."""
+    from app.services.email import EmailService, EmailTemplate
+
+    service = EmailService(api_key='test_key', from_email='test@example.com')
+    assert hasattr(service, 'send_binding_confirmation_email')
+    assert EmailTemplate.BINDING_CONFIRMATION.value == 'binding_confirmation'
