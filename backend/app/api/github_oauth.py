@@ -105,8 +105,8 @@ async def github_callback(
 
         email_service = get_email_service()
         await email_service.send_binding_confirmation_email(
-            to=user.email,
-            username=user.email.split('@')[0],
+            to=user_info.email,
+            username=user_info.username,
             token=token,
             base_url=settings.app_base_url,
         )
