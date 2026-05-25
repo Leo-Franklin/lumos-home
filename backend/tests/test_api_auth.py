@@ -160,3 +160,86 @@ async def test_github_bind_existing_email_sends_confirmation():
         from sqlalchemy import delete
         await session.execute(delete(User).where(User.email == 'existing@example.com'))
         await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_github_unbind_success():
+    """DELETE /auth/github/unbind removes github_id and github_username."""
+    from sqlalchemy import select
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        from app.auth import create_access_token, hash_password
+        from app.models.user import User
+        from app.database import _get_session_maker
+
+        async with _get_session_maker()() as session:
+            bound_user = User(
+                email='tounbind@example.com',
+                password_hash=hash_password('TestPass123!'),
+                is_active=True,
+                is_superuser=False,
+                github_id='99999',
+                github_username='tounbind',
+            )
+            session.add(bound_user)
+            await session.commit()
+
+        token = create_access_token('tounbind@example.com', 'test_secret_key_that_is_at_least_32_characters_long')
+
+        resp = await client.delete('/api/v1/auth/github/unbind', headers={'Authorization': f'Bearer {token}'})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert 'message' in data
+
+    # Verify binding removed
+    async with _get_session_maker()() as session:
+        result = await session.execute(select(User).where(User.email == 'tounbind@example.com'))
+        user = result.scalar_one_or_none()
+        assert user.github_id is None
+        assert user.github_username is None
+
+
+@pytest.mark.asyncio
+async def test_github_unbind_not_bound():
+    """DELETE /auth/github/unbind on non-bound user returns 400."""
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        from app.auth import create_access_token, hash_password
+        from app.models.user import User
+        from app.database import _get_session_maker
+
+        async with _get_session_maker()() as session:
+            unbound_user = User(
+                email='notbound@example.com',
+                password_hash=hash_password('TestPass123!'),
+                is_active=True,
+                is_superuser=False,
+                github_id=None,
+                github_username=None,
+            )
+            session.add(unbound_user)
+            await session.commit()
+
+        token = create_access_token('notbound@example.com', 'test_secret_key_that_is_at_least_32_characters_long')
+
+        resp = await client.delete('/api/v1/auth/github/unbind', headers={'Authorization': f'Bearer {token}'})
+
+    assert resp.status_code == 400
+    assert 'not bound' in resp.json()['error']['message'].lower()
+
+
+@pytest.mark.asyncio
+async def test_github_unbind_unauthenticated():
+    """DELETE /auth/github/unbind without auth returns 401."""
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        resp = await client.delete('/api/v1/auth/github/unbind')
+
+    assert resp.status_code == 401

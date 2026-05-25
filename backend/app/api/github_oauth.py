@@ -213,3 +213,36 @@ async def github_status(
         github_username=user.github_username,
         bound=user.github_id is not None,
     )
+
+
+@router.delete('/unbind', response_model=MessageResponse)
+async def github_unbind(
+    db: DBDep,
+    authorization: str | None = Header(None),
+):
+    """Unbind GitHub account from user account."""
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(status_code=401, detail='Authentication required')
+
+    from app.auth import verify_token
+    from app.config import get_settings
+    settings = get_settings()
+
+    token = authorization[7:]
+    email = verify_token(token, settings.jwt_secret_key)
+    if not email:
+        raise HTTPException(status_code=401, detail='Invalid or expired token')
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail='User not found')
+
+    if not user.github_id:
+        raise HTTPException(status_code=400, detail='GitHub account not bound')
+
+    user.github_id = None
+    user.github_username = None
+    await db.commit()
+
+    return MessageResponse(message='GitHub account unlinked successfully')
