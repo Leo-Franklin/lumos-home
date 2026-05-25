@@ -82,6 +82,7 @@ def test_schemas():
 async def test_full_github_login_flow():
     """Test complete GitHub OAuth login flow with mocks."""
     from unittest.mock import patch, AsyncMock, MagicMock
+    from httpx import AsyncClient, ASGITransport
 
     # Mock GitHub user info
     mock_github_user = MagicMock()
