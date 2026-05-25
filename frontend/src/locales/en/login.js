@@ -1,11 +1,17 @@
-// src/locales/en/login.js
 export default {
   brandTitle: 'Smart Home Management',
   subtitle: 'Smart Home Control Panel',
-  username: 'Username',
+  email: 'Email',
   password: 'Password',
   submit: 'Login',
-  fillRequired: 'Please enter username and password',
+  fillRequired: 'Please enter email and password',
   langChinese: '中文',
   langEnglish: 'English',
+  goToRegister: 'No account? Register',
+  registerTitle: 'Create Account',
+  confirmPassword: 'Confirm Password',
+  passwordMismatch: 'Passwords do not match',
+  passwordTooShort: 'Password must be at least 8 characters',
+  registerSuccess: 'Registration successful! Please verify your email.',
+  registerFailed: 'Registration failed',
 }

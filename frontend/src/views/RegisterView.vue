@@ -9,8 +9,6 @@ import { useLocaleStore } from '@/stores/locale'
 
 const { t, locale } = useI18n()
 const localeStore = useLocaleStore()
-const auth = useAuthStore()
-const router = useRouter()
 
 const langOptions = [
   { label: t('login.langChinese'), value: 'zh-CN' },
@@ -20,21 +18,32 @@ const langOptions = [
 function switchLang(lang) {
   localeStore.setLocale(lang)
 }
+const router = useRouter()
+const auth = useAuthStore()
 
-const form = ref({ email: '', password: '' })
+const form = ref({ email: '', password: '', confirmPassword: '' })
 const loading = ref(false)
 
-async function handleLogin() {
-  if (!form.value.email || !form.value.password) {
+async function handleRegister() {
+  if (!form.value.email || !form.value.password || !form.value.confirmPassword) {
     ElMessage.warning(t('login.fillRequired'))
+    return
+  }
+  if (form.value.password !== form.value.confirmPassword) {
+    ElMessage.error(t('login.passwordMismatch'))
+    return
+  }
+  if (form.value.password.length < 8) {
+    ElMessage.error(t('login.passwordTooShort'))
     return
   }
   loading.value = true
   try {
-    await auth.login(form.value.email, form.value.password)
-    router.push('/devices')
+    await auth.register(form.value.email, form.value.password)
+    ElMessage.success(t('login.registerSuccess'))
+    router.push('/login')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('login.loginFailed'))
+    ElMessage.error(e.response?.data?.detail || t('login.registerFailed'))
   } finally {
     loading.value = false
   }
@@ -42,7 +51,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-page">
+  <div class="register-page">
     <div class="lang-bar">
       <el-dropdown @command="switchLang">
         <span class="lang-trigger">
@@ -63,19 +72,21 @@ async function handleLogin() {
         </template>
       </el-dropdown>
     </div>
-    <div class="login-box">
-      <div class="login-logo">
+    <div class="register-box">
+      <div class="register-logo">
         <div class="logo-icon-wrap">
           <el-icon :size="22" class="logo-icon"><House /></el-icon>
         </div>
-        <h2 class="logo-title">{{ $t('login.brandTitle') }}</h2>
+        <h2 class="logo-title">{{ $t('login.registerTitle') }}</h2>
         <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
-      <el-form @submit.prevent="handleLogin" :model="form" label-width="0">
+      <div class="register-divider" />
+      <el-form @submit.prevent="handleRegister" :model="form" label-width="0">
         <el-form-item>
           <el-input
             v-model="form.email"
             :placeholder="$t('login.email')"
+            type="email"
             size="large"
             :prefix-icon="User"
           />
@@ -88,7 +99,17 @@ async function handleLogin() {
             size="large"
             :prefix-icon="Lock"
             show-password
-            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-input
+            v-model="form.confirmPassword"
+            :placeholder="$t('login.confirmPassword')"
+            type="password"
+            size="large"
+            :prefix-icon="Lock"
+            show-password
+            @keyup.enter="handleRegister"
           />
         </el-form-item>
         <el-button
@@ -96,15 +117,15 @@ async function handleLogin() {
           size="large"
           :loading="loading"
           style="width: 100%; height: 40px; font-size: 14px"
-          @click="handleLogin"
+          @click="handleRegister"
         >
-          {{ $t('login.submit') }}
+          {{ $t('login.registerTitle') }}
         </el-button>
         <el-button
           text
           size="small"
           style="width: 100%; margin-top: 16px"
-          @click="router.push('/register')"
+          @click="router.push('/login')"
         >
           {{ $t('login.goToRegister') }}
         </el-button>
@@ -114,7 +135,7 @@ async function handleLogin() {
 </template>
 
 <style scoped>
-.login-page {
+.register-page {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -147,7 +168,7 @@ async function handleLogin() {
   color: var(--color-text-primary);
 }
 
-.login-box {
+.register-box {
   width: 380px;
   padding: 36px 40px 40px;
   background: var(--color-surface);
@@ -157,7 +178,7 @@ async function handleLogin() {
   position: relative;
   overflow: hidden;
 }
-.login-box::before {
+.register-box::before {
   content: '';
   position: absolute;
   top: 0;
@@ -168,7 +189,7 @@ async function handleLogin() {
   background: linear-gradient(90deg, transparent, rgba(94, 92, 230, 0.55), transparent);
 }
 
-.login-logo {
+.register-logo {
   text-align: center;
   margin-bottom: 24px;
 }
@@ -198,5 +219,11 @@ async function handleLogin() {
   font-size: 12px;
   color: var(--color-text-muted);
   letter-spacing: 0.01em;
+}
+
+.register-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  margin: 0 0 24px;
 }
 </style>

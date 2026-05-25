@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '@/views/LoginView.vue'
+import RegisterView from '@/views/RegisterView.vue'
 import MainLayout from '@/layout/MainLayout.vue'
 
 const routes = [
   { path: '/login', component: LoginView, meta: { public: true } },
+  { path: '/register', component: RegisterView, meta: { public: true } },
   {
     path: '/',
     component: MainLayout,

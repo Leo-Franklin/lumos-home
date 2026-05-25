@@ -41,7 +41,7 @@ onMounted(fetchHealth)
     <el-alert v-if="error" :title="error" type="error" show-icon class="mb" />
 
     <template v-if="health">
-      <el-descriptions :title="$t('settings.healthStatus')" :column="2" border>
+      <el-descriptions :title="$t('settings.healthStatus')" :column="2" border class="mb">
         <el-descriptions-item :label="$t('settings.overallStatus')">
           <el-tag :type="health.status === 'healthy' ? 'success' : 'danger'">
             {{ health.status === 'healthy' ? $t('settings.systemHealthy') : $t('settings.systemUnhealthy') }}

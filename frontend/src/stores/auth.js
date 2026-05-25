@@ -6,17 +6,22 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
   const username = ref(localStorage.getItem('username') || '')
 
-  async function login(user, pass) {
-    const params = new URLSearchParams()
-    params.append('username', user)
-    params.append('password', pass)
-    const { data } = await api.post('/auth/login', params, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  async function login(email, pass) {
+    const { data } = await api.post('/auth/login', {
+      email: email,
+      password: pass,
     })
     token.value = data.access_token
-    username.value = user
+    username.value = email
     localStorage.setItem('token', data.access_token)
-    localStorage.setItem('username', user)
+    localStorage.setItem('username', email)
+  }
+
+  async function register(email, pass) {
+    await api.post('/auth/register', {
+      email: email,
+      password: pass,
+    })
   }
 
   function logout() {
@@ -26,5 +31,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('username')
   }
 
-  return { token, username, login, logout }
+  return { token, username, login, logout, register }
 })

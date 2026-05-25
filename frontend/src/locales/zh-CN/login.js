@@ -1,11 +1,17 @@
-// src/locales/zh-CN/login.js
 export default {
   brandTitle: '智能家居管理',
   subtitle: 'Smart Home Control Panel',
-  username: '用户名',
+  email: '邮箱',
   password: '密码',
   submit: '登录',
-  fillRequired: '请填写用户名和密码',
+  fillRequired: '请填写邮箱和密码',
   langChinese: '中文',
   langEnglish: 'English',
+  goToRegister: '没有账号？去注册',
+  registerTitle: '创建账号',
+  confirmPassword: '确认密码',
+  passwordMismatch: '两次密码不一致',
+  passwordTooShort: '密码至少8个字符',
+  registerSuccess: '注册成功！请查收验证邮件。',
+  registerFailed: '注册失败',
 }
