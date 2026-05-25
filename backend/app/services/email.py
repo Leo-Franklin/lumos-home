@@ -78,6 +78,7 @@ def get_email_service() -> EmailService:
     global _email_service
     if _email_service is None:
         from app.config import get_settings
+
         settings = get_settings()
         _email_service = EmailService(
             api_key=settings.resend_api_key,

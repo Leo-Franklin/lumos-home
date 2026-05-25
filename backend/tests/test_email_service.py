@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 
 @pytest.mark.asyncio
 async def test_send_verification_email():
-    from app.services.email import EmailService, EmailTemplate
+    from app.services.email import EmailService
 
     with patch('httpx.AsyncClient.post') as mock_post:
         mock_response = AsyncMock()
@@ -23,8 +25,9 @@ async def test_send_verification_email():
 
 @pytest.mark.asyncio
 async def test_send_verification_email_failure():
-    from app.services.email import EmailService
     import httpx
+
+    from app.services.email import EmailService
 
     with patch('httpx.AsyncClient.post') as mock_post:
         mock_post.side_effect = httpx.HTTPError('Network error')

@@ -1,6 +1,12 @@
 import pytest
 from pydantic import ValidationError
-from app.schemas.auth import RegisterRequest, LoginRequest, VerifyEmailRequest, ForgotPasswordRequest, ResetPasswordRequest
+
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+)
 
 
 def test_register_request_valid():

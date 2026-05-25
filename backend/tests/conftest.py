@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import pytest
 import pytest_asyncio
 from sqlalchemy import create_engine
 
@@ -55,7 +54,6 @@ def pytest_sessionstart(session):
         user_settings,
     )
     from app.models import user  # noqa: F401
-    from app.models.github_binding import GitHubBindingToken  # noqa: F401
 
     settings = get_settings()
     Path('data').mkdir(exist_ok=True)

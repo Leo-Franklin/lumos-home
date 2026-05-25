@@ -1,13 +1,11 @@
 import pytest
 import pytest_asyncio
-from datetime import datetime
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+
 from app.database import Base
 from app.models.user import User
-from app.auth import hash_password
 
 
 @pytest_asyncio.fixture
@@ -19,8 +17,17 @@ async def db():
         poolclass=StaticPool,
     )
     from app.models import (  # noqa: F401
-        camera, device, device_online_log, dlna_device, member, recording, schedule, user, user_settings,
+        camera,
+        device,
+        device_online_log,
+        dlna_device,
+        member,
+        recording,
+        schedule,
+        user,
+        user_settings,
     )
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async_session = async_sessionmaker(engine, expire_on_commit=False)

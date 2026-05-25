@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from app.models.user import User
 

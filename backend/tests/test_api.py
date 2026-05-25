@@ -41,6 +41,7 @@ async def test_health():
 @pytest.mark.asyncio
 async def test_login_success(test_env):
     from sqlalchemy import select
+
     from app.database import AsyncSessionLocal
     from app.models.user import User
 

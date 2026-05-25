@@ -71,8 +71,6 @@ async def health_check(request: Request):
     return JSONResponse(content=response_data.model_dump(), status_code=status_code)
 
 
-
-
 @router.get('/dashboard', tags=['system'])
 async def dashboard(db: DBDep, _: CurrentUser):
     today_start = datetime.now(UTC).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)

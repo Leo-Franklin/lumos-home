@@ -16,7 +16,6 @@ from app.schemas.auth import (
     RegisterRequest,
     ResetPasswordRequest,
     TokenResponse,
-    VerifyEmailRequest,
 )
 from app.services.email import get_email_service
 
@@ -176,4 +175,6 @@ async def reset_password(
     await db.delete(token_record)
     await db.commit()
 
-    return MessageResponse(message='Password reset successful. Please login with your new password.')
+    return MessageResponse(
+        message='Password reset successful. Please login with your new password.'
+    )

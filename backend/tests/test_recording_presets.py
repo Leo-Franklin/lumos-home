@@ -211,6 +211,7 @@ def test_env(monkeypatch):
 
     # Create admin user for login tests (new multi-user auth requires database user)
     import asyncio
+
     from app.database import AsyncSessionLocal
     from app.models.user import User
 
@@ -218,6 +219,7 @@ def test_env(monkeypatch):
         async with AsyncSessionLocal() as db:
             # Check if admin user already exists
             from sqlalchemy import select
+
             result = await db.execute(select(User).where(User.email == 'admin@test.com'))
             if result.scalar_one_or_none() is None:
                 admin = User(

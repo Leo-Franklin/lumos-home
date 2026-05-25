@@ -105,6 +105,7 @@ async def _migrate_admin_user() -> None:
             return  # Users exist, no migration needed
 
         from app.config import get_settings
+
         settings = get_settings()
 
         admin_user = User(
