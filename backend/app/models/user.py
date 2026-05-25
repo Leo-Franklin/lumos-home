@@ -16,3 +16,5 @@ class User(Base):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=func.now())
+    github_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
+    github_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
