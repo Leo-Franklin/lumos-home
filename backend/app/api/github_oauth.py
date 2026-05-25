@@ -13,7 +13,7 @@ from app.database import get_db
 from app.deps import DBDep
 from app.models.github_binding import GitHubBindingToken
 from app.models.user import User
-from app.schemas.auth import MessageResponse
+from app.schemas.auth import GitHubStatusResponse, MessageResponse
 from app.services.email import get_email_service
 from app.services.github import GitHubUserInfo, get_github_service
 
@@ -183,3 +183,33 @@ async def github_bind_verify(token: str = Query(...), db: AsyncSession = Depends
         await db.commit()
 
     return MessageResponse(message='GitHub account bound successfully')
+
+
+@router.get('/status', response_model=GitHubStatusResponse)
+async def github_status(
+    db: DBDep,
+    authorization: str | None = Header(None),
+):
+    """Get current user's GitHub binding status."""
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(status_code=401, detail='Authentication required')
+
+    from app.auth import verify_token
+    from app.config import get_settings
+    settings = get_settings()
+
+    token = authorization[7:]
+    email = verify_token(token, settings.jwt_secret_key)
+    if not email:
+        raise HTTPException(status_code=401, detail='Invalid or expired token')
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail='User not found')
+
+    return GitHubStatusResponse(
+        github_id=user.github_id,
+        github_username=user.github_username,
+        bound=user.github_id is not None,
+    )

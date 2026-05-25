@@ -286,3 +286,95 @@ async def test_send_binding_confirmation_email():
     service = EmailService(api_key='test_key', from_email='test@example.com')
     assert hasattr(service, 'send_binding_confirmation_email')
     assert EmailTemplate.BINDING_CONFIRMATION.value == 'binding_confirmation'
+
+
+@pytest.mark.asyncio
+async def test_github_status_bound():
+    """GET /auth/github/status returns bound=True with github info when user has github_id."""
+    import uuid
+    test_id = str(uuid.uuid4())
+    from app.auth import create_access_token, hash_password
+    from app.models.user import User
+    from app.database import _get_session_maker
+
+    async with _get_session_maker()() as session:
+        from sqlalchemy import delete
+        await session.execute(delete(User).where(User.email == f'bound-{test_id}@example.com'))
+        await session.commit()
+
+    async with _get_session_maker()() as session:
+        bound_user = User(
+            email=f'bound-{test_id}@example.com',
+            password_hash=hash_password('TestPass123!'),
+            is_active=True,
+            is_superuser=False,
+            github_id=f'github-bound-{test_id}',
+            github_username=f'bounduser-{test_id[:8]}',
+        )
+        session.add(bound_user)
+        await session.commit()
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    token = create_access_token(f'bound-{test_id}@example.com', 'test_secret_key_that_is_at_least_32_characters_long')
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        resp = await client.get('/api/v1/auth/github/status', headers={'Authorization': f'Bearer {token}'})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['bound'] is True
+    assert data['github_id'] == f'github-bound-{test_id}'
+    assert data['github_username'] == f'bounduser-{test_id[:8]}'
+
+
+@pytest.mark.asyncio
+async def test_github_status_not_bound():
+    """GET /auth/github/status returns bound=False when user has no github_id."""
+    from app.auth import create_access_token, hash_password
+    from app.models.user import User
+    from app.database import _get_session_maker
+
+    async with _get_session_maker()() as session:
+        from sqlalchemy import delete
+        await session.execute(delete(User).where(User.email == 'unbound@example.com'))
+        await session.commit()
+
+    async with _get_session_maker()() as session:
+        unbound_user = User(
+            email='unbound@example.com',
+            password_hash=hash_password('TestPass123!'),
+            is_active=True,
+            is_superuser=False,
+            github_id=None,
+            github_username=None,
+        )
+        session.add(unbound_user)
+        await session.commit()
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    token = create_access_token('unbound@example.com', 'test_secret_key_that_is_at_least_32_characters_long')
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        resp = await client.get('/api/v1/auth/github/status', headers={'Authorization': f'Bearer {token}'})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['bound'] is False
+    assert data['github_id'] is None
+    assert data['github_username'] is None
+
+
+@pytest.mark.asyncio
+async def test_github_status_unauthenticated():
+    """GET /auth/github/status returns 401 when no auth header."""
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        resp = await client.get('/api/v1/auth/github/status')
+
+    assert resp.status_code == 401
