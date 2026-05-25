@@ -14,6 +14,9 @@ from loguru import logger
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.models.camera import Camera
+from app.domain.models.device import Device
+
 # Dedicated executor for blocking I/O (hostname resolution + ping).
 # 128 workers = 64 semaphore × 2 concurrent blocking ops per device, no queuing.
 _IO_EXECUTOR = ThreadPoolExecutor(max_workers=128, thread_name_prefix='scanner_io')
@@ -43,7 +46,7 @@ def _detect_prefix_length(local_ip: str) -> int:
             # routes: (net_int, mask_int, gw, iface, src_ip, metric)
             for entry in conf.route.routes:
                 net_int, mask_int, _gw, _iface, src, _metric = entry
-                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000):
+                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000, 0x0):
                     netmask_str = socket.inet_ntoa(struct.pack('>I', mask_int))
                     return ipaddress.IPv4Network(f'0.0.0.0/{netmask_str}').prefixlen
         except Exception:
@@ -637,9 +640,10 @@ class Scanner:
         # Printers / Scanners
         if any(kw in v for kw in Scanner._PRINTER_VENDOR_KW):
             return 'printer'
-        # Cameras / Security
-        if any(kw in v for kw in Scanner._CAMERA_VENDOR_KW):
-            return 'camera'
+        # Cameras / Security — detect only by port or hostname.
+        # NOT by vendor OUI: many non-camera devices (routers, NVRs, workstations)
+        # share OUI prefixes with camera vendors, causing false 'camera' classifications.
+        # Actual cameras must be added manually via the camera management API.
         # IoT / Smart home
         if any(kw in v for kw in Scanner._IOT_VENDOR_KW):
             return 'iot'
@@ -738,7 +742,6 @@ async def _log_scan_result(
     from sqlalchemy import select
     from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-    from app.domain.models.device import Device
     from app.domain.models.device_online_log import DeviceOnlineLog
 
     online_macs = {d['mac'] for d in enriched}
@@ -776,7 +779,6 @@ async def _run_scan(network_range: str):
     from sqlalchemy import select
 
     from app.database import AsyncSessionLocal
-    from app.domain.models.device import Device
     from app.domain.models.member import MemberDevice
     from app.domain.services.ws_manager import ws_manager
 
@@ -797,6 +799,12 @@ async def _run_scan(network_range: str):
 
         async with AsyncSessionLocal() as db:
             macs = [d['mac'] for d in enriched]
+            # Fetch all devices that have an associated Camera record.
+            # These are managed by the camera API and should NOT be upserted here.
+            camera_macs_result = await db.execute(select(Camera.device_mac))
+            camera_macs: set[str] = {row[0] for row in camera_macs_result.all()}
+            # For scan purposes, treat devices with a Camera as "known" — do not overwrite
+            # their device_type or other fields; only update online status.
             existing_rows = (
                 (await db.execute(select(Device).where(Device.mac.in_(macs)))).scalars().all()
             )
@@ -807,7 +815,16 @@ async def _run_scan(network_range: str):
 
             now = datetime.now()
             for data in enriched:
-                existing = existing_map.get(data['mac'])
+                mac = data['mac']
+                # Skip devices that are managed as Cameras — only update is_online/last_seen
+                if mac in camera_macs:
+                    existing = existing_map.get(mac)
+                    if existing:
+                        existing.is_online = True
+                        existing.last_seen = now
+                        existing.ip = data['ip']
+                    continue
+                existing = existing_map.get(mac)
                 if existing:
                     existing.ip = data['ip']
                     existing.vendor = data['vendor']
@@ -816,18 +833,32 @@ async def _run_scan(network_range: str):
                     existing.is_online = True
                     existing.last_seen = now
                     new_type = data['device_type']
-                    if existing.device_type in ('unknown', None) or new_type != 'unknown':
-                        existing.device_type = new_type
+                    # Only update device_type for non-camera devices.
+                    # Cameras must be added via the camera management API, never auto-detected.
+                    # Skip device_type update if the device has a corresponding Camera record
+                    # (camera_macs); leave its type unchanged so it doesn't become 'camera'
+                    # from passive scanning. Devices in camera_macs should have device_type
+                    # set only by explicit camera registration, not by scan detection.
+                    if mac not in camera_macs and new_type != 'camera':
+                        if existing.device_type in ('unknown', None) or new_type != 'unknown':
+                            existing.device_type = new_type
                 else:
                     results['new'] += 1
+                    # Never auto-classify a new device as 'camera' — cameras must
+                    # be added explicitly via the camera management API.  Port
+                    # detection (554/2020/8000) can produce false positives for
+                    # NVRs, routers, and other devices that expose RTSP/ONVIF ports.
+                    device_type = data['device_type']
+                    if device_type == 'camera':
+                        device_type = 'unknown'
                     db.add(
                         Device(
-                            mac=data['mac'],
+                            mac=mac,
                             ip=data['ip'],
                             vendor=data['vendor'],
                             hostname=data['hostname'],
                             response_time_ms=data['latency'],
-                            device_type=data['device_type'],
+                            device_type=device_type,
                             is_online=True,
                             last_seen=now,
                         )

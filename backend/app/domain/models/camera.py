@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.database import Base
 
@@ -16,7 +16,7 @@ class RecordingPreset:
     bitrate: int | None = None  # kbps，None=自动
     fps: int | None = None  # None=25
 
-    def to_dict(self) -> dict:
+    def to_dict(self, is_default: bool = False) -> dict:
         return {
             'id': self.id,
             'name': self.name,
@@ -24,6 +24,7 @@ class RecordingPreset:
             'segment_duration': self.segment_duration,
             'bitrate': self.bitrate,
             'fps': self.fps,
+            'is_default': is_default,
         }
 
     @staticmethod
@@ -59,6 +60,10 @@ class Camera(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     recording_presets: Mapped[dict] = mapped_column(JSON, default=list)  # JSON 存储
     default_preset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    @validates('device_mac')
+    def normalize_device_mac(self, key, device_mac: str) -> str:
+        return device_mac.upper()
 
     def get_presets(self) -> list[RecordingPreset]:
         import json

@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.domain.models.camera import Camera
+from app.domain.models.device import Device
 from app.services.ws_manager import ws_manager
 
 
@@ -74,6 +75,12 @@ class CameraHealthChecker:
                 return
             cam.last_probe_at = datetime.now()
             cam.is_online = is_now_online
+            # Keep Device.is_online in sync with Camera.is_online
+            dev = (
+                await db.execute(select(Device).where(Device.mac == device_mac))
+            ).scalar_one_or_none()
+            if dev:
+                dev.is_online = is_now_online
             await db.commit()
 
         if was_online and not is_now_online:

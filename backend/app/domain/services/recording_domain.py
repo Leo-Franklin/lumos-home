@@ -60,10 +60,12 @@ class RecordingDomainService:
                     rec.ended_at = ended_at
                     rec.duration = duration
 
+            # Only set is_recording=False when the camera is still meant to be recording
+            # (user already stopped → is_recording=False, we respect that decision).
             cam = (
                 await db.execute(select(Camera).where(Camera.device_mac == task.camera_mac))
             ).scalar_one_or_none()
-            if cam:
+            if cam and cam.is_recording:
                 cam.is_recording = False
 
             await db.commit()
@@ -161,10 +163,12 @@ class RecordingDomainService:
                             f'录制失败 [{task.camera_mac}] id={task.recording_id}，实际时长={actual_duration}s < 30s，标记为failed'
                         )
 
+            # Only clear is_recording flag if the camera is still marked as recording
+            # (user already stopped → is_recording=False, we respect that decision).
             cam = (
                 await db.execute(select(Camera).where(Camera.device_mac == task.camera_mac))
             ).scalar_one_or_none()
-            if cam:
+            if cam and cam.is_recording:
                 cam.is_recording = False
 
             await db.commit()

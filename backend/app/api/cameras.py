@@ -51,6 +51,7 @@ async def create_camera(body: CameraCreate, db: DBDep, _: CurrentUser):
 
 @router.get('/{mac}', response_model=CameraOut)
 async def get_camera(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -60,6 +61,7 @@ async def get_camera(mac: str, db: DBDep, _: CurrentUser):
 
 @router.put('/{mac}', response_model=CameraOut)
 async def update_camera(mac: str, body: CameraUpdate, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -73,6 +75,7 @@ async def update_camera(mac: str, body: CameraUpdate, db: DBDep, _: CurrentUser)
 
 @router.delete('/{mac}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_camera(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -83,6 +86,7 @@ async def delete_camera(mac: str, db: DBDep, _: CurrentUser):
 
 @router.post('/{mac}/probe')
 async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -135,6 +139,7 @@ async def start_recording(
     recorder: RecorderDep,
     request: StartRecordingRequest | None = None,
 ):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -210,6 +215,7 @@ async def start_recording(
 async def stop_recording(
     mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep, nas_syncer: NasSyncerDep
 ):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -365,6 +371,7 @@ async def _mjpeg_generate(rtsp_url: str):
 
 @router.get('/{mac}/stream/mjpeg')
 async def stream_mjpeg(mac: str, db: DBDep, _: StreamUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -384,6 +391,7 @@ async def stream_mjpeg(mac: str, db: DBDep, _: StreamUser):
 
 @router.get('/{mac}/snapshot')
 async def snapshot_camera(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -431,6 +439,7 @@ async def snapshot_camera(mac: str, db: DBDep, _: CurrentUser):
 
 @router.post('/{mac}/live/start', status_code=status.HTTP_202_ACCEPTED)
 async def start_live(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -507,6 +516,7 @@ async def start_live(mac: str, db: DBDep, _: CurrentUser):
 
 @router.delete('/{mac}/live/stop', status_code=status.HTTP_202_ACCEPTED)
 async def stop_live(mac: str, _: CurrentUser):
+    mac = mac.upper()
     proc = _live_procs.pop(mac, None)
     if proc and proc.poll() is None:
         proc.kill()
@@ -525,15 +535,19 @@ async def stop_live(mac: str, _: CurrentUser):
 
 @router.get('/{mac}/presets')
 async def list_presets(mac: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail='摄像头未配置')
-    return camera.get_presets()
+    presets = camera.get_presets()
+    default_id = camera.default_preset_id
+    return [p.to_dict(is_default=p.id == default_id) for p in presets]
 
 
 @router.post('/{mac}/presets', status_code=status.HTTP_201_CREATED)
 async def create_preset(mac: str, body: RecordingPresetCreate, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -556,6 +570,7 @@ async def create_preset(mac: str, body: RecordingPresetCreate, db: DBDep, _: Cur
 async def update_preset(
     mac: str, preset_id: str, body: RecordingPresetUpdate, db: DBDep, _: CurrentUser
 ):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -573,6 +588,7 @@ async def update_preset(
 
 @router.delete('/{mac}/presets/{preset_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_preset(mac: str, preset_id: str, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
@@ -588,6 +604,7 @@ async def delete_preset(mac: str, preset_id: str, db: DBDep, _: CurrentUser):
 
 @router.post('/{mac}/presets/default', status_code=status.HTTP_200_OK)
 async def set_default_preset(mac: str, body: dict, db: DBDep, _: CurrentUser):
+    mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:

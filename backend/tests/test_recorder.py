@@ -43,40 +43,43 @@ class TestBuildFFmpegCmd:
         cmd = recorder._build_ffmpeg_cmd(rtsp_url, output_path, params)
         assert cmd[0] == 'ffmpeg'
         assert '-c:v' in cmd
-        assert 'libx264' in cmd
-        assert '-b:v' in cmd
-        assert '2048k' in cmd  # 1920x1080 -> 2048
-        assert '-r' in cmd
-        assert '25' in cmd
-        assert '-s' in cmd
-        assert '1920x1080' in cmd
+        assert 'copy' in cmd
+        assert '-c:a' in cmd
+        assert 'aac' in cmd
+        assert '-t' in cmd
+        assert '1800' in cmd
+        assert '-movflags' in cmd
+        assert '+frag_keyframe+empty_moov' in cmd
         assert str(output_path) in cmd
+        # Stream copy — re-encode params are not applied
+        for not_expected in ('libx264', '-b:v', '2048k', '-r', '25', '-s', '1920x1080'):
+            assert not_expected not in cmd
 
-    def test_custom_bitrate(self, tmp_path):
+    def test_custom_bitrate_ignored_in_copy_mode(self, tmp_path):
         params = RecordingParams(bitrate=4096)
         recorder = Recorder(temp_dir=str(tmp_path))
         rtsp_url = 'rtsp://192.168.1.100:554/stream'
         output_path = tmp_path / 'output.mp4'
         cmd = recorder._build_ffmpeg_cmd(rtsp_url, output_path, params)
-        assert '4096k' in cmd
+        assert '4096k' not in cmd
+        assert '-b:v' not in cmd
 
-    def test_custom_fps(self, tmp_path):
+    def test_custom_fps_ignored_in_copy_mode(self, tmp_path):
         params = RecordingParams(fps=30)
         recorder = Recorder(temp_dir=str(tmp_path))
         rtsp_url = 'rtsp://192.168.1.100:554/stream'
         output_path = tmp_path / 'output.mp4'
         cmd = recorder._build_ffmpeg_cmd(rtsp_url, output_path, params)
-        assert '-r' in cmd
-        assert '30' in cmd
+        assert '-r' not in cmd
 
-    def test_custom_resolution(self, tmp_path):
+    def test_custom_resolution_ignored_in_copy_mode(self, tmp_path):
         params = RecordingParams(resolution='1280x720')
         recorder = Recorder(temp_dir=str(tmp_path))
         rtsp_url = 'rtsp://192.168.1.100:554/stream'
         output_path = tmp_path / 'output.mp4'
         cmd = recorder._build_ffmpeg_cmd(rtsp_url, output_path, params)
-        assert '-s' in cmd
-        assert '1280x720' in cmd
+        assert '-s' not in cmd
+        assert '1280x720' not in cmd
 
     def test_custom_segment_seconds(self, tmp_path):
         params = RecordingParams(segment_seconds=600)
@@ -87,8 +90,8 @@ class TestBuildFFmpegCmd:
         assert '-t' in cmd
         assert '600' in cmd
 
-    def test_preset_like_params(self, tmp_path):
-        """Simulate a preset with 720p@1024kbps@20fps"""
+    def test_preset_like_params_only_segment_applied(self, tmp_path):
+        """Preset video params are ignored in copy mode; only segment_seconds applies."""
         params = RecordingParams(
             resolution='1280x720',
             segment_seconds=600,
@@ -99,7 +102,6 @@ class TestBuildFFmpegCmd:
         rtsp_url = 'rtsp://192.168.1.100:554/stream'
         output_path = tmp_path / 'output.mp4'
         cmd = recorder._build_ffmpeg_cmd(rtsp_url, output_path, params)
-        assert '1280x720' in cmd
-        assert '1024k' in cmd
-        assert '20' in cmd
         assert '600' in cmd
+        for not_expected in ('1280x720', '1024k', '20'):
+            assert not_expected not in cmd

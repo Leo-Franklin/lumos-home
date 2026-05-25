@@ -1,8 +1,27 @@
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
+
+
+def _copy_with_retry(src: str, dest: str, max_retries: int = 5) -> None:
+    """Copy file with retry for transient file locks (Windows)."""
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            shutil.copy2(src, dest)
+            return
+        except OSError as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                wait = 0.5 * (2**attempt)
+                logger.warning(
+                    f'文件被占用，{wait:.1f}s后重试 ({attempt + 1}/{max_retries}): {src}'
+                )
+                time.sleep(wait)
+    raise last_err  # type: ignore[misc]
 
 
 class NasSyncer:
@@ -47,7 +66,7 @@ class NasSyncer:
         dest = self.local_storage_path / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f'本地存储: {src} → {dest}')
-        shutil.copy2(str(src), str(dest))
+        _copy_with_retry(str(src), str(dest))
         try:
             src.unlink()
         except OSError as e:
@@ -59,7 +78,7 @@ class NasSyncer:
         dest = self.mount_path / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f'NAS同步(mount): {src} → {dest}')
-        shutil.copy2(str(src), str(dest))
+        _copy_with_retry(str(src), str(dest))
         try:
             src.unlink()
         except OSError as e:
