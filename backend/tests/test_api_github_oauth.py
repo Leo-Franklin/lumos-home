@@ -116,6 +116,169 @@ async def test_full_github_login_flow():
 
 
 @pytest.mark.asyncio
+async def test_github_bind_login_user_flow():
+    """Authenticated user initiating GitHub binding gets confirmation email."""
+    from unittest.mock import patch, AsyncMock, MagicMock
+
+    # Mock GitHub user info
+    mock_github_user = MagicMock()
+    mock_github_user.github_id = '12345'
+    mock_github_user.username = 'testuser'
+    mock_github_user.email = 'test@example.com'
+    mock_github_user.verified_email = True
+
+    # Mock email service
+    mock_email_service = MagicMock()
+    mock_email_service.send_binding_confirmation_email = AsyncMock(return_value=True)
+
+    # Mock settings
+    mock_settings = MagicMock()
+    mock_settings.jwt_secret_key = 'test_secret_key_that_is_at_least_32_characters_long'
+    mock_settings.app_base_url = 'http://localhost:5173'
+
+    with patch('app.api.github_oauth.get_github_service') as mock_get_service, \
+         patch('app.api.github_oauth.get_email_service', return_value=mock_email_service), \
+         patch('app.api.github_oauth.get_settings', return_value=mock_settings):
+        mock_service = MagicMock()
+        mock_service.exchange_code_for_token = AsyncMock(return_value='fake_token')
+        mock_service.get_user_info = AsyncMock(return_value=mock_github_user)
+        mock_get_service.return_value = mock_service
+
+        from app.main import app
+        from httpx import AsyncClient, ASGITransport
+
+        # Create existing user (logged-in user who wants to bind GitHub)
+        from app.auth import hash_password
+        from app.models.user import User
+        from app.database import _get_session_maker
+
+        async with _get_session_maker()() as session:
+            existing = User(
+                email='bind_test@example.com',
+                password_hash=hash_password('TestPass123!'),
+                is_active=True,
+                is_superuser=False,
+            )
+            session.add(existing)
+            await session.commit()
+
+        # Get token for this user
+        from app.auth import create_access_token
+        token = create_access_token('bind_test@example.com', mock_settings.jwt_secret_key)
+
+        # Callback with bind=true and auth header
+        async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+            resp = await client.get('/api/v1/auth/github/callback', params={
+                'code': 'test_code',
+                'state': 'test_state',
+                'bind': True,
+            }, headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert 'message' in data
+        assert 'confirm' in data.get('message', '').lower()
+
+        # Verify email was sent
+        mock_email_service.send_binding_confirmation_email.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_github_bind_without_auth_fails():
+    """Binding without Authorization header returns 401."""
+    mock_github_user = MagicMock()
+    mock_github_user.github_id = '12345'
+    mock_github_user.username = 'testuser'
+    mock_github_user.email = 'test@example.com'
+    mock_github_user.verified_email = True
+
+    mock_email_service = MagicMock()
+    mock_email_service.send_binding_confirmation_email = AsyncMock(return_value=True)
+
+    mock_settings = MagicMock()
+    mock_settings.jwt_secret_key = 'test_secret_key_that_is_at_least_32_characters_long'
+    mock_settings.app_base_url = 'http://localhost:5173'
+
+    with patch('app.api.github_oauth.get_github_service') as mock_get_service, \
+         patch('app.api.github_oauth.get_email_service', return_value=mock_email_service), \
+         patch('app.api.github_oauth.get_settings', return_value=mock_settings):
+        mock_service = MagicMock()
+        mock_service.exchange_code_for_token = AsyncMock(return_value='fake_token')
+        mock_service.get_user_info = AsyncMock(return_value=mock_github_user)
+        mock_get_service.return_value = mock_service
+
+        from app.main import app
+        from httpx import AsyncClient, ASGITransport
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+            resp = await client.get('/api/v1/auth/github/callback', params={
+                'code': 'test_code',
+                'state': 'test_state',
+                'bind': True,
+            })
+
+        assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_github_bind_already_bound_fails():
+    """Binding when user already has github_id returns 400."""
+    from app.auth import hash_password
+    from app.models.user import User
+    from app.database import _get_session_maker
+
+    mock_github_user = MagicMock()
+    mock_github_user.github_id = '12345'
+    mock_github_user.username = 'testuser'
+    mock_github_user.email = 'test@example.com'
+    mock_github_user.verified_email = True
+
+    mock_email_service = MagicMock()
+    mock_email_service.send_binding_confirmation_email = AsyncMock(return_value=True)
+
+    mock_settings = MagicMock()
+    mock_settings.jwt_secret_key = 'test_secret_key_that_is_at_least_32_characters_long'
+    mock_settings.app_base_url = 'http://localhost:5173'
+
+    with patch('app.api.github_oauth.get_github_service') as mock_get_service, \
+         patch('app.api.github_oauth.get_email_service', return_value=mock_email_service), \
+         patch('app.api.github_oauth.get_settings', return_value=mock_settings):
+        mock_service = MagicMock()
+        mock_service.exchange_code_for_token = AsyncMock(return_value='fake_token')
+        mock_service.get_user_info = AsyncMock(return_value=mock_github_user)
+        mock_get_service.return_value = mock_service
+
+        # Create user that already has github_id (different email to avoid conflict)
+        async with _get_session_maker()() as session:
+            existing = User(
+                email='already_bound@example.com',
+                password_hash=hash_password('TestPass123!'),
+                is_active=True,
+                is_superuser=False,
+                github_id='99999',  # Already has GitHub bound
+            )
+            session.add(existing)
+            await session.commit()
+
+        from app.auth import create_access_token
+        token = create_access_token('already_bound@example.com', mock_settings.jwt_secret_key)
+
+        from app.main import app
+        from httpx import AsyncClient, ASGITransport
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+            resp = await client.get('/api/v1/auth/github/callback', params={
+                'code': 'test_code',
+                'state': 'test_state',
+                'bind': True,
+            }, headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        data = resp.json()
+        assert 'already bound' in data.get('error', {}).get('message', '').lower()
+
+
+@pytest.mark.asyncio
 async def test_send_binding_confirmation_email():
     """Test that EmailService has send_binding_confirmation_email method with correct behavior."""
     from app.services.email import EmailService, EmailTemplate

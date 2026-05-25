@@ -3,17 +3,18 @@ import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import create_access_token
+from app.auth import create_access_token, verify_token
 from app.config import get_settings
 from app.database import get_db
 from app.deps import DBDep
 from app.models.github_binding import GitHubBindingToken
 from app.models.user import User
 from app.schemas.auth import MessageResponse
+from app.services.email import get_email_service
 from app.services.github import GitHubUserInfo, get_github_service
 
 router = APIRouter(prefix='/auth/github', tags=['auth'])
@@ -46,6 +47,7 @@ async def github_callback(
     code: str = Query(...),
     state: str = Query(...),
     bind: bool = Query(False),
+    authorization: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Handle GitHub OAuth callback."""
@@ -69,7 +71,46 @@ async def github_callback(
 
     if bind:
         # Binding mode - requires logged-in user
-        pass
+        if not authorization:
+            raise HTTPException(status_code=401, detail='Authentication required for account binding')
+
+        settings = get_settings()
+        if not authorization.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail='Invalid authorization header')
+        token = authorization[7:]
+        email = verify_token(token, settings.jwt_secret_key)
+        if not email:
+            raise HTTPException(status_code=401, detail='Invalid or expired token')
+
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=401, detail='User not found')
+
+        if user.github_id:
+            raise HTTPException(status_code=400, detail='GitHub account already bound')
+
+        # Create binding token and send confirmation email
+        token = str(uuid.uuid4())
+        binding_token = GitHubBindingToken(
+            token=token,
+            user_id=user.id,
+            github_id=user_info.github_id,
+            github_username=user_info.username,
+            github_email=user_info.email,
+            expires_at=datetime.now() + timedelta(minutes=15),
+        )
+        db.add(binding_token)
+        await db.commit()
+
+        email_service = get_email_service()
+        await email_service.send_binding_confirmation_email(
+            to=user.email,
+            username=user.email.split('@')[0],
+            token=token,
+            base_url=settings.app_base_url,
+        )
+        return {'message': 'Please check your email to confirm GitHub binding'}
     else:
         # Login mode
         if existing_user:
