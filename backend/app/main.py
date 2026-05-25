@@ -19,7 +19,6 @@ from app.api import (
     cameras,
     devices,
     dlna,
-    github_oauth,
     members,
     recordings,
     schedules,
@@ -234,7 +233,6 @@ app.include_router(user.router, prefix=P)
 app.include_router(dlna.router, prefix=P)
 app.include_router(analytics.router, prefix=P)
 app.include_router(auth.router, prefix=P)
-app.include_router(github_oauth.router, prefix=P)
 app.include_router(ws.router)
 _Path('data/dlna_media').mkdir(parents=True, exist_ok=True)
 app.mount('/dlna-media', StaticFiles(directory='data/dlna_media'), name='dlna-media')

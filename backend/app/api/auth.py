@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.auth import create_access_token, hash_password, verify_password
@@ -33,16 +33,26 @@ async def register(
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail='Email already registered')
 
+    settings = get_settings()
+    # Skip email verification if no email API is configured (dev mode)
+    is_active = not settings.resend_api_key
+
     # Create user
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
-        is_active=False,
+        is_active=is_active,
         is_superuser=False,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    if is_active:
+        return MessageResponse(
+            message='Registration successful. You can now login.',
+            email=user.email,
+        )
 
     # Generate verification token (24h)
     token = str(uuid.uuid4())
@@ -55,7 +65,6 @@ async def register(
     await db.commit()
 
     # Send email
-    settings = get_settings()
     email_service = get_email_service()
     await email_service.send_verification_email(user.email, token, settings.app_base_url)
 
@@ -65,13 +74,13 @@ async def register(
     )
 
 
-@router.post('/verify-email', response_model=MessageResponse)
+@router.get('/verify-email', response_model=MessageResponse)
 async def verify_email(
-    body: VerifyEmailRequest,
     db: DBDep,
+    token: str = Query(...),
 ) -> MessageResponse:
     result = await db.execute(
-        select(EmailVerificationToken).where(EmailVerificationToken.token == body.token)
+        select(EmailVerificationToken).where(EmailVerificationToken.token == token)
     )
     token_record = result.scalar_one_or_none()
 

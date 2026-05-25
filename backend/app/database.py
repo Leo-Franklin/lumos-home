@@ -77,6 +77,8 @@ async def init_db() -> None:
             'ALTER TABLE cameras ADD COLUMN default_preset_id VARCHAR(36)',
             'ALTER TABLE schedules ADD COLUMN preset_id VARCHAR(36)',
             'ALTER TABLE schedules ADD COLUMN overrides TEXT',
+            'ALTER TABLE users ADD COLUMN github_id VARCHAR(64)',
+            'ALTER TABLE users ADD COLUMN github_username VARCHAR(128)',
         ):
             try:
                 await conn.execute(text(stmt))

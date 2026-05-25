@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 class EmailTemplate(Enum):
     VERIFY_EMAIL = 'verify_email'
     PASSWORD_RESET = 'password_reset'
-    BINDING_CONFIRMATION = 'binding_confirmation'
 
 
 class EmailService:
@@ -68,23 +67,6 @@ class EmailService:
         return await self.send_email(
             to=to,
             subject='Reset your password - Smart Home',
-            body=body,
-        )
-
-    async def send_binding_confirmation_email(self, to: str, username: str, token: str, base_url: str) -> bool:
-        """Send GitHub binding confirmation email."""
-        confirm_url = f'{base_url}/api/v1/auth/github/bind/verify?token={token}'
-        body = f"""
-        Hi {username},<br/><br/>
-        Someone tried to link your account with a GitHub account.<br/>
-        If this was you, click the link below to confirm:<br/>
-        <a href="{confirm_url}">{confirm_url}</a><br/><br/>
-        This link expires in 15 minutes.<br/><br/>
-        If you didn't request this, please ignore this email.
-        """
-        return await self.send_email(
-            to=to,
-            subject='Confirm GitHub account link - Smart Home',
             body=body,
         )
 
