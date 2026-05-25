@@ -72,10 +72,10 @@ async def test_oauth_config_get():
 def test_schemas():
     """Test that GitHub-related schemas exist."""
     from app.schemas.auth import GitHubStatusResponse, OAuthConfigUpdate
-    assert hasattr(GitHubStatusResponse, 'github_id')
-    assert hasattr(GitHubStatusResponse, 'bound')
-    assert hasattr(OAuthConfigUpdate, 'github_client_id')
-    assert hasattr(OAuthConfigUpdate, 'github_client_secret')
+    assert 'github_id' in GitHubStatusResponse.model_fields
+    assert 'bound' in GitHubStatusResponse.model_fields
+    assert 'github_client_id' in OAuthConfigUpdate.model_fields
+    assert 'github_client_secret' in OAuthConfigUpdate.model_fields
 
 
 @pytest.mark.asyncio
