@@ -9,6 +9,8 @@ os.environ['JWT_SECRET_KEY'] = 'test_secret_key_that_is_at_least_32_characters_l
 os.environ['ADMIN_PASSWORD'] = 'testpassword_for_ci_only'
 os.environ['CORS_ALLOW_ORIGINS'] = 'http://localhost:5173'
 os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///./data/test.db'
+os.environ['GITHUB_CLIENT_ID'] = 'test_github_client_id'
+os.environ['GITHUB_CLIENT_SECRET'] = 'test_github_client_secret'
 
 
 def pytest_configure(config):
