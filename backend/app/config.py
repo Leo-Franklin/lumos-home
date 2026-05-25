@@ -112,6 +112,10 @@ class Settings(BaseSettings):
     resend_from_email: str = 'onboarding@resend.dev'
     app_base_url: str = 'http://localhost:8000'
 
+    # GitHub OAuth
+    github_client_id: str = ''
+    github_client_secret: str = ''
+
     @field_validator('jwt_secret_key')
     @classmethod
     def jwt_secret_must_be_changed(cls, v: str) -> str:
