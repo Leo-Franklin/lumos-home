@@ -1,16 +1,9 @@
-# tests/unit/domain/test_recording.py
-# 内容合并自:
-# - test_a1_presence_recording.py (3个测试: on_recording_complete_updates_recording_and_camera, on_recording_complete_triggers_dlna_cast, on_recording_failed_updates_recording)
-# - test_recording_domain.py (6个测试: test_arrived_triggers_auto_start_recording, test_left_triggers_auto_stop_when_no_other_home_member, test_no_auto_record_cameras_no_callback)
-# 共 9 个测试函数
-
 import asyncio
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ── RecordingDomainService tests (from test_a1_presence_recording.py) ──────────
 
