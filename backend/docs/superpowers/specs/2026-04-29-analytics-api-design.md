@@ -1,7 +1,7 @@
 # Analytics API Design
 
-**Date:** 2026-04-29  
-**Status:** Approved  
+**Date:** 2026-04-29
+**Status:** Approved
 **Scope:** Add 7 analytics endpoints + 1 device heatmap endpoint to support the frontend `/analytics` page.
 
 ---
@@ -64,8 +64,8 @@ After the existing Device upsert block and `await db.commit()`:
 
 ### New file: `app/routers/analytics.py`
 
-Router prefix: `/analytics`  
-All endpoints require `CurrentUser`.  
+Router prefix: `/analytics`
+All endpoints require `CurrentUser`.
 Range param `7d` / `30d` / `90d` → `since = datetime.now() - timedelta(days=N)`.
 
 #### `GET /analytics/device-type-stats`

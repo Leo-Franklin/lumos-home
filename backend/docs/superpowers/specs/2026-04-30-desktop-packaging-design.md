@@ -1,7 +1,7 @@
 # Desktop Packaging Design — SmartHome Windows 一键安装包
 
-**日期：** 2026-04-30  
-**状态：** 已批准  
+**日期：** 2026-04-30
+**状态：** 已批准
 **目标：** 将前后端项目打包为 Windows 双击安装包，面向无技术背景的家庭用户。
 
 ---
@@ -174,7 +174,7 @@ dependencies 新增：
 - Inno Setup 6（`iscc` 在 PATH 中）
 - `installer/redist/` 下已手动放入 `npcap.exe`、`ffmpeg.exe`、`nmap/`
 
-> **注意：Npcap 许可证**  
+> **注意：Npcap 许可证**
 > 将 Npcap 打包进安装程序分发需使用 [Npcap OEM 版本](https://npcap.com/oem/)（商业授权）。个人/内部使用可用免费版，但不得公开再分发。`redist/npcap.exe` 需从官方渠道自行获取，不提交到 git 仓库。
 
 ### PyInstaller spec 关键配置（`backend/smart-home.spec`）

@@ -562,7 +562,7 @@ git commit -m "feat(A3): add CameraHealthChecker service with ffprobe RTSP probi
 uv run python -c "from app.config import get_settings; s = get_settings(); print(s.camera_health_interval_seconds)"
 ```
 
-Expected: `60`  
+Expected: `60`
 （如果 `.env` 已有值则输出对应值）
 
 - [ ] **Step 3: 在 main.py lifespan 中启动/停止 CameraHealthChecker**

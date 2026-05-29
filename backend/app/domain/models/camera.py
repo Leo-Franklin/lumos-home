@@ -58,7 +58,7 @@ class Camera(Base):
     last_probe_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     auto_cast_dlna: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    recording_presets: Mapped[dict] = mapped_column(JSON, default=list)  # JSON 存储
+    recording_presets: Mapped[list] = mapped_column(JSON, default=list)  # JSON 存储
     default_preset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     @validates('device_mac')
@@ -82,7 +82,7 @@ class Camera(Base):
             return []
 
     def set_presets(self, presets: list[RecordingPreset]):
-        self.recording_presets = [p.to_dict() for p in presets]  # type: ignore[assignment]
+        self.recording_presets = [p.to_dict() for p in presets]
 
     def add_preset(self, preset: RecordingPreset):
         presets = self.get_presets()
