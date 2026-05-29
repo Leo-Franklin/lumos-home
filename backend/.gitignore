@@ -43,5 +43,7 @@ tools/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+.coverage
+htmlcov/
 
 
