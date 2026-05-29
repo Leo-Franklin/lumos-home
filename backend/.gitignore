@@ -35,7 +35,8 @@ frontend/
 tools/
 
 # Claude Code settings (local plugin config)
-.claude/
+.claude/*
+!.claude/CLAUDE.md
 
 # Caches and temporary files
 .pytest_cache/
