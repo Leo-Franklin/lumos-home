@@ -12,7 +12,9 @@ from app.services.scheduler_service import scheduler_service
 router = APIRouter(prefix='/schedules', tags=['schedules'])
 
 
-def _make_recording_callback(request: Request, segment_duration: int):
+def _make_recording_callback(request: Request, schedule: Schedule):
+    from app.domain.services.recorder import RecordingParams
+
     recorder = request.app.state.recorder
 
     async def _trigger(camera_mac: str):
@@ -33,7 +35,7 @@ def _make_recording_callback(request: Request, segment_duration: int):
                 logger.warning(f'调度录制: 摄像头 {camera_mac} 不存在或无 RTSP URL')
                 return
             if cam.is_recording:
-                logger.info(f'调度录制: {camera_mac} 已在录制中，跳过')
+                logger.info(f'调度录制: 摄像头 {camera_mac} 已在录制中，跳过')
                 return
             rtsp_url = cam.rtsp_url
             if cam.onvif_user or cam.onvif_password:
@@ -55,9 +57,28 @@ def _make_recording_callback(request: Request, segment_duration: int):
             await db.commit()
             await db.refresh(rec)
             rec_id = rec.id
+
+        # Resolve segment_seconds: overrides > preset > schedule field
+        segment_seconds = schedule.segment_duration
+        if schedule.preset_id:
+            preset = next((p for p in cam.presets if p.id == schedule.preset_id), None)
+            if preset:
+                segment_seconds = preset.segment_duration
+            else:
+                logger.warning(
+                    f'调度录制: preset_id="{schedule.preset_id}" 未找到，'
+                    f'回退到 schedule.segment_duration={schedule.segment_duration}'
+                )
+        # overrides always take precedence (even over preset)
+        overrides = schedule.get_overrides()
+        if overrides and 'segment_duration' in overrides:
+            segment_seconds = overrides['segment_duration']
+
         try:
             await recorder.start_recording(
-                camera_mac=camera_mac, rtsp_url=rtsp_url, segment_seconds=segment_duration
+                camera_mac=camera_mac,
+                rtsp_url=rtsp_url,
+                params=RecordingParams(segment_seconds=segment_seconds),
             )
         except Exception as e:
             logger.error(f'调度录制启动失败 {camera_mac}: {e}')
@@ -79,6 +100,7 @@ def _make_recording_callback(request: Request, segment_duration: int):
             return
         if camera_mac in recorder.active:
             recorder.active[camera_mac].recording_id = rec_id
+            recorder.active[camera_mac].session_recording_id = rec_id
 
     return _trigger
 
@@ -104,7 +126,7 @@ async def create_schedule(body: ScheduleCreate, request: Request, db: DBDep, _: 
     await db.commit()
     await db.refresh(schedule)
     if schedule.enabled:
-        callback = _make_recording_callback(request, schedule.segment_duration)
+        callback = _make_recording_callback(request, schedule)
         try:
             scheduler_service.add_recording_job(
                 job_id=f'schedule_{schedule.id}',
@@ -149,7 +171,7 @@ async def update_schedule(
 
     job_id = f'schedule_{schedule.id}'
     if schedule.enabled:
-        callback = _make_recording_callback(request, schedule.segment_duration)
+        callback = _make_recording_callback(request, schedule)
         try:
             scheduler_service.add_recording_job(
                 job_id=job_id,

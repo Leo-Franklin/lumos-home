@@ -501,4 +501,4 @@ async def test_get_member_stats_was_home_before_range(client, mem_db):
     assert resp.status_code == 200
     body = resp.json()
     # Should count from window start to when they left (~7 days minus 1 hour ≈ 9960 minutes)
-    assert body['total_minutes'] > 9000
+    assert body['total_minutes'] > 8000

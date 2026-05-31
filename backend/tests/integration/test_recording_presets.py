@@ -421,6 +421,71 @@ async def test_end_to_end_recording_with_preset(test_env, unique_mac):
 
 
 @pytest.mark.asyncio
+async def test_start_recording_uses_default_preset_when_request_omits_preset_id(
+    test_env, unique_mac
+):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
+        with patch('app.api.auth.verify_password', return_value=True):
+            resp = await ac.post(
+                '/api/v1/auth/login',
+                json={'email': 'admin@test.com', 'password': 'testpassword_for_ci_only'},
+            )
+        assert resp.status_code == 200
+        token = resp.json()['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
+
+        mac = unique_mac
+
+        resp = await ac.post(
+            '/api/v1/cameras',
+            json={
+                'device_mac': mac,
+                'onvif_host': '192.168.1.50',
+                'rtsp_url': 'rtsp://192.168.1.50:554/stream',
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 201
+
+        resp = await ac.post(
+            f'/api/v1/cameras/{mac}/presets',
+            json={
+                'name': '300秒切片',
+                'resolution': '1280x720',
+                'segment_duration': 300,
+                'bitrate': 1024,
+                'fps': 20,
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        preset_id = resp.json()['id']
+
+        resp = await ac.post(
+            f'/api/v1/cameras/{mac}/presets/default',
+            json={'preset_id': preset_id},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+        mock_recorder = MagicMock()
+        mock_recorder.start_recording = AsyncMock(return_value='/tmp/test.mp4')
+        mock_recorder.active = {}
+
+        with patch('app.deps.get_recorder', return_value=mock_recorder):
+            app.state.recorder = mock_recorder
+
+            resp = await ac.post(f'/api/v1/cameras/{mac}/record/start', headers=headers)
+            assert resp.status_code == 202
+
+            _, _, params = mock_recorder.start_recording.call_args[0]
+            assert params.resolution == '1280x720'
+            assert params.segment_seconds == 300
+            assert params.bitrate == 1024
+            assert params.fps == 20
+
+
+@pytest.mark.asyncio
 async def test_start_recording_with_overrides(test_env, unique_mac):
     """Start recording with overrides only (no preset)"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
@@ -614,3 +679,150 @@ async def test_schedule_with_preset_and_overrides(test_env, unique_mac):
         schedule.preset_id = preset_id
         schedule.set_overrides({'segment_duration': 900, 'bitrate': 2048})
         assert schedule.get_effective_segment_duration() == 900
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BUG TEST: _make_recording_callback should resolve preset.segment_duration
+# 当前代码中 _make_recording_callback 直接用 schedule.segment_duration
+# 而非先查找 preset 后再取其值。
+# 这导致用户设置了 preset_id 但没有设置 overrides 时，
+# 录制使用默认值 1800 秒而非预设的一分钟（60秒）。
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_schedule_callback_uses_preset_segment_duration():
+    """
+    验证：当 schedule 有 preset_id 但无 overrides 时，
+    _make_recording_callback 的 segment_seconds 应使用 preset 的 segment_duration 而非 schedule.segment_duration。
+
+    当前行为（BUG）：_make_recording_callback 直接用 schedule.segment_duration=1800
+    期望行为（修复后）：先查找 cam.presets 找到 preset，再用 preset.segment_duration=60
+    """
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.api.schedules import _make_recording_callback
+    from app.domain.models.camera import Camera, RecordingPreset
+    from app.domain.models.schedule import Schedule
+
+    cam = Camera(device_mac='AA:BB:CC:DD:EE:FF', onvif_host='192.168.1.100', rtsp_url='rtsp://x')
+    preset = RecordingPreset(
+        id='preset-1min',
+        name='1分钟切片',
+        resolution='1920x1080',
+        segment_duration=60,  # 用户想要1分钟一段
+    )
+    cam.add_preset(preset)
+
+    schedule = Schedule(
+        camera_mac='AA:BB:CC:DD:EE:FF',
+        cron_expr='0 * * * *',
+        segment_duration=1800,  # 默认值
+    )
+    schedule.preset_id = 'preset-1min'
+
+    mock_recorder = MagicMock()
+    mock_recorder.start_recording = AsyncMock()
+    mock_recorder.active = {}
+    mock_request = MagicMock()
+    mock_request.app.state.recorder = mock_recorder
+
+    callback = _make_recording_callback(mock_request, schedule)
+
+    async def run_trigger():
+        with patch('app.database.AsyncSessionLocal') as mock_db_cls:
+            mock_cam = MagicMock()
+            mock_cam.device_mac = 'AA:BB:CC:DD:EE:FF'
+            mock_cam.rtsp_url = 'rtsp://192.168.1.100:554/stream'
+            mock_cam.onvif_user = None
+            mock_cam.onvif_password = None
+            mock_cam.is_recording = False
+            mock_cam.presets = cam.get_presets()
+
+            mock_db = AsyncMock()
+            mock_db.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_db.__aexit__ = AsyncMock()
+            mock_db.execute = AsyncMock(
+                return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_cam))
+            )
+            mock_db.add = MagicMock()
+            mock_db.commit = AsyncMock()
+            mock_db.refresh = AsyncMock()
+            mock_db_cls.return_value = mock_db
+
+            await callback('AA:BB:CC:DD:EE:FF')
+
+    import asyncio
+
+    asyncio.get_event_loop().run_until_complete(run_trigger())
+
+    mock_recorder.start_recording.assert_called_once()
+    call_args = mock_recorder.start_recording.call_args
+    # Called with keyword args: camera_mac=..., rtsp_url=..., params=...
+    assert call_args.kwargs.get('params').segment_seconds == 60, (
+        f'Expected preset segment_duration=60, got params.segment_seconds={call_args.kwargs.get("params").segment_seconds}. '
+        'BUG: _make_recording_callback does not look up cam.presets, uses schedule.segment_duration=1800 instead'
+    )
+
+
+def test_schedule_callback_overrides_takes_precedence_over_preset():
+    """
+    Verifies schedule overrides segment_duration takes precedence over preset segment_duration.
+    """
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.api.schedules import _make_recording_callback
+    from app.domain.models.camera import Camera, RecordingPreset
+    from app.domain.models.schedule import Schedule
+
+    cam = Camera(device_mac='AA:BB:CC:DD:EE:FF', onvif_host='192.168.1.100', rtsp_url='rtsp://x')
+    preset = RecordingPreset(id='preset-60s', name='1分钟', segment_duration=60)
+    cam.add_preset(preset)
+
+    schedule = Schedule(
+        camera_mac='AA:BB:CC:DD:EE:FF',
+        cron_expr='0 * * * *',
+        segment_duration=1800,
+    )
+    schedule.preset_id = 'preset-60s'
+    schedule.set_overrides({'segment_duration': 30})  # override to 30s
+
+    mock_recorder = MagicMock()
+    mock_recorder.start_recording = AsyncMock()
+    mock_recorder.active = {}
+    mock_request = MagicMock()
+    mock_request.app.state.recorder = mock_recorder
+
+    callback = _make_recording_callback(mock_request, schedule)
+
+    async def run_trigger():
+        with patch('app.database.AsyncSessionLocal') as mock_db_cls:
+            mock_cam = MagicMock()
+            mock_cam.device_mac = 'AA:BB:CC:DD:EE:FF'
+            mock_cam.rtsp_url = 'rtsp://192.168.1.100:554/stream'
+            mock_cam.onvif_user = None
+            mock_cam.onvif_password = None
+            mock_cam.is_recording = False
+            mock_cam.presets = cam.get_presets()
+
+            mock_db = AsyncMock()
+            mock_db.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_db.__aexit__ = AsyncMock()
+            mock_db.execute = AsyncMock(
+                return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_cam))
+            )
+            mock_db.add = MagicMock()
+            mock_db.commit = AsyncMock()
+            mock_db.refresh = AsyncMock()
+            mock_db_cls.return_value = mock_db
+
+            await callback('AA:BB:CC:DD:EE:FF')
+
+    import asyncio
+
+    asyncio.get_event_loop().run_until_complete(run_trigger())
+
+    mock_recorder.start_recording.assert_called_once()
+    call_args = mock_recorder.start_recording.call_args
+    assert call_args.kwargs.get('params').segment_seconds == 30, (
+        'overrides should take precedence over preset'
+    )

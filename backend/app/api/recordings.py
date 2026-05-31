@@ -90,6 +90,7 @@ async def list_recordings(
         records.append(
             RecordingOut(
                 id=r.id,
+                recording_id=r.recording_id,
                 camera_mac=r.camera_mac,
                 file_path=r.file_path,
                 file_size=r.file_size,
@@ -98,6 +99,7 @@ async def list_recordings(
                 ended_at=r.ended_at,
                 status=r.status,
                 error_msg=r.error_msg,
+                segment_index=r.segment_index,
                 created_at=r.created_at,
                 storage_type=storage_type,
                 nas_access_url=nas_access_url,
@@ -150,6 +152,7 @@ async def get_recording(recording_id: int, db: DBDep, _: CurrentUser):
     )
     return RecordingOut(
         id=recording.id,
+        recording_id=recording.recording_id,
         camera_mac=recording.camera_mac,
         file_path=recording.file_path,
         file_size=recording.file_size,
@@ -158,6 +161,7 @@ async def get_recording(recording_id: int, db: DBDep, _: CurrentUser):
         ended_at=recording.ended_at,
         status=recording.status,
         error_msg=recording.error_msg,
+        segment_index=recording.segment_index,
         created_at=recording.created_at,
         storage_type=storage_type,
         nas_access_url=nas_access_url,

@@ -64,6 +64,7 @@ class PresenceDomainService:
 
         if camera_mac in self._recorder.active:
             self._recorder.active[camera_mac].recording_id = rec_id
+            self._recorder.active[camera_mac].session_recording_id = rec_id
         else:
             logger.warning(f'[A1] 录制任务已结束，无法设置 recording_id {rec_id}: {camera_mac}')
 

@@ -38,7 +38,12 @@ class Schedule(Base):
         self.overrides = json.dumps(data) if data else None
 
     def get_effective_segment_duration(self) -> int:
-        """Compatibility: prefer overrides.segment_duration, then self.segment_duration"""
+        """Prefer overrides.segment_duration > self.segment_duration.
+
+        Note: preset_id resolution requires the Camera object and must be
+        done at the call site (e.g. _make_recording_callback) where the
+        Camera is available.
+        """
         overrides = self.get_overrides()
         if overrides and 'segment_duration' in overrides:
             return overrides['segment_duration']

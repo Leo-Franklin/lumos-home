@@ -151,13 +151,20 @@ async def start_recording(
             status_code=422, detail='摄像头 rtsp_url 未设置，请先通过 PUT 接口配置 RTSP 地址'
         )
 
-    # Build RecordingParams from preset or defaults
+    # Build RecordingParams from explicit preset, then camera default preset, then defaults.
     params = RecordingParams()
+    preset = None
     if request and request.preset_id:
         presets = camera.get_presets()
         preset = next((p for p in presets if p.id == request.preset_id), None)
         if not preset:
             raise HTTPException(status_code=404, detail='预设不存在')
+    elif camera.default_preset_id:
+        preset = camera.get_default_preset()
+        if camera.default_preset_id and not preset:
+            raise HTTPException(status_code=404, detail='默认预设不存在，请重新设置')
+
+    if preset:
         params = RecordingParams(
             resolution=preset.resolution,
             segment_seconds=preset.segment_duration,
@@ -207,6 +214,7 @@ async def start_recording(
 
     if mac in recorder.active:
         recorder.active[mac].recording_id = rec.id
+        recorder.active[mac].session_recording_id = rec.id
 
     return {'message': '录制已启动', 'recording_id': rec.id}
 
@@ -224,10 +232,11 @@ async def stop_recording(
         raise HTTPException(status_code=409, detail='该摄像头未在录制')
 
     task = recorder.active.get(mac)
-    recording_id = task.recording_id if task else None
+    pending_row_id = task.recording_id if task else None
+    session_id = (task.session_recording_id or task.recording_id) if task else None
 
     # 服务重启后内存中没有 task，兜底从数据库查最近一条卡住的记录
-    if recording_id is None:
+    if pending_row_id is None and session_id is None:
         orphan_result = await db.execute(
             select(Recording)
             .where(Recording.camera_mac == mac, Recording.status == 'recording')
@@ -236,7 +245,8 @@ async def stop_recording(
         )
         orphan = orphan_result.scalar_one_or_none()
         if orphan:
-            recording_id = orphan.id
+            pending_row_id = orphan.id
+            session_id = orphan.recording_id or orphan.id
 
     try:
         output_path = await recorder.stop_recording(mac)
@@ -247,11 +257,16 @@ async def stop_recording(
     camera.is_recording = False
     ended_at = datetime.now()
 
-    if recording_id:
-        rec_result = await db.execute(select(Recording).where(Recording.id == recording_id))
+    if pending_row_id:
+        rec_result = await db.execute(select(Recording).where(Recording.id == pending_row_id))
         rec = rec_result.scalar_one_or_none()
         if rec:
-            if output_path and output_path.exists():
+            # 如果 output_path 存在且 status 尚未 completed，说明是首次手动停止此 segment
+            # 需要同步文件并更新状态。
+            # 如果 output_path 为 None（should_continue=False 路径中 active task 已由
+            # _monitor_loop 处理并 pop），且 rec.status 已是 'completed'（segment 已由
+            # monitor_loop 正确记录），则不应再次覆盖状态，避免将已完成的 segment 错误标记为 failed。
+            if output_path and output_path.exists() and rec.status != 'completed':
                 try:
                     loop = asyncio.get_running_loop()
                     dest = await loop.run_in_executor(
@@ -264,18 +279,34 @@ async def stop_recording(
                     rec.file_path = str(output_path)
                     rec.file_size = output_path.stat().st_size if output_path.exists() else None
                 rec.status = 'completed'
-            else:
-                rec.status = 'failed'
-                rec.error_msg = '录制文件不存在或过小，请检查摄像头RTSP连接是否正常'
+            elif not output_path or not output_path.exists():
+                # output_path 不存在：可能 session 已正常结束（should_continue=False 路径）
+                # 不覆盖 status，只在未 completed 时标记（防止冗余标记覆盖已正确处理的 segment）
+                if rec.status != 'completed':
+                    rec.status = 'failed'
+                    rec.error_msg = '录制文件不存在或过小，请检查摄像头RTSP连接是否正常'
             rec.ended_at = ended_at
-            # 使用数据库中原始的 started_at（当 auto-continue 多 segment 时，
-            # task.started_at 已被新 segment 覆盖，不能用于计算总时长）
+            # 计算总 duration：使用 session_id 查询该录制会话下所有 segment 的 duration 总和
+            # （当 auto-continue 多 segment 时，task.started_at 已被新 segment 覆盖，
+            # 不能用于计算总时长，必须从数据库累加所有 segment 的 duration）
+            if session_id:
+                segments_result = await db.execute(
+                    select(Recording).where(Recording.recording_id == session_id)
+                )
+                all_segments = segments_result.scalars().all()
+                total_duration = sum(seg.duration or 0 for seg in all_segments)
+            else:
+                total_duration = 0
+            # 加上当前 segment 的时长
             if rec.started_at:
-                rec.duration = int((ended_at - rec.started_at).total_seconds())
+                current_duration = int((ended_at - rec.started_at).total_seconds())
+                rec.duration = total_duration + current_duration
+            else:
+                rec.duration = total_duration
 
     await db.commit()
     await ws_manager.broadcast(
-        'recording_completed', {'camera_mac': mac, 'recording_id': recording_id}
+        'recording_completed', {'camera_mac': mac, 'recording_id': session_id}
     )
     return {'message': '录制已停止'}
 

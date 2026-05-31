@@ -29,6 +29,20 @@ async def db():
         yield session
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_recordings():
+    """Delete all Recording rows after each test to prevent cross-test pollution."""
+    yield
+    from sqlalchemy import delete
+
+    from app.database import AsyncSessionLocal
+    from app.models.recording import Recording
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(delete(Recording))
+        await session.commit()
+
+
 def pytest_sessionstart(session):
     """Create test database tables once per session, before any test runs.
 

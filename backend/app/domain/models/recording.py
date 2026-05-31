@@ -10,6 +10,7 @@ class Recording(Base):
     __tablename__ = 'recordings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    recording_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     camera_mac: Mapped[str] = mapped_column(
         String(17), ForeignKey('cameras.device_mac'), nullable=False, index=True
     )
@@ -20,4 +21,5 @@ class Recording(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(32), default='recording')
     error_msg: Mapped[str | None] = mapped_column(Text)
+    segment_index: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

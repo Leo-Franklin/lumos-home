@@ -12,6 +12,8 @@ class FakeTask:
     output_path: Path
     started_at: datetime
     recording_id: int | None = None
+    segment_index: int = 0
+    session_recording_id: int | None = None
 
 
 def _make_cast_context(auto_cast_dlna: str | None, av_transport_url: str | None = 'http://tv/avt'):

@@ -23,6 +23,25 @@ class RecordingDomainService:
         self._nas_syncer = nas_syncer
         self._ws_manager = ws_manager
 
+    async def create_continued_recording(self, camera_mac: str) -> int | None:
+        async with AsyncSessionLocal() as db:
+            cam = (
+                await db.execute(select(Camera).where(Camera.device_mac == camera_mac))
+            ).scalar_one_or_none()
+            if not cam or not cam.is_recording:
+                return None
+
+            rec = Recording(
+                camera_mac=camera_mac,
+                file_path='(pending)',
+                started_at=datetime.now(),
+                status='recording',
+            )
+            db.add(rec)
+            await db.commit()
+            await db.refresh(rec)
+            return rec.id
+
     async def should_continue_recording(self, camera_mac: str) -> bool:
         async with AsyncSessionLocal() as db:
             cam = (
@@ -30,8 +49,8 @@ class RecordingDomainService:
             ).scalar_one_or_none()
             return cam.is_recording if cam else False
 
-    async def on_recording_complete(self, task):
-        """Handle recording completion: sync to NAS, update DB, trigger DLNA cast."""
+    async def on_recording_complete(self, task, keep_recording: bool = False):
+        """Handle segment completion: sync to NAS, insert per-segment DB record, trigger DLNA cast."""
         loop = asyncio.get_running_loop()
         try:
             dest = await loop.run_in_executor(
@@ -45,30 +64,72 @@ class RecordingDomainService:
             file_size = task.output_path.stat().st_size if task.output_path.exists() else None
 
         ended_at = datetime.now()
-        duration = int((ended_at - task.started_at).total_seconds())
+
+        # Probe actual media duration; fallback to wall clock if unavailable
+        actual_duration = None
+        if task.output_path.exists():
+            try:
+                actual_duration = await self._probe_duration(task.output_path)
+            except Exception:
+                pass
+        duration = (
+            actual_duration
+            if actual_duration
+            else int((ended_at - task.started_at).total_seconds())
+        )
+
+        session_id = task.session_recording_id or task.recording_id
 
         async with AsyncSessionLocal() as db:
-            if task.recording_id:
-                result = await db.execute(
-                    select(Recording).where(Recording.id == task.recording_id)
+            # 幂等性检查：相同 recording_id + segment_index 的记录已存在则跳过
+            existing = await db.execute(
+                select(Recording).where(
+                    Recording.recording_id == session_id,
+                    Recording.segment_index == task.segment_index,
                 )
-                rec = result.scalar_one_or_none()
-                if rec:
-                    rec.status = 'completed'
-                    rec.file_path = dest_str
-                    rec.file_size = file_size
-                    rec.ended_at = ended_at
-                    rec.duration = duration
+            )
+            rec = existing.scalar_one_or_none()
+            # 如果未找到，尝试查找待更新的 pending 行（id == task.recording_id 且 segment_index 为空）
+            if not rec and task.recording_id:
+                pending_result = await db.execute(
+                    select(Recording).where(
+                        Recording.id == task.recording_id,
+                        Recording.segment_index.is_(None),
+                    )
+                )
+                rec = pending_result.scalar_one_or_none()
+            # 找到了则更新已有行，否则创建新行
+            if rec:
+                rec.file_path = dest_str
+                rec.file_size = file_size
+                rec.duration = duration
+                rec.started_at = task.started_at
+                rec.ended_at = ended_at
+                rec.status = 'completed'
+                rec.segment_index = task.segment_index
+                rec.recording_id = session_id
+            else:
+                rec = Recording(
+                    camera_mac=task.camera_mac,
+                    file_path=dest_str,
+                    file_size=file_size,
+                    duration=duration,
+                    started_at=task.started_at,
+                    ended_at=ended_at,
+                    status='completed',
+                    segment_index=task.segment_index,
+                    recording_id=session_id,
+                )
+                db.add(rec)
+            await db.commit()
 
-            # Only set is_recording=False when the camera is still meant to be recording
-            # (user already stopped → is_recording=False, we respect that decision).
+        async with AsyncSessionLocal() as db:
             cam = (
                 await db.execute(select(Camera).where(Camera.device_mac == task.camera_mac))
             ).scalar_one_or_none()
-            if cam and cam.is_recording:
+            if cam and cam.is_recording and not keep_recording:
                 cam.is_recording = False
-
-            await db.commit()
+                await db.commit()
 
             if cam and cam.auto_cast_dlna:
                 dlna_dev = (
@@ -77,10 +138,12 @@ class RecordingDomainService:
                 if dlna_dev and dlna_dev.av_transport_url:
                     await self._cast_recording(dlna_dev.av_transport_url, dest_str, task.camera_mac)
 
-        logger.info(f'录制完成 [{task.camera_mac}] id={task.recording_id} 时长={duration}s')
+        logger.info(
+            f'录制完成 [{task.camera_mac}] id={session_id} seg={task.segment_index} 时长={duration}s'
+        )
         await self._ws_manager.broadcast(
             'recording_completed',
-            {'camera_mac': task.camera_mac, 'recording_id': task.recording_id},
+            {'camera_mac': task.camera_mac, 'recording_id': session_id},
         )
 
     async def _probe_duration(self, path: Path) -> int | None:
@@ -104,7 +167,9 @@ class RecordingDomainService:
             pass
         return None
 
-    async def on_recording_failed(self, task, retcode: int, stderr: str):
+    async def on_recording_failed(
+        self, task, retcode: int, stderr: str, keep_recording: bool = False
+    ):
         """Handle recording failure: probe actual duration, treat as completed if >= 30s."""
         actual_duration = None
         dest_str = str(task.output_path)
@@ -117,58 +182,105 @@ class RecordingDomainService:
             except Exception:
                 pass
 
+        session_id = task.session_recording_id or task.recording_id
+
         async with AsyncSessionLocal() as db:
-            if task.recording_id:
+            # Determine status: ≥30s actual media = completed, <30s or no probe = failed
+            actual_ok = actual_duration is not None and actual_duration >= 30
+            status = 'completed' if actual_ok else 'failed'
+            ended_at = datetime.now()
+            duration = actual_duration if actual_duration else 0
+
+            # 幂等性检查：相同 recording_id + segment_index 的 segment 记录已存在则更新该条
+            existing_seg = await db.execute(
+                select(Recording).where(
+                    Recording.recording_id == session_id,
+                    Recording.segment_index == task.segment_index,
+                )
+            )
+            rec = existing_seg.scalar_one_or_none()
+            if not rec and task.recording_id:
+                # 回退：尝试按 id 查找（兼容旧逻辑）
                 result = await db.execute(
                     select(Recording).where(Recording.id == task.recording_id)
                 )
                 rec = result.scalar_one_or_none()
-                if rec:
-                    # If we got ≥30s of actual media, treat as completed (stream was healthy before failure)
-                    if actual_duration is not None and actual_duration >= 30:
-                        ended_at = datetime.now()
-                        rec.status = 'completed'
-                        rec.ended_at = ended_at
-                        rec.duration = actual_duration
-                        # Sync to NAS
-                        try:
-                            sync_dest = await loop.run_in_executor(
-                                None,
-                                lambda: self._nas_syncer.sync_file(
-                                    task.output_path, task.camera_mac
-                                ),
-                            )
-                            rec.file_path = str(sync_dest)
-                            rec.file_size = sync_dest.stat().st_size if sync_dest.exists() else None
-                        except Exception as e:
-                            logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
-                            rec.file_path = dest_str
-                            rec.file_size = (
-                                task.output_path.stat().st_size
-                                if task.output_path.exists()
-                                else None
-                            )
-                        logger.info(
-                            f'录制异常终止 [{task.camera_mac}] id={task.recording_id}，实际时长={actual_duration}s，标记为completed'
+
+            if rec:
+                rec.segment_index = task.segment_index
+                rec.status = status
+                rec.ended_at = ended_at
+                rec.duration = duration
+                rec.recording_id = session_id
+                # Sync to NAS only for completed segments
+                if actual_ok:
+                    try:
+                        sync_dest = await loop.run_in_executor(
+                            None,
+                            lambda: self._nas_syncer.sync_file(task.output_path, task.camera_mac),
                         )
-                    else:
-                        rec.status = 'failed'
-                        rec.error_msg = (stderr or f'退出码 {retcode}')[:500]
-                        rec.ended_at = datetime.now()
+                        rec.file_path = str(sync_dest)
+                        rec.file_size = sync_dest.stat().st_size if sync_dest.exists() else None
+                    except Exception as e:
+                        logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
                         rec.file_path = dest_str
                         rec.file_size = (
                             task.output_path.stat().st_size if task.output_path.exists() else None
                         )
-                        logger.warning(
-                            f'录制失败 [{task.camera_mac}] id={task.recording_id}，实际时长={actual_duration}s < 30s，标记为failed'
+                else:
+                    rec.file_path = dest_str
+                    rec.file_size = (
+                        task.output_path.stat().st_size if task.output_path.exists() else None
+                    )
+                    rec.error_msg = (stderr or f'退出码 {retcode}')[:500]
+                logger.info(
+                    f'录制异常终止 [{task.camera_mac}] id={task.recording_id}，实际时长={actual_duration}s，标记为{status}'
+                )
+            else:
+                # recording_id is None → this segment stalled before parent was allocated.
+                # Insert a new per-segment row so no segment data is lost.
+                if task.output_path.exists():
+                    try:
+                        sync_dest = await loop.run_in_executor(
+                            None,
+                            lambda: self._nas_syncer.sync_file(task.output_path, task.camera_mac),
                         )
+                        file_path_val = str(sync_dest)
+                        file_size_val = sync_dest.stat().st_size if sync_dest.exists() else None
+                    except Exception as e:
+                        logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
+                        file_path_val = dest_str
+                        file_size_val = (
+                            task.output_path.stat().st_size if task.output_path.exists() else None
+                        )
+                else:
+                    file_path_val = dest_str
+                    file_size_val = (
+                        task.output_path.stat().st_size if task.output_path.exists() else None
+                    )
+                rec = Recording(
+                    camera_mac=task.camera_mac,
+                    file_path=file_path_val,
+                    file_size=file_size_val,
+                    duration=duration,
+                    started_at=task.started_at,
+                    ended_at=ended_at,
+                    status=status,
+                    segment_index=task.segment_index,
+                    recording_id=session_id,
+                    error_msg=(stderr or f'退出码 {retcode}')[:500] if status == 'failed' else None,
+                )
+                db.add(rec)
+                await db.flush()
+                task.recording_id = rec.id
+                logger.info(
+                    f'录制中断 [{task.camera_mac}] segment_index={task.segment_index}，实际时长={actual_duration}s，标记为{status}'
+                )
 
-            # Only clear is_recording flag if the camera is still marked as recording
-            # (user already stopped → is_recording=False, we respect that decision).
             cam = (
                 await db.execute(select(Camera).where(Camera.device_mac == task.camera_mac))
             ).scalar_one_or_none()
-            if cam and cam.is_recording:
+            if cam and cam.is_recording and not keep_recording:
                 cam.is_recording = False
 
             await db.commit()
@@ -177,7 +289,7 @@ class RecordingDomainService:
             'recording_completed'
             if actual_duration and actual_duration >= 30
             else 'recording_failed',
-            {'camera_mac': task.camera_mac, 'recording_id': task.recording_id},
+            {'camera_mac': task.camera_mac, 'recording_id': session_id},
         )
 
     async def _cast_recording(self, av_transport_url: str, file_path: str, camera_mac: str):

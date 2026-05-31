@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class RecordingOut(BaseModel):
     id: int
+    recording_id: int | None
     camera_mac: str
     file_path: str
     file_size: int | None
@@ -13,6 +14,7 @@ class RecordingOut(BaseModel):
     ended_at: datetime | None
     status: str
     error_msg: str | None
+    segment_index: int | None
     created_at: datetime
     # 新增字段
     storage_type: str  # "local" | "nas"

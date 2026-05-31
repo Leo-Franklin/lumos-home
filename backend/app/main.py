@@ -75,6 +75,7 @@ recorder.set_callbacks(
     on_complete=recording_domain.on_recording_complete,
     on_failed=recording_domain.on_recording_failed,
     should_continue=recording_domain.should_continue_recording,
+    create_next_recording=recording_domain.create_continued_recording,
 )
 
 
@@ -116,12 +117,19 @@ async def lifespan(app: FastAPI):
                 'cron_expr': s.cron_expr,
                 'camera_mac': s.camera_mac,
                 'segment_duration': s.segment_duration,
+                'preset_id': s.preset_id,
+                'overrides': s.get_overrides() if hasattr(s, 'get_overrides') else None,
             }
             for s in result.scalars().all()
         ]
     for sched in enabled_schedules:
 
-        async def _trigger(mac, sd=sched['segment_duration']):
+        async def _trigger(
+            mac,
+            sd=sched['segment_duration'],
+            preset_id=sched.get('preset_id'),
+            overrides=sched.get('overrides'),
+        ):
             mac = mac.upper()
             rec_id = None
             async with AsyncSessionLocal() as _db:
@@ -154,8 +162,24 @@ async def lifespan(app: FastAPI):
                 await _db.commit()
                 await _db.refresh(rec)
                 rec_id = rec.id
+
+            # Resolve segment_seconds: overrides > preset > schedule field
+            segment_seconds = sd
+            if preset_id:
+                preset = next((p for p in cam.get_presets() if p.id == preset_id), None)
+                if preset:
+                    segment_seconds = preset.segment_duration
+                elif not overrides:
+                    logger.warning(
+                        f'恢复调度: preset_id="{preset_id}" 未找到，回退到 schedule.segment_duration={sd}'
+                    )
+            elif overrides and 'segment_duration' in overrides:
+                segment_seconds = overrides['segment_duration']
+
             try:
-                await recorder.start_recording(mac, rtsp_url, RecordingParams(segment_seconds=sd))
+                await recorder.start_recording(
+                    mac, rtsp_url, RecordingParams(segment_seconds=segment_seconds)
+                )
             except Exception as e:
                 logger.error(f'调度录制启动失败 {mac}: {e}')
                 async with AsyncSessionLocal() as _db:
@@ -174,6 +198,7 @@ async def lifespan(app: FastAPI):
                 return
             if mac in recorder.active:
                 recorder.active[mac].recording_id = rec_id
+                recorder.active[mac].session_recording_id = rec_id
 
         try:
             scheduler_service.add_recording_job(
