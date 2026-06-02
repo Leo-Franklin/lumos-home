@@ -31,7 +31,8 @@ class PresenceDomainService:
             rec = RecordingModel(
                 camera_mac=camera_mac,
                 file_path='(pending)',
-                started_at=datetime.now(),
+                # naive on purpose: `DateTime` SQLite column stores local wall time
+                started_at=datetime.now(),  # noqa: DTZ005
                 status='recording',
             )
             db.add(rec)
@@ -43,7 +44,7 @@ class PresenceDomainService:
         try:
             params = RecordingParams(segment_seconds=get_settings().recording_segment_seconds)
             await self._recorder.start_recording(camera_mac, rtsp_url, params)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — recorder failure (ffmpeg spawn, RTSP, etc.) must roll back DB
             logger.error(f'[A1] 自动录制启动失败 {camera_mac}: {e}')
             async with AsyncSessionLocal() as db:
                 rec_db = (
@@ -71,7 +72,8 @@ class PresenceDomainService:
     async def auto_stop_recording(self, camera_mac: str) -> None:
         """Stop recording when presence is lost."""
         output_path = await self._recorder.stop_recording(camera_mac)
-        ended_at = datetime.now()
+        # naive on purpose: `DateTime` SQLite column stores local wall time
+        ended_at = datetime.now()  # noqa: DTZ005
 
         async with AsyncSessionLocal() as db:
             cam = (
@@ -101,7 +103,7 @@ class PresenceDomainService:
                         )
                         rec.file_path = str(dest)
                         rec.file_size = dest.stat().st_size if dest.exists() else None
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 — NAS sync failure must keep local recording marked complete
                         logger.error(f'[A1] 停止录制 NAS 同步失败 {camera_mac}: {e}')
                         rec.file_path = str(output_path)
                         rec.file_size = output_path.stat().st_size if output_path.exists() else None

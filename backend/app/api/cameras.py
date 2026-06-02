@@ -108,7 +108,8 @@ async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
                 p['rtsp_url'] = await asyncio.wait_for(
                     client.get_stream_uri(p['index']), timeout=12
                 )
-            except Exception:
+            except Exception as e:  # noqa: BLE001 — OnvifClient 第三方库, 单 profile 失败不应中断整个探测
+                logger.warning(f'获取 profile {p.get("index")} RTSP URL 失败: {e}')
                 p['rtsp_url'] = None
 
         # 自动将第一个有效 RTSP 地址写入摄像头配置
@@ -122,7 +123,8 @@ async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
         raise HTTPException(
             status_code=504, detail='ONVIF 连接超时，请确认摄像头 IP 和端口是否正确'
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — OnvifClient 第三方库边界, 捕获所有非超时错误并转换为 500
+        logger.error(f'ONVIF 探测异常 [{mac}]: {e}')
         err_str = str(e).lower()
         if 'timeout' in err_str or 'timed out' in err_str:
             raise HTTPException(
@@ -181,21 +183,13 @@ async def start_recording(
         if 'fps' in request.overrides:
             params.fps = request.overrides['fps']
 
-    rtsp_url = camera.rtsp_url
-    if camera.onvif_user or camera.onvif_password:
-        parsed = urlparse(rtsp_url)
-        user = camera.onvif_user or ''
-        pwd = camera.onvif_password or ''
-        host = parsed.hostname or ''
-        netloc = f'{user}:{pwd}@{host}'
-        if parsed.port:
-            netloc += f':{parsed.port}'
-        rtsp_url = urlunparse(parsed._replace(netloc=netloc))
+    rtsp_url = _rtsp_with_creds(camera)
 
+    # Recording.started_at is a naive DateTime column; keep naive.
     rec = Recording(
         camera_mac=mac,
         file_path='(pending)',
-        started_at=datetime.now(),
+        started_at=datetime.now(),  # noqa: DTZ005
         status='recording',
     )
     db.add(rec)
@@ -205,7 +199,8 @@ async def start_recording(
 
     try:
         await recorder.start_recording(mac, rtsp_url, params)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — recorder 服务边界, 失败需回滚 DB 状态
+        logger.error(f'启动录制失败 [{mac}]: {e}')
         camera.is_recording = False
         rec.status = 'failed'
         rec.error_msg = str(e)
@@ -250,12 +245,13 @@ async def stop_recording(
 
     try:
         output_path = await recorder.stop_recording(mac)
-    except Exception as e:
-        logger.error(f'停止录制异常: {e}')
+    except Exception as e:  # noqa: BLE001 — recorder 服务边界, 停止失败不应中断后续清理
+        logger.error(f'停止录制异常 [{mac}]: {e}')
         output_path = None
 
     camera.is_recording = False
-    ended_at = datetime.now()
+    # Recording.ended_at is a naive DateTime column; keep naive.
+    ended_at = datetime.now()  # noqa: DTZ005
 
     if pending_row_id:
         rec_result = await db.execute(select(Recording).where(Recording.id == pending_row_id))
@@ -274,8 +270,8 @@ async def stop_recording(
                     )
                     rec.file_path = str(dest)
                     rec.file_size = dest.stat().st_size if dest.exists() else None
-                except Exception as e:
-                    logger.error(f'手动停止后NAS同步失败: {e}')
+                except Exception as e:  # noqa: BLE001 — nas_syncer 服务边界, 同步失败回退到本地路径
+                    logger.error(f'手动停止后NAS同步失败 [{mac}]: {e}')
                     rec.file_path = str(output_path)
                     rec.file_size = output_path.stat().st_size if output_path.exists() else None
                 rec.status = 'completed'
@@ -356,6 +352,8 @@ async def _mjpeg_generate(rtsp_url: str):
             stderr=subprocess.DEVNULL,
         )
         proc_holder[0] = proc
+        if proc.stdout is None:
+            raise RuntimeError('ffmpeg subprocess 未提供 stdout 管道')
         buf = b''
         SOI, EOI = b'\xff\xd8', b'\xff\xd9'
         try:
@@ -378,7 +376,8 @@ async def _mjpeg_generate(rtsp_url: str):
                     future = asyncio.run_coroutine_threadsafe(queue.put(frame), loop)
                     try:
                         future.result(timeout=3)
-                    except Exception:
+                    except Exception as e:  # noqa: BLE001 — 跨线程 future, 客户端断开/超时统一静默退出
+                        logger.debug(f'MJPEG 帧推送中断: {e}')
                         return  # client disconnected or timeout
         finally:
             if proc.poll() is None:

@@ -46,10 +46,11 @@ def _make_recording_callback(request: Request, schedule: Schedule):
                 if parsed.port:
                     netloc += f':{parsed.port}'
                 rtsp_url = urlunparse(parsed._replace(netloc=netloc))
+            # RecordingModel.started_at is a naive DateTime column; keep naive.
             rec = RecordingModel(
                 camera_mac=camera_mac,
                 file_path='(pending)',
-                started_at=datetime.now(),
+                started_at=datetime.now(),  # noqa: DTZ005
                 status='recording',
             )
             db.add(rec)
@@ -61,7 +62,7 @@ def _make_recording_callback(request: Request, schedule: Schedule):
         # Resolve segment_seconds: overrides > preset > schedule field
         segment_seconds = schedule.segment_duration
         if schedule.preset_id:
-            preset = next((p for p in cam.presets if p.id == schedule.preset_id), None)
+            preset = next((p for p in cam.get_presets() if p.id == schedule.preset_id), None)
             if preset:
                 segment_seconds = preset.segment_duration
             else:
@@ -80,7 +81,7 @@ def _make_recording_callback(request: Request, schedule: Schedule):
                 rtsp_url=rtsp_url,
                 params=RecordingParams(segment_seconds=segment_seconds),
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — recorder 服务边界, 调度触发失败需回滚 DB
             logger.error(f'调度录制启动失败 {camera_mac}: {e}')
             async with AsyncSessionLocal() as db:
                 rec_db = (
@@ -135,7 +136,7 @@ async def create_schedule(body: ScheduleCreate, request: Request, db: DBDep, _: 
                 callback=callback,
             )
             logger.info(f'已注册调度任务: schedule_{schedule.id} ({schedule.cron_expr})')
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — APScheduler 第三方库边界, 注册失败不阻断 schedule 入库
             logger.error(f'APScheduler 注册失败 schedule_{schedule.id}: {e}')
     return schedule
 
@@ -180,7 +181,7 @@ async def update_schedule(
                 callback=callback,
             )
             logger.info(f'已更新调度任务: {job_id} ({schedule.cron_expr})')
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — APScheduler 第三方库边界, 更新失败不阻断 schedule 入库
             logger.error(f'APScheduler 注册失败 {job_id}: {e}')
     else:
         scheduler_service.remove_job(job_id)

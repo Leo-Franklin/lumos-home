@@ -93,7 +93,8 @@ async def lifespan(app: FastAPI):
         for rec in stuck_recs:
             rec.status = 'failed'
             rec.error_msg = '服务重启，录制中断'
-            rec.ended_at = datetime.now()
+            # naive on purpose: `DateTime` SQLite column stores local wall time
+            rec.ended_at = datetime.now()  # noqa: DTZ005
         for cam in stuck_cams:
             cam.is_recording = False
         if stuck_recs or stuck_cams:
@@ -154,7 +155,8 @@ async def lifespan(app: FastAPI):
                 rec = Recording(
                     camera_mac=mac,
                     file_path='(pending)',
-                    started_at=datetime.now(),
+                    # naive on purpose: `DateTime` SQLite column stores local wall time
+                    started_at=datetime.now(),  # noqa: DTZ005
                     status='recording',
                 )
                 _db.add(rec)
@@ -180,7 +182,7 @@ async def lifespan(app: FastAPI):
                 await recorder.start_recording(
                     mac, rtsp_url, RecordingParams(segment_seconds=segment_seconds)
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — recorder failure (ffmpeg/RTSP) must roll back DB row
                 logger.error(f'调度录制启动失败 {mac}: {e}')
                 async with AsyncSessionLocal() as _db:
                     rec_db = (
@@ -207,7 +209,7 @@ async def lifespan(app: FastAPI):
                 camera_mac=sched['camera_mac'],
                 callback=_trigger,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — one bad schedule must not abort the rest of the recovery loop
             logger.warning(f'恢复调度任务 schedule_{sched["id"]} 失败: {e}')
     logger.info(f'已从数据库恢复 {len(enabled_schedules)} 个调度任务')
     camera_health_checker = CameraHealthChecker(settings.camera_health_interval_seconds)

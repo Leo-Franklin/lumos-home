@@ -31,6 +31,8 @@ class OnvifClient:
         cam = self._get_camera()
         svc = cam.create_devicemgmt_service()
         info = svc.GetDeviceInformation()
+        if info is None:
+            raise ValueError(f'ONVIF GetDeviceInformation 返回空响应 {self.host}:{self.port}')
         return {
             'manufacturer': info.Manufacturer,
             'model': info.Model,
@@ -46,6 +48,8 @@ class OnvifClient:
         cam = self._get_camera()
         media = cam.create_media_service()
         profiles = media.GetProfiles()
+        if not profiles:
+            raise ValueError(f'ONVIF GetProfiles 返回空列表 {self.host}:{self.port}')
         if profile_index >= len(profiles):
             profile_index = 0
         token = profiles[profile_index].token
@@ -55,6 +59,8 @@ class OnvifClient:
                 'ProfileToken': token,
             }
         )
+        if uri is None:
+            raise ValueError(f'ONVIF GetStreamUri 返回空响应 {self.host}:{self.port}')
         return uri.Uri
 
     async def get_snapshot_uri(self) -> str:
@@ -65,8 +71,12 @@ class OnvifClient:
         cam = self._get_camera()
         media = cam.create_media_service()
         profiles = media.GetProfiles()
+        if not profiles:
+            raise ValueError(f'ONVIF GetProfiles 返回空列表 {self.host}:{self.port}')
         token = profiles[0].token
         uri = media.GetSnapshotUri({'ProfileToken': token})
+        if uri is None:
+            raise ValueError(f'ONVIF GetSnapshotUri 返回空响应 {self.host}:{self.port}')
         return uri.Uri
 
     async def get_profiles(self) -> list[dict]:
@@ -76,7 +86,7 @@ class OnvifClient:
     def _get_profiles_sync(self) -> list[dict]:
         cam = self._get_camera()
         media = cam.create_media_service()
-        profiles = media.GetProfiles()
+        profiles = media.GetProfiles() or []
         return [
             {
                 'index': i,
@@ -90,6 +100,6 @@ class OnvifClient:
         try:
             await self.get_device_info()
             return True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — any ONVIF/network/auth failure → unreachable
             logger.debug(f'ONVIF 不可达 {self.host}:{self.port}: {e}')
             return False

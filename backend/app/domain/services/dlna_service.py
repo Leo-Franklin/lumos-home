@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from loguru import logger
 
 SSDP_ADDR = '239.255.255.250'
@@ -61,7 +62,7 @@ def _ssdp_search_sync(timeout: float = 5.0) -> list[str]:
                     loc = line.split(':', 1)[1].strip()
                     if loc not in locations:
                         locations.append(loc)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — socket/multicast errors are non-fatal, callers get []
         logger.warning(f'SSDP 搜索异常: {e}')
     finally:
         sock.close()
@@ -82,7 +83,7 @@ async def fetch_device_info(location_url: str) -> dict | None:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(location_url)
             resp.raise_for_status()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — HTTP/timeout/connect are all treated as "not a renderer"
         logger.debug(f'获取设备描述失败 {location_url}: {e}')
         return None
 
@@ -96,7 +97,7 @@ async def fetch_device_info(location_url: str) -> dict | None:
             ET.register_namespace(prefix, uri)
         # Strip xmlns from root element only so child elements retain their namespace declarations
         xml_text = re.sub(r'^(<\s*root)\s+xmlns(?::[^=]+)?="[^"]+"', r'\1', resp.text)
-        root = ET.fromstring(xml_text)
+        root = safe_fromstring(xml_text)
         device = root.find('.//{urn:schemas-upnp-org:device-1-0}device')
         if device is None:
             return None
@@ -132,7 +133,7 @@ async def fetch_device_info(location_url: str) -> dict | None:
             return None  # Not a media renderer
 
         return info
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — malformed XML/encoding → treat as not a renderer
         logger.debug(f'解析设备描述 XML 失败 {location_url}: {e}')
         return None
 
@@ -177,13 +178,14 @@ class DLNAController:
         try:
             xml_text = await self._soap('GetTransportInfo', {'InstanceID': '0'})
             xml_text = re.sub(r'\s+xmlns(?::[^=]+)?="[^"]+"', '', xml_text)
-            root = ET.fromstring(xml_text)
+            root = safe_fromstring(xml_text)
             return {
                 'current_transport_state': root.findtext('.//CurrentTransportState') or 'UNKNOWN',
                 'current_transport_status': root.findtext('.//CurrentTransportStatus') or 'UNKNOWN',
                 'current_speed': root.findtext('.//CurrentSpeed') or '0',
             }
-        except Exception:
+        except Exception as e:  # noqa: BLE001 — transport info unavailable → return safe UNKNOWN
+            logger.debug(f'[DLNA] GetTransportInfo 失败: {e}')
             return {
                 'current_transport_state': 'UNKNOWN',
                 'current_transport_status': 'UNKNOWN',

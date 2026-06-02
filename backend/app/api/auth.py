@@ -55,10 +55,11 @@ async def register(
 
     # Generate verification token (24h)
     token = str(uuid.uuid4())
+    # EmailVerificationToken.expires_at is a naive DateTime column; keep naive.
     verification = EmailVerificationToken(
         user_id=user.id,
         token=token,
-        expires_at=datetime.now() + timedelta(hours=24),
+        expires_at=datetime.now() + timedelta(hours=24),  # noqa: DTZ005
     )
     db.add(verification)
     await db.commit()
@@ -86,7 +87,8 @@ async def verify_email(
     if not token_record:
         raise HTTPException(status_code=400, detail='Invalid or expired token')
 
-    if token_record.expires_at < datetime.now():
+    # EmailVerificationToken.expires_at is a naive DateTime column; compare naive.
+    if token_record.expires_at < datetime.now():  # noqa: DTZ005
         raise HTTPException(status_code=400, detail='Invalid or expired token')
 
     # Activate user
@@ -135,10 +137,11 @@ async def forgot_password(
     if user:
         # Generate reset token (15 min)
         token = str(uuid.uuid4())
+        # PasswordResetToken.expires_at is a naive DateTime column; keep naive.
         reset_token = PasswordResetToken(
             user_id=user.id,
             token=token,
-            expires_at=datetime.now() + timedelta(minutes=15),
+            expires_at=datetime.now() + timedelta(minutes=15),  # noqa: DTZ005
         )
         db.add(reset_token)
         await db.commit()
@@ -162,7 +165,8 @@ async def reset_password(
     )
     token_record = result.scalar_one_or_none()
 
-    if not token_record or token_record.expires_at < datetime.now():
+    # PasswordResetToken.expires_at is a naive DateTime column; compare naive.
+    if not token_record or token_record.expires_at < datetime.now():  # noqa: DTZ005
         raise HTTPException(status_code=400, detail='Invalid or expired token')
 
     # Update user password

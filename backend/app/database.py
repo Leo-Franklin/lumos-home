@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -79,11 +80,16 @@ async def init_db() -> None:
             'ALTER TABLE schedules ADD COLUMN overrides TEXT',
             'ALTER TABLE users ADD COLUMN github_id VARCHAR(64)',
             'ALTER TABLE users ADD COLUMN github_username VARCHAR(128)',
+            'ALTER TABLE recordings ADD COLUMN recording_id INTEGER',
+            'ALTER TABLE recordings ADD COLUMN segment_index INTEGER',
+            'CREATE INDEX IF NOT EXISTS ix_recordings_recording_id ON recordings(recording_id)',
+            'CREATE INDEX IF NOT EXISTS ix_recordings_segment_index ON recordings(segment_index)',
         ):
             try:
                 await conn.execute(text(stmt))
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 — DDL idempotency: any sqlite "already exists" or transient error
+                # DDL idempotency: column/index already exists is the common case
+                logger.debug(f'init_db DDL 跳过: {stmt!r} ({e})')
 
     # Backward compatibility: if users table is empty after migration,
     # create a superuser from ADMIN_USERNAME/ADMIN_PASSWORD env vars

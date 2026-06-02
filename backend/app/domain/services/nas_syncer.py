@@ -1,8 +1,27 @@
 import shutil
-from datetime import datetime
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
+
+
+def _copy_with_retry(src: str, dest: str, max_retries: int = 5) -> None:
+    """Copy file with retry for transient file locks (Windows)."""
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            shutil.copy2(src, dest)
+            return
+        except OSError as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                wait = 0.5 * (2**attempt)
+                logger.warning(
+                    f'文件被占用，{wait:.1f}s后重试 ({attempt + 1}/{max_retries}): {src}'
+                )
+                time.sleep(wait)
+    raise last_err  # type: ignore[misc]
 
 
 class NasSyncer:
@@ -31,7 +50,7 @@ class NasSyncer:
         }
 
     def sync_file(self, src: Path, camera_mac: str) -> Path:
-        date_dir = datetime.now().strftime('%Y-%m-%d')
+        date_dir = datetime.now(UTC).strftime('%Y-%m-%d')
         safe_mac = camera_mac.replace(':', '')
         relative = f'{safe_mac}/{date_dir}/{src.name}'
         if self.mode == 'local':
@@ -47,7 +66,7 @@ class NasSyncer:
         dest = self.local_storage_path / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f'本地存储: {src} → {dest}')
-        shutil.copy2(str(src), str(dest))
+        _copy_with_retry(str(src), str(dest))
         try:
             src.unlink()
         except OSError as e:
@@ -59,7 +78,7 @@ class NasSyncer:
         dest = self.mount_path / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f'NAS同步(mount): {src} → {dest}')
-        shutil.copy2(str(src), str(dest))
+        _copy_with_retry(str(src), str(dest))
         try:
             src.unlink()
         except OSError as e:
@@ -106,6 +125,6 @@ class NasSyncer:
                 )
                 return True
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — smbprotocol/socket/auth 边界,任意异常都视为不可达
             logger.error(f'NAS 健康检查失败: {e}')
             return False

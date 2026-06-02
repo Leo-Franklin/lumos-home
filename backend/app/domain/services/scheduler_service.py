@@ -41,8 +41,9 @@ class SchedulerService:
         try:
             self.scheduler.remove_job(job_id)
             logger.info(f'已删除计划: {job_id}')
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 — JobLookupError etc. when the job is already gone
+            # JobLookupError when the job is already gone — non-fatal
+            logger.debug(f'remove_job({job_id}) 跳过: {e}')
 
 
 scheduler_service = SchedulerService()

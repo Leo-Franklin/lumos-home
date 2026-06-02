@@ -9,6 +9,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
+from app.domain.services._bg import spawn_bg
 from app.models.device import Device
 from app.models.member import Member, MemberDevice, PresenceLog
 from app.services.ws_manager import ws_manager
@@ -49,6 +50,7 @@ class PresenceService:
         self._initialized = False
         self._auto_start_cb = None  # async (camera_mac: str) -> None
         self._auto_stop_cb = None  # async (camera_mac: str) -> None
+        self._bg_tasks: set[asyncio.Task] = set()
 
     async def start(self, auto_start_cb=None, auto_stop_cb=None):
         self._auto_start_cb = auto_start_cb
@@ -72,7 +74,7 @@ class PresenceService:
                 self._initialized = True
             except asyncio.CancelledError:
                 raise
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — keep polling alive across DB/ping/HTTP glitches
                 logger.error(f'PresenceService 轮询异常: {e}')
             await asyncio.sleep(self._poll_interval)
 
@@ -114,7 +116,7 @@ class PresenceService:
                         .scalars()
                         .all()
                     )
-                    device_data = [(d.ip, d.mac) for d in devices]
+                    device_data = [(d.ip, d.mac) for d in devices if d.ip is not None]
 
             # Ping: no DB connection held during network I/O
             is_home, triggered_mac = False, None
@@ -131,7 +133,8 @@ class PresenceService:
                     ).scalar_one_or_none()
                     if dev:
                         dev.is_online = True
-                        dev.last_seen = datetime.now()
+                        # naive on purpose: `DateTime` SQLite column stores local wall time
+                        dev.last_seen = datetime.now()  # noqa: DTZ005
                 elif device_data:
                     # All pings failed — mark this member's bound devices offline
                     bound_macs = [mac for _, mac in device_data]
@@ -162,12 +165,13 @@ class PresenceService:
                     return
                 await self._fire_event(session, member, is_home, triggered_mac)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — one member's failure must not abort the batch
             logger.warning(f'检测成员 {snap.get("name", snap.get("id"))} 失败: {e}')
 
     async def _fire_event(self, session, member: Member, is_home: bool, triggered_mac: str | None):
         event = 'arrived' if is_home else 'left'
-        now = datetime.now()
+        # naive on purpose: PresenceLog.occurred_at is a `DateTime` SQLite column
+        now = datetime.now()  # noqa: DTZ005
 
         member.is_home = is_home
         if is_home:
@@ -205,7 +209,7 @@ class PresenceService:
         if auto_cams:
             if is_home and self._auto_start_cb:
                 for cam_mac in auto_cams:
-                    asyncio.create_task(self._auto_start_cb(cam_mac))
+                    spawn_bg(self._auto_start_cb(cam_mac), self._bg_tasks)
             elif not is_home and self._auto_stop_cb:
                 await self._trigger_auto_stop(session, member, auto_cams)
 
@@ -228,7 +232,7 @@ class PresenceService:
                 for m in other_home
             )
             if not other_wants and self._auto_stop_cb:
-                asyncio.create_task(self._auto_stop_cb(cam_mac))
+                spawn_bg(self._auto_stop_cb(cam_mac), self._bg_tasks)
 
     async def _ping_ip(self, ip: str) -> bool:
         try:
@@ -246,7 +250,10 @@ class PresenceService:
                 ),
             )
             return result == 0
-        except (TimeoutError, Exception):
+        except OSError as e:
+            # subprocess failure (CalledProcessError/TimeoutExpired are OSError subclasses)
+            # or socket-level error — host unreachable / no ICMP reply
+            logger.debug(f'[Presence] ping {ip} 失败: {e}')
             return False
 
     async def _send_webhook(
@@ -268,7 +275,7 @@ class PresenceService:
                         'timestamp': ts.isoformat(),
                     },
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — webhook is best-effort, never block presence on its failure
             logger.warning(f'Webhook 发送失败 ({url}): {e}')
 
 

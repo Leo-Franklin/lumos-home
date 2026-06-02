@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from loguru import logger
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -78,7 +79,9 @@ class Camera(Base):
         try:
             parsed = json.loads(str(self.recording_presets))
             return [RecordingPreset.from_dict(p) for p in parsed]
-        except Exception:
+        except (ValueError, TypeError) as e:
+            # Malformed legacy JSON in DB → treat as no presets rather than crashing callers
+            logger.warning(f'[Camera {self.device_mac}] 解析 recording_presets 失败: {e}')
             return []
 
     def set_presets(self, presets: list[RecordingPreset]):

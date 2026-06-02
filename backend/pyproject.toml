@@ -26,6 +26,7 @@ dependencies = [
     "smbprotocol>=1.16.1",
     "sqlalchemy[asyncio]>=2.0.49",
     "uvicorn[standard]>=0.46.0",
+    "defusedxml>=0.7.1",
 ]
 
 [project.scripts]
@@ -54,9 +55,34 @@ line-length = 100
 indent-width = 4
 
 [tool.ruff.lint]
-# TODO: enable B904, B008, B023, E731, F403, F821, F841, E402, DTZ incrementally
-select = ["E", "F", "I", "COM", "FIX", "UP", "C4", "T10", "ISC"]
+# Enabled incrementally — items listed in `select` are the active gate.
+# When adding a new rule family, fix existing violations in the same commit.
+select = [
+    "E", "F", "I", "COM", "FIX", "UP", "C4", "T10", "ISC",
+    "BLE",      # blind-except — must log or use specific type
+    "DTZ",      # datetime tz — naive datetime requires explicit noqa with reason
+    "S110",     # try-except-pass without log — see test_no_silent_except.py
+    "S314",     # untrusted XML parsing — use defusedxml
+    "RUF006",   # asyncio.create_task without reference — see _bg.spawn_bg
+    "ASYNC240", # blocking pathlib in async — wrap with asyncio.to_thread
+]
 ignore = ["E501", "COM812", "ISC001", "F403", "F841", "E402", "B904", "B008", "B023", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use deterministic naive datetimes, blocking IO in async,
+# and broad except for mock fallbacks — these rules are app/-only.
+"tests/**" = [
+    "DTZ001",   # datetime() without tzinfo — naive constants are idiomatic in tests
+    "DTZ005",   # datetime.now() without tz — same
+    "DTZ006",   # datetime.fromtimestamp() — same
+    "BLE001",   # broad except — common in test mocks/fallbacks
+    "ASYNC230", # blocking open() in async — fine for test fixtures
+    "ASYNC240", # blocking pathlib in async — fine for test fixtures
+    "S101",     # assert — that's the entire point of pytest
+    "S110",     # except: pass — common in test cleanup
+    "S105",     # hardcoded password — test fixtures use literal credentials
+    "S106",     # hardcoded password func arg — same
+]
 
 [tool.ruff.format]
 quote-style = "single"

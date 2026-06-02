@@ -53,7 +53,9 @@ async def recording_calendar(
     _: CurrentUser,
     range_str: str = Query('90d', alias='range'),
 ):
-    since = datetime.now() - timedelta(days=_days(range_str))
+    # Recording.started_at is a naive DateTime column (no tzinfo=True in model);
+    # comparing against a tz-aware datetime would raise TypeError. Keep naive.
+    since = datetime.now() - timedelta(days=_days(range_str))  # noqa: DTZ005
     result = await db.execute(
         select(
             func.strftime('%Y-%m-%d', Recording.started_at).label('date'),
@@ -72,7 +74,8 @@ async def new_devices(
     _: CurrentUser,
     range_str: str = Query('90d', alias='range'),
 ):
-    since = datetime.now() - timedelta(days=_days(range_str))
+    # Device.created_at is a naive DateTime column; keep naive for comparison.
+    since = datetime.now() - timedelta(days=_days(range_str))  # noqa: DTZ005
     result = await db.execute(
         select(
             func.strftime('%Y-W%W', Device.created_at).label('period'),
@@ -94,7 +97,8 @@ async def online_trend(
     _: CurrentUser,
     range_str: str = Query('7d', alias='range'),
 ):
-    since = datetime.now() - timedelta(days=_days(range_str))
+    # DeviceOnlineLog.bucket_hour is a naive DateTime column; keep naive.
+    since = datetime.now() - timedelta(days=_days(range_str))  # noqa: DTZ005
 
     # Per hour bucket: count distinct devices with online_count > 0
     subq = (
@@ -128,7 +132,8 @@ async def device_stability(
     _: CurrentUser,
     range_str: str = Query('7d', alias='range'),
 ):
-    since = datetime.now() - timedelta(days=_days(range_str))
+    # DeviceOnlineLog.bucket_hour is a naive DateTime column; keep naive.
+    since = datetime.now() - timedelta(days=_days(range_str))  # noqa: DTZ005
 
     agg = await db.execute(
         select(
@@ -165,7 +170,8 @@ async def type_activity(
     _: CurrentUser,
     range_str: str = Query('7d', alias='range'),
 ):
-    since = datetime.now() - timedelta(days=_days(range_str))
+    # DeviceOnlineLog.bucket_hour is a naive DateTime column; keep naive.
+    since = datetime.now() - timedelta(days=_days(range_str))  # noqa: DTZ005
 
     result = await db.execute(
         select(

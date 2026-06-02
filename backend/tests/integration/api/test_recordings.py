@@ -319,10 +319,11 @@ async def test_recording_stats_empty(client):
 
 @pytest.mark.asyncio
 async def test_recording_stats_with_data(client, mem_db):
-    from datetime import timedelta
+    from datetime import UTC, timedelta
 
-    # Use recent dates so they fall within the stats range window
-    now = datetime.utcnow()
+    # Use recent dates so they fall within the stats range window.
+    # tz-aware UTC to avoid deprecated utcnow() (Python 3.12+).
+    now = datetime.now(UTC).replace(tzinfo=None)
     recent1 = now - timedelta(days=1)
     recent2 = now - timedelta(days=2)
 
@@ -842,7 +843,9 @@ async def test_open_folder_popen_error(client, mem_db):
         p = MagicMock()
         p.exists.return_value = True
         mock_path_cls.return_value = p
-        mock_popen.side_effect = RuntimeError('no explorer')
+        # FileNotFoundError (OSError) is what subprocess.Popen actually raises
+        # when the executable (e.g. explorer.exe) is missing on PATH.
+        mock_popen.side_effect = FileNotFoundError(2, 'No such file or directory', 'explorer.exe')
 
         resp = await client.post(f'/api/v1/recordings/{rec_id}/open-folder')
 

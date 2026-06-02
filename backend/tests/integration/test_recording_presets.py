@@ -736,7 +736,7 @@ def test_schedule_callback_uses_preset_segment_duration():
             mock_cam.onvif_user = None
             mock_cam.onvif_password = None
             mock_cam.is_recording = False
-            mock_cam.presets = cam.get_presets()
+            mock_cam.get_presets = MagicMock(return_value=cam.get_presets())
 
             mock_db = AsyncMock()
             mock_db.__aenter__ = AsyncMock(return_value=mock_db)
@@ -759,8 +759,7 @@ def test_schedule_callback_uses_preset_segment_duration():
     call_args = mock_recorder.start_recording.call_args
     # Called with keyword args: camera_mac=..., rtsp_url=..., params=...
     assert call_args.kwargs.get('params').segment_seconds == 60, (
-        f'Expected preset segment_duration=60, got params.segment_seconds={call_args.kwargs.get("params").segment_seconds}. '
-        'BUG: _make_recording_callback does not look up cam.presets, uses schedule.segment_duration=1800 instead'
+        f'Expected preset segment_duration=60, got params.segment_seconds={call_args.kwargs.get("params").segment_seconds}'
     )
 
 
@@ -802,7 +801,7 @@ def test_schedule_callback_overrides_takes_precedence_over_preset():
             mock_cam.onvif_user = None
             mock_cam.onvif_password = None
             mock_cam.is_recording = False
-            mock_cam.presets = cam.get_presets()
+            mock_cam.get_presets = MagicMock(return_value=cam.get_presets())
 
             mock_db = AsyncMock()
             mock_db.__aenter__ = AsyncMock(return_value=mock_db)

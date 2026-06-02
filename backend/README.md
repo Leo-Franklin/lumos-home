@@ -470,6 +470,15 @@ smart_home/backend/
 | DELETE | `/api/v1/recordings/{id}` | 删除录制记录及文件 |
 | POST | `/api/v1/recordings/{id}/open-folder` | 在 Windows 资源管理器中定位文件（仅 Windows） |
 
+**多段录制行为**
+
+每次 `POST /cameras/{mac}/record/start` 会启动一个 ffmpeg 进程，按 `segment_seconds`（默认 30 分钟，可在 request `overrides` 中覆盖）切片输出：
+
+- 5min10s + 60s 段 → 自动生成 6 个独立 mp4 文件
+- 数据库中存在 6 条 `Recording` 记录，`segment_index` 分别为 `0,1,2,3,4,5`，共享同一 `recording_id`（session id）
+- `GET /api/v1/recordings?camera_mac=XX` 通过分页可全部返回这 6 条
+- 用户停止录制时，最后一段（可能不完整）通过 `POST /cameras/{mac}/record/stop` 强制落盘
+
 ### 调度
 
 | 方法 | 路径 | 说明 |

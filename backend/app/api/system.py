@@ -4,6 +4,7 @@ import time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import exists, func, not_, select
 
@@ -37,7 +38,9 @@ def _check_ffmpeg() -> bool:
         try:
             result = subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=3)
             _ffmpeg_available = result.returncode == 0
-        except Exception:
+        except (OSError, subprocess.SubprocessError) as e:
+            # ffmpeg 不在 PATH 上 (FileNotFoundError) 或执行失败, 健康检查降级
+            logger.debug(f'ffmpeg 可用性检测失败: {e}')
             _ffmpeg_available = False
     return _ffmpeg_available
 

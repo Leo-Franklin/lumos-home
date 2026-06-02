@@ -1,9 +1,12 @@
+import asyncio
 import math
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
+from loguru import logger
 from sqlalchemy import func, select
 
 from app.config import get_settings
@@ -181,21 +184,21 @@ async def stream_recording(recording_id: int, request: Request, db: DBDep, _: St
 
     file_path = Path(recording.file_path)
     settings = get_settings()
-    storage_root = Path(settings.local_storage_path).resolve()
+    storage_root = await asyncio.to_thread(Path(settings.local_storage_path).resolve)
     # Reject relative paths — they resolve relative to CWD which may differ from storage_root
     if not file_path.is_absolute():
         raise HTTPException(status_code=403, detail='文件路径不合法')
     try:
-        resolved = file_path.resolve()
+        resolved = await asyncio.to_thread(file_path.resolve)
         if not resolved.is_relative_to(storage_root):
             raise HTTPException(status_code=403, detail='文件路径不合法')
     except ValueError:
         raise HTTPException(status_code=403, detail='文件路径不合法')
 
-    if not file_path.exists():
+    if not await asyncio.to_thread(file_path.exists):
         raise HTTPException(status_code=404, detail='文件不存在')
 
-    file_size = file_path.stat().st_size
+    file_size = (await asyncio.to_thread(file_path.stat)).st_size
     if file_size < 10 * 1024:
         raise HTTPException(status_code=422, detail='录像文件损坏或过小，无法播放')
     range_header = request.headers.get('range')
@@ -269,20 +272,20 @@ async def download_recording(recording_id: int, db: DBDep, _: StreamUser):
 
     file_path = Path(recording.file_path)
     settings = get_settings()
-    storage_root = Path(settings.local_storage_path).resolve()
+    storage_root = await asyncio.to_thread(Path(settings.local_storage_path).resolve)
     if not file_path.is_absolute():
         raise HTTPException(status_code=403, detail='文件路径不合法')
     try:
-        resolved = file_path.resolve()
+        resolved = await asyncio.to_thread(file_path.resolve)
         if not resolved.is_relative_to(storage_root):
             raise HTTPException(status_code=403, detail='文件路径不合法')
     except ValueError:
         raise HTTPException(status_code=403, detail='文件路径不合法')
 
-    if not file_path.exists():
+    if not await asyncio.to_thread(file_path.exists):
         raise HTTPException(status_code=404, detail='文件不存在')
 
-    file_size = file_path.stat().st_size
+    file_size = (await asyncio.to_thread(file_path.stat)).st_size
     filename = file_path.name
 
     def iter_full():
@@ -307,9 +310,9 @@ async def delete_recording(recording_id: int, db: DBDep, _: CurrentUser):
     if not recording:
         raise HTTPException(status_code=404, detail='录像不存在')
     file_path = Path(recording.file_path)
-    if file_path.exists():
+    if await asyncio.to_thread(file_path.exists):
         try:
-            file_path.unlink()
+            await asyncio.to_thread(file_path.unlink)
         except OSError as e:
             raise HTTPException(
                 status_code=409, detail=f'文件正在使用中，请先关闭播放器再删除：{e.strerror}'
@@ -321,7 +324,6 @@ async def delete_recording(recording_id: int, db: DBDep, _: CurrentUser):
 @router.post('/{recording_id}/open-folder')
 async def open_recording_folder(recording_id: int, db: DBDep, _: CurrentUser):
     """在服务器端打开录像文件所在的文件夹（仅 Windows）"""
-    import subprocess
 
     result = await db.execute(select(Recording).where(Recording.id == recording_id))
     recording = result.scalar_one_or_none()
@@ -329,7 +331,7 @@ async def open_recording_folder(recording_id: int, db: DBDep, _: CurrentUser):
         raise HTTPException(status_code=404, detail='录像不存在')
 
     file_path = Path(recording.file_path)
-    if not file_path.exists():
+    if not await asyncio.to_thread(file_path.exists):
         raise HTTPException(status_code=404, detail='文件不存在')
 
     try:
@@ -339,7 +341,8 @@ async def open_recording_folder(recording_id: int, db: DBDep, _: CurrentUser):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.error(f'打开文件夹失败 [{file_path}]: {e}')
         raise HTTPException(status_code=500, detail=f'打开文件夹失败：{e}')
 
     return {'message': 'ok'}

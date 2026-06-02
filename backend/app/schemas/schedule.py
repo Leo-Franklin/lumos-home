@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from loguru import logger
 from pydantic import BaseModel, field_validator
 
 
@@ -44,6 +45,8 @@ class ScheduleOut(BaseModel):
 
             try:
                 return json.loads(v)
-            except Exception:
+            except (ValueError, TypeError) as e:
+                # Malformed legacy overrides → expose as None to caller (no crash)
+                logger.warning(f'[ScheduleOut] 解析 overrides 失败: {e}')
                 return None
         return v

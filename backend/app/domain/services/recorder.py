@@ -105,7 +105,7 @@ class Recorder:
         recording_id: int | None = None,
         session_recording_id: int | None = None,
     ) -> RecordingTask:
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')  # noqa: DTZ005 - filename timestamp, not DB
         safe_mac = camera_mac.replace(':', '')
         suffix = '' if segment_index == 0 else f'_seg{segment_index}'
         output_path = self.temp_dir / f'{safe_mac}_{ts}{suffix}.mp4'
@@ -122,12 +122,12 @@ class Recorder:
             camera_mac=camera_mac,
             process=proc,
             output_path=output_path,
-            started_at=datetime.now(),
+            started_at=datetime.now(),  # noqa: DTZ005 - written to Recording.started_at (naive DateTime)
             segment_seconds=params.segment_seconds,
             rtsp_url=rtsp_url,
             recording_id=recording_id,
             session_recording_id=session_recording_id,
-            session_start=datetime.now(),
+            session_start=datetime.now(),  # noqa: DTZ005 - in-process only, kept consistent for subtraction
             segment_index=segment_index,
             params=params,
         )
@@ -139,7 +139,7 @@ class Recorder:
             return None
         try:
             return await self._create_next_recording_cb(camera_mac)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - injected callback may throw anything
             logger.error(f'[{camera_mac}] 创建续录记录失败: {exc}')
             return None
 
@@ -200,7 +200,7 @@ class Recorder:
             if self._on_complete_cb:
                 try:
                     await self._on_complete_cb(seg_task, keep_recording=False)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - injected callback may throw anything
                     logger.error(f'停止录制时持久化segment {seg_idx} 失败: {e}')
 
         task = self.active.pop(camera_mac, None)
@@ -217,8 +217,8 @@ class Recorder:
                 stderr_out = task.process.stderr.read(8192).decode(errors='replace').strip()
                 if stderr_out:
                     logger.debug(f'FFmpeg stderr [{camera_mac}]: {stderr_out[-300:]}')
-        except Exception:
-            pass
+        except OSError as e:
+            logger.debug(f'读取 FFmpeg stderr 失败 [{camera_mac}]: {e}')
 
         min_valid_bytes = 10 * 1024
         for attempt in range(5):
@@ -255,8 +255,8 @@ class Recorder:
                 proc.stdin.write(b'q')
                 proc.stdin.flush()
                 proc.stdin.close()
-        except Exception:
-            pass
+        except OSError as e:
+            logger.debug(f'向 FFmpeg stdin 发送 quit 信号失败: {e}')
         # Wait briefly for graceful exit
         try:
             proc.wait(timeout=3)
@@ -274,7 +274,7 @@ class Recorder:
     async def _monitor_loop(self):
         while True:
             await asyncio.sleep(10)
-            now = datetime.now()
+            now = datetime.now()  # noqa: DTZ005 - in-process only, kept naive for consistency with task.last_check
             finished = []
             stalled = []
             for mac, task in list(self.active.items()):
@@ -299,8 +299,8 @@ class Recorder:
                                 continue
                         task.last_bytes = current_bytes
                         task.last_check = now
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug(f'stall 检测异常 [{mac}]: {e}')
             # Handle stalled streams — kill then immediately restart new segment
             for mac, task in stalled:
                 logger.warning(f'[{mac}] RTSP流中断（90s无数据写入），终止segment并立即重启')
@@ -319,7 +319,7 @@ class Recorder:
                     should_continue = (
                         await self._should_continue_cb(mac) if self._should_continue_cb else True
                     )
-                except Exception:
+                except Exception:  # noqa: BLE001 - injected callback may throw anything
                     logger.warning(f'[{mac}] should_continue_cb 异常，降级为True')
                     should_continue = True
                 if not should_continue:
@@ -346,7 +346,7 @@ class Recorder:
                             if self._should_continue_cb
                             else False
                         )
-                    except Exception:
+                    except Exception:  # noqa: BLE001 - injected callback may throw anything
                         logger.warning(f'[{mac}] should_continue_cb 异常，降级为False')
                         should_continue = False
                     if should_continue:

@@ -52,7 +52,9 @@ def _local_ip() -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(('8.8.8.8', 80))
             return s.getsockname()[0]
-    except Exception:
+    except OSError as e:
+        # 无可用网络时（容器/防火墙）回落到 127.0.0.1，仍能播内网 DLNA
+        logger.debug(f'本机 IP 探测失败，回落 loopback: {e}')
         return '127.0.0.1'
 
 
@@ -77,7 +79,8 @@ async def _run_discover():
 
         new_count = 0
         async with AsyncSessionLocal() as db:
-            now = datetime.now()
+            # DLNADevice.last_seen is a naive DateTime column; keep naive.
+            now = datetime.now()  # noqa: DTZ005
             for info in found:
                 existing = (
                     await db.execute(select(DLNADevice).where(DLNADevice.udn == info['udn']))
@@ -98,7 +101,7 @@ async def _run_discover():
             'dlna_discover_completed', {'found': len(found), 'new': new_count}
         )
         logger.info(f'DLNA 发现完成: 找到 {len(found)} 台 MediaRenderer, 新增 {new_count} 台')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — 后台任务顶层兜底, 任何异常都需推送给前端避免 WS 静默
         logger.error(f'DLNA 发现失败: {e}')
         await ws_manager.broadcast('dlna_discover_completed', {'error': str(e)})
 
@@ -123,7 +126,8 @@ async def cast_url(body: CastRequest, db: DBDep, _: CurrentUser):
         ctrl = DLNAController(device.av_transport_url)  # type: ignore[arg-type]
         await ctrl.set_uri(body.media_url)
         await ctrl.play()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库, 投屏失败统一 502
+        logger.error(f'投屏失败 [{device.friendly_name}]: {e}')
         raise HTTPException(status_code=502, detail=f'投屏失败: {e}')
 
     await ws_manager.broadcast(
@@ -175,8 +179,9 @@ async def cast_file(
                 f.write(chunk)
     except HTTPException:
         raise
-    except Exception as e:
+    except OSError as e:
         dest.unlink(missing_ok=True)
+        logger.error(f'文件写入失败 [{dest}]: {e}')
         raise HTTPException(status_code=500, detail=f'文件写入失败: {e}')
 
     port = request.url.port or 8000
@@ -186,7 +191,8 @@ async def cast_file(
         ctrl = DLNAController(device.av_transport_url)  # type: ignore[arg-type]
         await ctrl.set_uri(media_url)
         await ctrl.play()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库, 文件投屏失败需清理临时文件
+        logger.error(f'文件投屏失败 [{device.friendly_name}]: {e}')
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=502, detail=f'投屏失败: {e}')
 
@@ -205,7 +211,7 @@ async def cast_file(
 
 async def _cleanup_media_file(path: Path, delay_seconds: int):
     await asyncio.sleep(delay_seconds)
-    path.unlink(missing_ok=True)
+    await asyncio.to_thread(path.unlink, missing_ok=True)
     logger.info(f'DLNA 临时文件已清理: {path.name}')
 
 
@@ -217,7 +223,8 @@ async def play(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
         await DLNAController(device.av_transport_url).play()  # type: ignore[arg-type]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库
+        logger.error(f'DLNA 播放失败 [{device.friendly_name}]: {e}')
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -226,7 +233,8 @@ async def pause(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
         await DLNAController(device.av_transport_url).pause()  # type: ignore[arg-type]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库
+        logger.error(f'DLNA 暂停失败 [{device.friendly_name}]: {e}')
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -235,7 +243,8 @@ async def stop(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
         await DLNAController(device.av_transport_url).stop()  # type: ignore[arg-type]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库
+        logger.error(f'DLNA 停止失败 [{device.friendly_name}]: {e}')
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -244,7 +253,8 @@ async def get_status(device_id: int, db: DBDep, _: CurrentUser):
     device = await _require_renderer(device_id, db)
     try:
         return await DLNAController(device.av_transport_url).get_transport_info()  # type: ignore[arg-type]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — DLNAController 第三方库
+        logger.error(f'DLNA 状态查询失败 [{device.friendly_name}]: {e}')
         raise HTTPException(status_code=502, detail=str(e))
 
 

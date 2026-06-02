@@ -117,7 +117,8 @@ async def device_heatmap(
     device_type: str = Query(''),
 ):
     days = _HEATMAP_RANGE_DAYS.get(range_str, 7)
-    since = datetime.now() - timedelta(days=days)
+    # DeviceOnlineLog.bucket_hour is a naive DateTime column; keep naive.
+    since = datetime.now() - timedelta(days=days)  # noqa: DTZ005
 
     q = (
         select(

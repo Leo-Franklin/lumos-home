@@ -36,7 +36,7 @@ class CameraHealthChecker:
                 await self._check_all()
             except asyncio.CancelledError:
                 raise
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — keep the polling loop alive on any probe/DB error
                 logger.error(f'CameraHealthChecker 轮询异常: {e}')
             await asyncio.sleep(self._interval)
 
@@ -48,6 +48,7 @@ class CameraHealthChecker:
             snapshots = [
                 (cam.device_mac, cam.rtsp_url, cam.onvif_user, cam.onvif_password, cam.is_online)
                 for cam in cameras
+                if cam.rtsp_url is not None
             ]
         await asyncio.gather(
             *[
@@ -73,7 +74,8 @@ class CameraHealthChecker:
             ).scalar_one_or_none()
             if cam is None:
                 return
-            cam.last_probe_at = datetime.now()
+            # naive on purpose: `DateTime` SQLite column stores local wall time; see migrations
+            cam.last_probe_at = datetime.now()  # noqa: DTZ005
             cam.is_online = is_now_online
             # Keep Device.is_online in sync with Camera.is_online
             dev = (
@@ -126,5 +128,6 @@ class CameraHealthChecker:
                 timeout=6,
             )
             return result.returncode == 0
-        except Exception:
+        except Exception as e:  # noqa: BLE001 — ffprobe failure is expected (network/auth/timeout)
+            logger.debug(f'[CameraHealth] _probe_rtsp 失败: {e}')
             return False

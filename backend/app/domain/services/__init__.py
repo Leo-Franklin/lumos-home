@@ -12,8 +12,7 @@ from app.domain.services.recorder import Recorder, RecordingTask
 from app.domain.services.recording_domain import RecordingDomainService
 from app.domain.services.scanner import Scanner
 from app.domain.services.scheduler_service import SchedulerService, scheduler_service
-from app.domain.services.ws_manager import ws_manager
-from app.services.ws_manager import WebSocketManager
+from app.domain.services.ws_manager import WebSocketManager, ws_manager
 
 __all__ = [
     'CameraHealthChecker',

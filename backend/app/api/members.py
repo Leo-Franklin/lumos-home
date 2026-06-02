@@ -187,7 +187,8 @@ async def get_member_stats(
         _not_found()
 
     days = 30 if range_ == '30d' else 7
-    now = datetime.now()
+    # PresenceLog.occurred_at is a naive DateTime column; keep naive.
+    now = datetime.now()  # noqa: DTZ005
     start_dt = now - timedelta(days=days)
 
     # Determine if member was already home at start_dt

@@ -26,6 +26,7 @@ try:
 
     _SCAPY_AVAILABLE = True
 except ImportError:
+    ARP = Ether = srp = None  # type: ignore[assignment]
     _SCAPY_AVAILABLE = False
 
 try:
@@ -33,6 +34,7 @@ try:
 
     _MAC_LOOKUP_AVAILABLE = True
 except ImportError:
+    AsyncMacLookup = None
     _MAC_LOOKUP_AVAILABLE = False
 
 
@@ -49,8 +51,8 @@ def _detect_prefix_length(local_ip: str) -> int:
                 if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000, 0x0):
                     netmask_str = socket.inet_ntoa(struct.pack('>I', mask_int))
                     return ipaddress.IPv4Network(f'0.0.0.0/{netmask_str}').prefixlen
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+            logger.debug(f'scapy 路由表前缀解析失败 {local_ip}: {e}')
 
     # Method 2: platform commands
     try:
@@ -71,8 +73,8 @@ def _detect_prefix_length(local_ip: str) -> int:
                 m = re.search(rf'\b{re.escape(local_ip)}/(\d+)\b', line)
                 if m:
                     return int(m.group(1))
-    except Exception:
-        pass
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.debug(f'平台命令解析前缀长度失败 {local_ip}: {e}')
 
     return 24  # safe fallback
 
@@ -87,7 +89,7 @@ def detect_local_network() -> str:
         network = ipaddress.ip_network(f'{local_ip}/{prefix_len}', strict=False)
         logger.info(f'自动检测网段: {network} (本机 IP: {local_ip}, 掩码 /{prefix_len})')
         return str(network)
-    except Exception as e:
+    except OSError as e:
         logger.warning(f'网段自动检测失败，回退到 192.168.1.0/24: {e}')
         return '192.168.1.0/24'
 
@@ -338,7 +340,7 @@ class Scanner:
 
     def __init__(self, network: str):
         self.network = detect_local_network() if network.strip().lower() == 'auto' else network
-        self._mac_lookup = AsyncMacLookup() if _MAC_LOOKUP_AVAILABLE else None
+        self._mac_lookup = AsyncMacLookup() if AsyncMacLookup is not None else None
 
     async def arp_scan(self) -> list[dict]:
         loop = asyncio.get_running_loop()
@@ -352,7 +354,7 @@ class Scanner:
                 for d in await loop.run_in_executor(None, self._arp_scan_sync):
                     seen[d['mac']] = d
                 logger.info(f'Scapy ARP broadcast 发现 {len(seen)} 台设备')
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - scapy third-party boundary
                 logger.warning(f'Scapy ARP 失败，回退 ping sweep: {e}')
 
         if not seen:
@@ -375,6 +377,8 @@ class Scanner:
         return result
 
     def _arp_scan_sync(self) -> list[dict]:
+        if Ether is None or ARP is None or srp is None:
+            raise RuntimeError('scapy 不可用，无法执行 ARP broadcast 扫描')
         pkt = Ether(dst='ff:ff:ff:ff:ff:ff') / ARP(pdst=self.network)
         answered, _ = srp(pkt, timeout=2, verbose=0)
         return [{'ip': rcv.psrc, 'mac': rcv.hwsrc.upper()} for _, rcv in answered]
@@ -409,7 +413,7 @@ class Scanner:
         """Parse the OS ARP cache via `arp -a`."""
         try:
             out = subprocess.check_output(['arp', '-a'], text=True, timeout=10)
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             logger.warning(f'arp -a 失败: {e}')
             return []
         results: list[dict] = []
@@ -438,8 +442,8 @@ class Scanner:
             mac = self._get_local_mac(local_ip)
             if mac:
                 return {'ip': local_ip, 'mac': mac, 'is_local': True}
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 - mix of socket IO + scapy third-party
+            logger.debug(f'获取本机 IP/MAC 失败: {e}')
         return None
 
     def _get_local_mac(self, local_ip: str) -> str | None:
@@ -453,8 +457,8 @@ class Scanner:
                         mac = get_if_hwaddr(iface_name)
                         if mac and mac != '00:00:00:00:00:00':
                             return mac.upper()
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+                logger.debug(f'scapy 接口 MAC 查询失败 {local_ip}: {e}')
 
         try:
             if sys.platform == 'win32':
@@ -482,8 +486,8 @@ class Scanner:
                     )
                     if mac_match:
                         return mac_match.group(1).upper()
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.debug(f'命令解析本机 MAC 失败 {local_ip}: {e}')
         return None
 
     async def resolve_hostname(self, ip: str) -> str | None:
@@ -500,7 +504,7 @@ class Scanner:
                 return hostname
             finally:
                 socket.setdefaulttimeout(old_timeout)
-        except Exception:
+        except OSError:
             return None
 
     async def measure_latency(self, ip: str) -> float | None:
@@ -520,8 +524,8 @@ class Scanner:
             m = re.search(pattern, result.stdout, re.IGNORECASE)
             if m:
                 return float(m.group(1))
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.debug(f'ping 延迟测量失败 {ip}: {e}')
         return None
 
     async def lookup_vendor(self, mac: str) -> str:
@@ -529,7 +533,7 @@ class Scanner:
             return 'Unknown'
         try:
             return await self._mac_lookup.lookup(mac)
-        except Exception:
+        except Exception:  # noqa: BLE001 - mac_vendor_lookup third-party boundary
             return 'Unknown'
 
     # Camera-relevant ports: RTSP(554), ONVIF-standard(2020), Hikvision/Dahua HTTP(80,8080),
@@ -547,10 +551,10 @@ class Scanner:
                 writer.close()
                 try:
                     await writer.wait_closed()
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug(f'asyncio writer 关闭异常 {ip}:{port}: {e}')
                 return port
-            except Exception:
+            except OSError:
                 return None
 
         results = await asyncio.gather(*[_check(p) for p in self._PROBE_PORTS])
@@ -571,7 +575,7 @@ class Scanner:
                 for proto in nm[ip].all_protocols():
                     ports.extend(nm[ip][proto].keys())
             return ports
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - nmap third-party boundary
             logger.debug(f'nmap 探测失败 {ip}: {e}')
             return []
 
@@ -813,7 +817,7 @@ async def _run_scan(network_range: str):
                 mac: dev.last_seen for mac, dev in existing_map.items()
             }
 
-            now = datetime.now()
+            now = datetime.now()  # noqa: DTZ005 - Device.last_seen is DateTime (naive)
             for data in enriched:
                 mac = data['mac']
                 # Skip devices that are managed as Cameras — only update is_online/last_seen
@@ -890,15 +894,15 @@ async def _run_scan(network_range: str):
                             'first_seen': now.isoformat(),
                         },
                     )
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 - mixes SQLAlchemy + websockets, both can throw
+                logger.debug(f'写入未知设备广播失败: {e}')
 
             try:
                 bucket_hour = now.replace(minute=0, second=0, microsecond=0)
                 await _log_scan_result(db, enriched, bucket_hour)
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 - mixes SQLAlchemy + sqlite upsert paths
+                logger.debug(f'写入扫描结果日志失败: {e}')
 
         await ws_manager.broadcast('scan_completed', results)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level catch-all for entire scan flow
         await ws_manager.broadcast('scan_completed', {'error': str(e)})

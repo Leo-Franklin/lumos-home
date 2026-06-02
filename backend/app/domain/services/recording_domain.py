@@ -1,6 +1,7 @@
 import asyncio
 import shutil
 import socket
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +11,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
+from app.domain.services._bg import spawn_bg
 from app.domain.services.dlna_service import DLNAController
 from app.models.camera import Camera
 from app.models.dlna_device import DLNADevice
@@ -22,6 +24,7 @@ class RecordingDomainService:
     def __init__(self, nas_syncer: NasSyncer):
         self._nas_syncer = nas_syncer
         self._ws_manager = ws_manager
+        self._bg_tasks: set[asyncio.Task] = set()
 
     async def create_continued_recording(self, camera_mac: str) -> int | None:
         async with AsyncSessionLocal() as db:
@@ -34,7 +37,7 @@ class RecordingDomainService:
             rec = Recording(
                 camera_mac=camera_mac,
                 file_path='(pending)',
-                started_at=datetime.now(),
+                started_at=datetime.now(),  # noqa: DTZ005 - Recording.started_at is naive DateTime
                 status='recording',
             )
             db.add(rec)
@@ -58,20 +61,20 @@ class RecordingDomainService:
             )
             file_size = dest.stat().st_size if dest.exists() else None
             dest_str = str(dest)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - nas_syncer is custom module, may throw broadly
             logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
             dest_str = str(task.output_path)
             file_size = task.output_path.stat().st_size if task.output_path.exists() else None
 
-        ended_at = datetime.now()
+        ended_at = datetime.now()  # noqa: DTZ005 - Recording.ended_at is naive DateTime
 
         # Probe actual media duration; fallback to wall clock if unavailable
         actual_duration = None
         if task.output_path.exists():
             try:
                 actual_duration = await self._probe_duration(task.output_path)
-            except Exception:
-                pass
+            except (OSError, subprocess.SubprocessError) as e:
+                logger.debug(f'probe_duration on complete 失败 [{task.camera_mac}]: {e}')
         duration = (
             actual_duration
             if actual_duration
@@ -163,8 +166,8 @@ class RecordingDomainService:
                 d = json.loads(result.stdout)
                 dur = float(d['format'].get('duration', 0))
                 return int(dur) if dur > 0 else None
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.debug(f'ffprobe 失败 {path}: {e}')
         return None
 
     async def on_recording_failed(
@@ -173,14 +176,14 @@ class RecordingDomainService:
         """Handle recording failure: probe actual duration, treat as completed if >= 30s."""
         actual_duration = None
         dest_str = str(task.output_path)
+        loop = asyncio.get_running_loop()
 
         # Probe actual media duration from file
         if task.output_path.exists():
-            loop = asyncio.get_running_loop()
             try:
                 actual_duration = await self._probe_duration(task.output_path)
-            except Exception:
-                pass
+            except (OSError, subprocess.SubprocessError) as e:
+                logger.debug(f'probe_duration on failed 失败 [{task.camera_mac}]: {e}')
 
         session_id = task.session_recording_id or task.recording_id
 
@@ -188,7 +191,7 @@ class RecordingDomainService:
             # Determine status: ≥30s actual media = completed, <30s or no probe = failed
             actual_ok = actual_duration is not None and actual_duration >= 30
             status = 'completed' if actual_ok else 'failed'
-            ended_at = datetime.now()
+            ended_at = datetime.now()  # noqa: DTZ005 - Recording.ended_at is naive DateTime
             duration = actual_duration if actual_duration else 0
 
             # 幂等性检查：相同 recording_id + segment_index 的 segment 记录已存在则更新该条
@@ -221,7 +224,7 @@ class RecordingDomainService:
                         )
                         rec.file_path = str(sync_dest)
                         rec.file_size = sync_dest.stat().st_size if sync_dest.exists() else None
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - nas_syncer is custom module, may throw broadly
                         logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
                         rec.file_path = dest_str
                         rec.file_size = (
@@ -247,7 +250,7 @@ class RecordingDomainService:
                         )
                         file_path_val = str(sync_dest)
                         file_size_val = sync_dest.stat().st_size if sync_dest.exists() else None
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - nas_syncer is custom module, may throw broadly
                         logger.error(f'NAS同步失败 [{task.camera_mac}]: {e}')
                         file_path_val = dest_str
                         file_size_val = (
@@ -295,19 +298,19 @@ class RecordingDomainService:
     async def _cast_recording(self, av_transport_url: str, file_path: str, camera_mac: str):
         """Copy recording to dlna-media directory and cast to target DLNA device."""
         src = Path(file_path)
-        if not src.exists():
+        if not await asyncio.to_thread(src.exists):
             logger.warning(f'[A4] 投屏跳过，文件不存在: {file_path}')
             return
 
         media_dir = Path('data/dlna_media')
-        media_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(media_dir.mkdir, parents=True, exist_ok=True)
         fname = f'auto_{int(time.time())}_{src.name}'
         dest = media_dir / fname
 
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, lambda: shutil.copy2(src, dest))
-        except Exception as e:
+        except OSError as e:
             logger.error(f'[A4] 复制录制文件到 dlna_media 失败: {e}')
             return
 
@@ -315,7 +318,7 @@ class RecordingDomainService:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.connect(('8.8.8.8', 80))
                 local_ip = s.getsockname()[0]
-        except Exception:
+        except OSError:
             local_ip = '127.0.0.1'
 
         port = get_settings().server_port
@@ -326,7 +329,7 @@ class RecordingDomainService:
             await ctrl.set_uri(media_url)
             await ctrl.play()
             logger.info(f'[A4] 自动投屏成功: {camera_mac} → {media_url}')
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - DLNAController wraps third-party zeep/requests, may throw broadly
             logger.error(f'[A4] 自动投屏失败: {e}')
             return
 
@@ -335,4 +338,4 @@ class RecordingDomainService:
             dest.unlink(missing_ok=True)
             logger.info(f'[A4] DLNA 临时文件已清理: {fname}')
 
-        asyncio.create_task(_cleanup())
+        spawn_bg(_cleanup(), self._bg_tasks)

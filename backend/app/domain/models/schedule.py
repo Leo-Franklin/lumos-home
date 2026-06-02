@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from loguru import logger
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,7 +30,9 @@ class Schedule(Base):
             return None
         try:
             return json.loads(self.overrides)
-        except Exception:
+        except (ValueError, TypeError) as e:
+            # Malformed legacy overrides blob → fall back to schedule defaults
+            logger.warning(f'[Schedule {self.id}] 解析 overrides 失败: {e}')
             return None
 
     def set_overrides(self, data: dict | None):
