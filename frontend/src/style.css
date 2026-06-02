@@ -598,12 +598,12 @@ html, body {
 }
 
 .chart-tooltip {
-  background: var(--color-surface, #1e1e20);
-  border: 1px solid var(--color-border, #333);
+  background: var(--color-surface, #18181C);
+  border: 1px solid var(--color-border, #32323C);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary, #F4F4F6);
   line-height: 1.6;
   max-width: 220px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);

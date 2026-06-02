@@ -492,8 +492,8 @@ function handleFileRemove() {
   width: 42px;
   height: 42px;
   border-radius: var(--radius-md);
-  background: rgba(94, 92, 230, 0.10);
-  border: 1px solid rgba(94, 92, 230, 0.18);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   display: flex;
   align-items: center;
   justify-content: center;

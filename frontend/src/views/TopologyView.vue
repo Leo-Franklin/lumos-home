@@ -11,20 +11,22 @@ const { t } = useI18n()
 const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
+// Colors reference --color-type-* tokens (see src/style.css and chartColors.js).
+// d3 attr() accepts CSS var() strings; backgrounds use color-mix() to derive alpha tints.
 const TYPE_CONFIG = {
-  phone:         { color: '#F2C94C', label: '手机',    icon: '📱' },
-  computer:      { color: '#26C281', label: '电脑',    icon: '💻' },
-  camera:        { color: '#5E5CE6', label: '摄像头',  icon: '📷' },
-  iot:           { color: '#F07D38', label: 'IoT',     icon: '🔌' },
-  router:        { color: '#06B6D4', label: '路由器',  icon: '📡' },
-  tablet:        { color: '#D946EF', label: '平板',    icon: '📋' },
-  tv:            { color: '#7C3AED', label: '电视',    icon: '📺' },
-  printer:       { color: '#14B8A6', label: '打印机',  icon: '🖨️' },
-  smart_speaker: { color: '#A3E635', label: '智能音箱', icon: '🔊' },
-  game_console:  { color: '#EF4444', label: '游戏机',  icon: '🎮' },
-  nas:           { color: '#60A5FA', label: 'NAS',     icon: '🗄️' },
-  wearable:      { color: '#FB7185', label: '可穿戴',  icon: '⌚' },
-  unknown:       { color: '#8B8B96', label: '未知',    icon: '⬡'  },
+  phone:         { color: 'var(--color-type-phone)',         label: '手机',    icon: '📱' },
+  computer:      { color: 'var(--color-type-computer)',      label: '电脑',    icon: '💻' },
+  camera:        { color: 'var(--color-type-camera)',        label: '摄像头',  icon: '📷' },
+  iot:           { color: 'var(--color-type-iot)',           label: 'IoT',     icon: '🔌' },
+  router:        { color: 'var(--color-type-router)',        label: '路由器',  icon: '📡' },
+  tablet:        { color: 'var(--color-type-tablet)',        label: '平板',    icon: '📋' },
+  tv:            { color: 'var(--color-type-tv)',            label: '电视',    icon: '📺' },
+  printer:       { color: 'var(--color-type-printer)',       label: '打印机',  icon: '🖨️' },
+  smart_speaker: { color: 'var(--color-type-smart-speaker)', label: '智能音箱', icon: '🔊' },
+  game_console:  { color: 'var(--color-type-game-console)',  label: '游戏机',  icon: '🎮' },
+  nas:           { color: 'var(--color-type-nas)',           label: 'NAS',     icon: '🗄️' },
+  wearable:      { color: 'var(--color-type-wearable)',      label: '可穿戴',  icon: '⌚' },
+  unknown:       { color: 'var(--color-type-unknown)',       label: '未知',    icon: '⬡'  },
 }
 
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown
@@ -273,20 +275,20 @@ function renderGraph() {
   // ── Gateway node (center) ──
   const gwG = g.append('g').attr('class', 'gateway')
   gwG.append('circle')
-    .attr('r', 38).attr('fill', '#5E5CE6').attr('opacity', 0.07)
+    .attr('r', 38).attr('fill', 'var(--color-primary)').attr('opacity', 0.07)
     .attr('filter', 'url(#topo-glow)')
   gwG.append('circle')
-    .attr('r', 24).attr('fill', '#1a1a2e')
-    .attr('stroke', '#5E5CE6').attr('stroke-width', 2)
+    .attr('r', 24).attr('fill', 'var(--color-bg)')
+    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 2)
   gwG.append('circle')
     .attr('r', 30).attr('fill', 'none')
-    .attr('stroke', '#5E5CE6').attr('stroke-width', 1).attr('opacity', 0.2)
+    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 1).attr('opacity', 0.2)
   gwG.append('text')
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
     .attr('font-size', '18px').attr('pointer-events', 'none').text('🏠')
   gwG.append('text')
     .attr('y', 40).attr('text-anchor', 'middle')
-    .attr('font-size', '11px').attr('fill', '#9898b8').attr('font-weight', 600)
+    .attr('font-size', '11px').attr('fill', 'var(--color-text-secondary)').attr('font-weight', 600)
     .attr('pointer-events', 'none').text(t('topology.gatewayLabel'))
 
   if (activeTypes.value.length > 0) updateNodeOpacity()
@@ -306,7 +308,7 @@ function resetZoom() {
 
 // ── Helpers ───────────────────────────────────────────────
 function latencyColor(ms) {
-  return ms < 5 ? '#26C281' : ms < 30 ? '#F2C94C' : '#F07D38'
+  return ms < 5 ? 'var(--color-online)' : ms < 30 ? 'var(--color-scanning)' : 'var(--color-warning)'
 }
 
 function formatTime(v) {
@@ -413,7 +415,7 @@ onMounted(loadTopology)
           <div class="panel-head">
             <span
               class="type-badge"
-              :style="{ background: typeOf(selected).color + '20', color: typeOf(selected).color }"
+              :style="{ background: `color-mix(in srgb, ${typeOf(selected).color} 12%, transparent)`, color: typeOf(selected).color }"
             >
               {{ typeOf(selected).icon }} {{ $t(`common.deviceTypes.${selected.device_type || 'unknown'}`) }}
             </span>
@@ -490,7 +492,7 @@ onMounted(loadTopology)
   color: var(--color-text-muted);
 }
 .scanning-tag {
-  color: #F2C94C;
+  color: var(--color-scanning);
   animation: blink 1.2s ease-in-out infinite;
   margin-left: 6px;
 }
@@ -499,8 +501,8 @@ onMounted(loadTopology)
   50% { opacity: 0.35 }
 }
 @keyframes breathe {
-  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); }
-  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(38, 194, 129, 0.8); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
+  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
 }
 .header-actions {
   display: flex;
@@ -535,7 +537,7 @@ onMounted(loadTopology)
 .node-tooltip {
   position: absolute;
   pointer-events: none;
-  background: rgba(20, 20, 36, 0.92);
+  background: var(--color-surface-overlay);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 5px 9px;
@@ -546,7 +548,7 @@ onMounted(loadTopology)
   gap: 5px;
   z-index: 10;
   backdrop-filter: blur(4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-md);
 }
 .tt-name   { color: var(--color-text-primary); font-weight: 500; }
 .tt-sep    { color: var(--color-text-muted); }
@@ -711,7 +713,7 @@ onMounted(loadTopology)
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
+.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
 .status-dot.offline { background: var(--color-offline); }
 .latency {
   margin-left: auto;
@@ -775,7 +777,7 @@ onMounted(loadTopology)
 }
 .owner-avatar.home {
   border-color: var(--color-online);
-  background: rgba(38, 194, 129, 0.1);
+  background: var(--color-primary-subtle);
   color: var(--color-online);
 }
 .owner-avatar.away {
@@ -801,7 +803,7 @@ onMounted(loadTopology)
   font-weight: 600;
 }
 .tag-home {
-  background: rgba(38, 194, 129, 0.12);
+  background: var(--color-primary-subtle);
   color: var(--color-online);
 }
 .tag-away {

@@ -492,11 +492,11 @@ function cameraLabel(mac) {
 }
 
 .stat-tile--count::after   { background: var(--color-primary); }
-.stat-tile--duration::after { background: var(--color-online, #26C281); }
-.stat-tile--size::after    { background: var(--color-warning, #F07D38); }
+.stat-tile--duration::after { background: var(--color-online); }
+.stat-tile--size::after    { background: var(--color-warning); }
 
 .stat-tile:hover {
-  border-color: var(--color-border-subtle, #28282b);
+  border-color: var(--color-border-subtle);
   background: var(--color-surface-overlay);
 }
 
@@ -511,17 +511,17 @@ function cameraLabel(mac) {
   justify-content: center;
 }
 
-.stat-tile--count   .stat-icon-wrap { background: rgba(94, 92, 230, 0.12); }
-.stat-tile--duration .stat-icon-wrap { background: rgba(38, 194, 129, 0.12); }
-.stat-tile--size    .stat-icon-wrap { background: rgba(240, 125, 56, 0.12); }
+.stat-tile--count   .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-tile--duration .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-tile--size    .stat-icon-wrap { background: var(--color-primary-subtle); }
 
 .stat-icon {
   font-size: 18px;
 }
 
 .stat-tile--count   .stat-icon { color: var(--color-primary); }
-.stat-tile--duration .stat-icon { color: var(--color-online, #26C281); }
-.stat-tile--size    .stat-icon { color: var(--color-warning, #F07D38); }
+.stat-tile--duration .stat-icon { color: var(--color-online); }
+.stat-tile--size    .stat-icon { color: var(--color-warning); }
 
 /* text */
 .stat-body {
@@ -563,8 +563,8 @@ function cameraLabel(mac) {
 }
 
 .stat-glow--count    { background: var(--color-primary); }
-.stat-glow--duration { background: var(--color-online, #26C281); }
-.stat-glow--size     { background: var(--color-warning, #F07D38); }
+.stat-glow--duration { background: var(--color-online); }
+.stat-glow--size     { background: var(--color-warning); }
 
 /* empty hint */
 .stats-empty {
@@ -636,8 +636,8 @@ function cameraLabel(mac) {
 
 
 .action-btn--danger {
-  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);
   --el-button-hover-text-color: var(--color-error);
-  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+  --el-button-active-bg-color: rgba(239, 68, 68, 0.15);
 }
 </style>

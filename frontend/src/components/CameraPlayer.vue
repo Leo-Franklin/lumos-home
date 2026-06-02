@@ -105,11 +105,11 @@ onUnmounted(() => {
     </div>
     <div
       v-if="error"
-      style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #f56c6c; padding: 20px; text-align: center;"
+      style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-error); padding: 20px; text-align: center;"
     >
       <el-icon :size="40" style="margin-bottom: 12px;"><Warning /></el-icon>
       <span>{{ error }}</span>
-      <el-link v-if="mode === 'recorded'" :href="src" target="_blank" style="margin-top: 12px; color: #409eff; font-size: 12px;">{{ $t('cameras.openInNewTab') }}</el-link>
+      <el-link v-if="mode === 'recorded'" :href="src" target="_blank" style="margin-top: 12px; color: var(--el-color-primary); font-size: 12px;">{{ $t('cameras.openInNewTab') }}</el-link>
     </div>
   </div>
 </template>

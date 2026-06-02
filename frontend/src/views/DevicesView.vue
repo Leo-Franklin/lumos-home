@@ -81,21 +81,13 @@ const deviceTypeOptions = [
   'unknown',
 ]
 
-const filterOptions = [
-  { value: 'camera',        label: 'Camera',        hex: '#5E5CE6', rgba: 'rgba(94,92,230,' },
-  { value: 'computer',      label: 'Computer',      hex: '#26C281', rgba: 'rgba(38,194,129,' },
-  { value: 'phone',         label: 'Phone',         hex: '#F2C94C', rgba: 'rgba(242,201,76,' },
-  { value: 'iot',           label: 'IoT',           hex: '#F07D38', rgba: 'rgba(240,125,56,' },
-  { value: 'router',        label: 'Router',        hex: '#06B6D4', rgba: 'rgba(6,182,212,' },
-  { value: 'tablet',        label: 'Tablet',        hex: '#D946EF', rgba: 'rgba(217,70,239,' },
-  { value: 'tv',            label: 'TV',            hex: '#7C3AED', rgba: 'rgba(124,58,237,' },
-  { value: 'printer',       label: 'Printer',       hex: '#14B8A6', rgba: 'rgba(20,184,166,' },
-  { value: 'smart_speaker', label: 'Smart Speaker', hex: '#A3E635', rgba: 'rgba(163,230,53,' },
-  { value: 'game_console',  label: 'Game Console',  hex: '#EF4444', rgba: 'rgba(239,68,68,' },
-  { value: 'nas',           label: 'NAS',           hex: '#60A5FA', rgba: 'rgba(96,165,250,' },
-  { value: 'wearable',      label: 'Wearable',      hex: '#FB7185', rgba: 'rgba(251,113,133,' },
-  { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96', rgba: 'rgba(139,139,150,' },
-]
+// Filter chips reference --color-type-* tokens directly. FilterChip supports
+// `var(...)` strings and uses color-mix() to derive alpha tints.
+const filterOptions = deviceTypeOptions.map((value) => ({
+  value,
+  label: value,
+  color: `var(--color-type-${value})`,
+}))
 
 onMounted(() => {
   if (route.query.mac) {
@@ -152,7 +144,7 @@ onMounted(() => {
           :key="opt.value"
           :label="$t(`common.deviceTypes.${opt.value}`)"
           :active="devicesStore.filterTypes.includes(opt.value)"
-          :color="opt.hex"
+          :color="opt.color"
           @click="devicesStore.toggleFilter(opt.value)"
         />
       </div>
@@ -325,7 +317,7 @@ onMounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(38,194,129,.5); }
+.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(16,185,129,.5); }
 .detail-status-dot.offline { background: var(--color-offline); }
 .detail-title {
   font-size: 16px;

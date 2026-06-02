@@ -172,7 +172,7 @@ function formatTime(timestamp) {
   left: 0;
   right: var(--space-2);
   height: 40px;
-  background: linear-gradient(to top, rgba(24, 24, 28, 0.9), transparent);
+  background: linear-gradient(to top, var(--color-surface), transparent);
   pointer-events: none;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }

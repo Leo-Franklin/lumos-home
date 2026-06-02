@@ -1,17 +1,20 @@
+// Hex values mirror the --color-type-* tokens in src/style.css.
+// Keep this file in sync with :root { --color-type-* }.
+
 export const DEVICE_TYPE_COLORS = {
-  camera:        '#5E5CE6',
-  computer:      '#26C281',
-  phone:         '#F2C94C',
-  iot:           '#F07D38',
+  camera:        '#6366F1',
+  computer:      '#10B981',
+  phone:         '#F59E0B',
+  iot:           '#F97316',
   router:        '#06B6D4',
   tablet:        '#D946EF',
-  tv:            '#7C3AED',
+  tv:            '#8B5CF6',
   printer:       '#14B8A6',
-  smart_speaker: '#A3E635',
+  smart_speaker: '#84CC16',
   game_console:  '#EF4444',
-  nas:           '#60A5FA',
-  wearable:      '#FB7185',
-  unknown:       '#8B8B96',
+  nas:           '#3B82F6',
+  wearable:      '#EC4899',
+  unknown:       '#6B7280',
 }
 
 export const DEVICE_TYPE_LABELS = {

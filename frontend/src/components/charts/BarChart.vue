@@ -8,8 +8,8 @@ const props = defineProps({
   // grouped:               [{ label: string, [groupKey]: number }]
   data:    { type: Array,    default: () => [] },
   mode:    { type: String,   default: 'vertical' }, // 'vertical'|'horizontal'|'grouped'
-  color:   { type: String,   default: '#5E5CE6' },
-  // grouped only: [{ key: 'camera', color: '#5E5CE6', label: '摄像头' }, ...]
+  color:   { type: String,   default: 'var(--color-primary)' },
+  // grouped only: [{ key: 'camera', color: '#6366F1', label: '摄像头' }, ...]
   groups:  { type: Array,    default: () => [] },
   height:  { type: Number,   default: 200 },
   mini:    { type: Boolean,  default: false },
@@ -95,15 +95,15 @@ function renderVertical(svg, w, h) {
 
   svg.append('g').attr('transform', `translate(0,${h})`)
     .call(d3.axisBottom(x).tickSize(0))
-    .call((ax) => ax.select('.domain').attr('stroke', '#333'))
-    .selectAll('text').attr('fill', '#888').attr('font-size', 10)
+    .call((ax) => ax.select('.domain').attr('stroke', 'var(--color-border)'))
+    .selectAll('text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
 
   svg.append('g')
     .call(d3.axisLeft(y).ticks(4).tickSize(-w))
     .call((ax) => {
       ax.select('.domain').remove()
-      ax.selectAll('.tick line').attr('stroke', '#2a2a30').attr('stroke-dasharray', '3,3')
-      ax.selectAll('.tick text').attr('fill', '#888').attr('font-size', 10)
+      ax.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-dasharray', '3,3')
+      ax.selectAll('.tick text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
     })
 }
 
@@ -130,7 +130,7 @@ function renderHorizontal(svg, w, h) {
     .attr('height', y.bandwidth())
     .attr('width', w)
     .attr('rx', 3)
-    .attr('fill', 'rgba(255,255,255,0.03)')
+    .attr('fill', 'var(--color-surface-overlay)')
 
   // Value bar
   svg.selectAll('.bar').data(props.data).join('rect')
@@ -150,7 +150,7 @@ function renderHorizontal(svg, w, h) {
     .attr('y', (d) => y(d.label) + y.bandwidth() / 2 + 4)
     .attr('x', (d) => x(d.value) + 6)
     .attr('font-size', fontSize)
-    .attr('fill', '#888')
+    .attr('fill', 'var(--color-text-secondary)')
     .text((d) => d.valueLabel ?? d.value)
 
   if (props.mini) return
@@ -159,7 +159,7 @@ function renderHorizontal(svg, w, h) {
     .call(d3.axisLeft(y).tickSize(0).tickFormat(truncate))
     .call((ax) => ax.select('.domain').remove())
     .selectAll('text')
-    .attr('fill', '#aaa')
+    .attr('fill', 'var(--color-text-secondary)')
     .attr('font-size', fontSize)
 }
 
@@ -187,15 +187,15 @@ function renderGrouped(svg, w, h) {
 
   svg.append('g').attr('transform', `translate(0,${h})`)
     .call(d3.axisBottom(x0).tickSize(0))
-    .call((ax) => ax.select('.domain').attr('stroke', '#333'))
-    .selectAll('text').attr('fill', '#888').attr('font-size', 10)
+    .call((ax) => ax.select('.domain').attr('stroke', 'var(--color-border)'))
+    .selectAll('text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
 
   svg.append('g')
     .call(d3.axisLeft(y).ticks(4).tickSize(-w))
     .call((ax) => {
       ax.select('.domain').remove()
-      ax.selectAll('.tick line').attr('stroke', '#2a2a30').attr('stroke-dasharray', '3,3')
-      ax.selectAll('.tick text').attr('fill', '#888').attr('font-size', 10)
+      ax.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-dasharray', '3,3')
+      ax.selectAll('.tick text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
     })
 }
 

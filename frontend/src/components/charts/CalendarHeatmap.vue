@@ -5,7 +5,7 @@ import * as d3 from 'd3'
 
 const props = defineProps({
   data:   { type: Array,  default: () => [] }, // [{ date: 'YYYY-MM-DD', count: number, duration_seconds: number }]
-  color:  { type: String, default: '#5E5CE6' },
+  color:  { type: String, default: 'var(--color-primary)' },
   height: { type: Number, default: 120 },
 })
 
@@ -37,9 +37,12 @@ function renderChart() {
   const W = Math.max(containerRef.value.clientWidth || 0, ml + numWeeks * (cell + gap))
 
   const maxCount  = d3.max(props.data, (d) => d.count) || 1
+  // d3.interpolateRgb needs actual RGB values to do the math, so we resolve
+  // the color var on the page (it always equals --color-surface / --color-primary).
+  const baseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim() || '#18181C'
   const colorScale = d3.scaleSequential()
     .domain([0, maxCount])
-    .interpolator(d3.interpolateRgb('#1e1e28', props.color))
+    .interpolator(d3.interpolateRgb(baseColor, props.color.startsWith('var(') ? '#6366F1' : props.color))
 
   const svg = d3.select(svgRef.value)
     .append('svg').attr('width', W).attr('height', props.height)
@@ -49,7 +52,7 @@ function renderChart() {
     .data(['日', '二', '四', '六']).join('text')
     .attr('x', ml - 4)
     .attr('y', (_, i) => mt + [0, 2, 4, 6][i] * (cell + gap) + cell)
-    .attr('text-anchor', 'end').attr('font-size', 9).attr('fill', '#666')
+    .attr('text-anchor', 'end').attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
     .text((d) => d)
 
   // Month labels (first Sunday of each new month)
@@ -62,7 +65,7 @@ function renderChart() {
       svg.append('text')
         .attr('x', ml + wk * (cell + gap))
         .attr('y', mt - 4)
-        .attr('font-size', 9).attr('fill', '#666')
+        .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
         .text(d3.timeFormat('%m月')(d))
     }
   })
@@ -79,7 +82,7 @@ function renderChart() {
       .attr('x', ml + wk * (cell + gap))
       .attr('y', mt + dow * (cell + gap))
       .attr('width', cell).attr('height', cell).attr('rx', 2)
-      .attr('fill', count === 0 ? '#1e1e28' : colorScale(count))
+      .attr('fill', count === 0 ? 'var(--color-surface)' : colorScale(count))
       .style('cursor', 'pointer')
       .on('mousemove', (event) => {
         const dur = entry?.duration_seconds

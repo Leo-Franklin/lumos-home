@@ -30,12 +30,12 @@ const TYPE_OPTIONS = Object.entries(DEVICE_TYPE_LABELS).map(([value, label]) => 
 
 const DAYS_7 = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
-// Background shading bands by time of day
+// Background shading bands by time of day (rgba tints on the dark canvas)
 const TIME_BANDS = [
-  { start: 0,  end: 6,  label: '深夜', bg: 'rgba(30,20,50,0.55)'   },
-  { start: 6,  end: 12, label: '上午', bg: 'rgba(20,30,50,0.40)'   },
-  { start: 12, end: 18, label: '下午', bg: 'rgba(20,25,40,0.35)'   },
-  { start: 18, end: 24, label: '傍晚', bg: 'rgba(30,15,45,0.50)'   },
+  { start: 0,  end: 6,  label: '深夜', bg: 'rgba(99,102,241,0.06)' },
+  { start: 6,  end: 12, label: '上午', bg: 'rgba(99,102,241,0.04)' },
+  { start: 12, end: 18, label: '下午', bg: 'rgba(99,102,241,0.03)' },
+  { start: 18, end: 24, label: '傍晚', bg: 'rgba(99,102,241,0.05)' },
 ]
 
 // Derived summary stats shown in the toolbar
@@ -99,11 +99,12 @@ function renderChart() {
 
   const maxVal = d3.max(props.data, (d) => d.count) || 1
 
-  // Power-scale color interpolation — amplifies sparse data so even count=1 is clearly visible
+  // Power-scale color interpolation — amplifies sparse data so even count=1 is clearly visible.
+  // Endpoints are interpolation anchors (d3 requires real RGB values).
   const colorScale = (v) => {
     if (v === 0) return null
     const t = Math.pow(v / maxVal, 0.4)
-    return d3.interpolateRgb('#2a1f5e', '#5E5CE6')(t)
+    return d3.interpolateRgb('#1e1e40', '#6366F1')(t)
   }
 
   // ── Defs: gradient for color legend ──────────────────
@@ -114,7 +115,7 @@ function renderChart() {
     const t = Math.pow(i / 10, 0.4)
     grad.append('stop')
       .attr('offset', `${i * 10}%`)
-      .attr('stop-color', d3.interpolateRgb('#2a1f5e', '#5E5CE6')(t))
+      .attr('stop-color', d3.interpolateRgb('#1e1e40', '#6366F1')(t))
   })
 
   // ── Time-band background zones ────────────────────────
@@ -138,7 +139,7 @@ function renderChart() {
       .attr('y', mt - 20)
       .attr('text-anchor', 'middle')
       .attr('font-size', 9)
-      .attr('fill', '#4a4a5a')
+      .attr('fill', 'var(--color-text-muted)')
       .attr('letter-spacing', '0.06em')
       .text(label)
   })
@@ -150,7 +151,7 @@ function renderChart() {
       .attr('y', mt - 8)
       .attr('text-anchor', 'middle')
       .attr('font-size', 9)
-      .attr('fill', '#555')
+      .attr('fill', 'var(--color-text-muted)')
       .text(h)
   })
 
@@ -161,7 +162,7 @@ function renderChart() {
       .attr('y', mt + i * (cell + pad) + cell / 2 + 4)
       .attr('text-anchor', 'end')
       .attr('font-size', 10)
-      .attr('fill', '#666')
+      .attr('fill', 'var(--color-text-muted)')
       .text(label)
   })
 
@@ -186,8 +187,8 @@ function renderChart() {
         .attr('x', x).attr('y', y)
         .attr('width', cell).attr('height', cell)
         .attr('rx', 3)
-        .attr('fill',         isActive ? fill : 'rgba(255,255,255,0.03)')
-        .attr('stroke',       isActive ? 'rgba(94,92,230,0.35)' : 'rgba(255,255,255,0.05)')
+        .attr('fill',         isActive ? fill : 'var(--color-surface-overlay)')
+        .attr('stroke',       isActive ? 'var(--color-primary-border)' : 'var(--color-border-subtle)')
         .attr('stroke-width', isActive ? 1 : 0.5)
         .style('cursor', isActive ? 'pointer' : 'default')
         .on('mousemove', isActive ? (event) => {
@@ -196,7 +197,7 @@ function renderChart() {
             : `${DAYS_7[d.day ?? row]} ${d.hour}:00`
           const list = (d.devices || []).slice(0, 5).join('<br>')
           const more = (d.devices || []).length > 5
-            ? `<br><span style="color:#888">+${d.devices.length - 5} 台…</span>` : ''
+            ? `<br><span style="color:var(--color-text-muted)">+${d.devices.length - 5} 台…</span>` : ''
           tooltip
             .style('display', 'block')
             .style('left', event.clientX + 14 + 'px')
@@ -222,13 +223,13 @@ function renderChart() {
 
   svg.append('text')
     .attr('x', ml).attr('y', legendY + 17)
-    .attr('font-size', 9).attr('fill', '#444')
+    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
     .text('0')
 
   svg.append('text')
     .attr('x', ml + legendW).attr('y', legendY + 17)
     .attr('text-anchor', 'end')
-    .attr('font-size', 9).attr('fill', '#666')
+    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
     .text(`${maxVal} 台`)
 }
 

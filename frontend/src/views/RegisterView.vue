@@ -186,7 +186,7 @@ async function handleRegister() {
   transform: translateX(-50%);
   width: 60%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(94, 92, 230, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
 }
 
 .register-logo {
@@ -196,14 +196,14 @@ async function handleRegister() {
 .logo-icon-wrap {
   width: 50px;
   height: 50px;
-  background: rgba(94, 92, 230, 0.1);
-  border: 1px solid rgba(94, 92, 230, 0.22);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 14px;
-  box-shadow: 0 0 18px rgba(94, 92, 230, 0.14);
+  box-shadow: 0 0 18px var(--color-primary-subtle);
 }
 .logo-icon {
   color: var(--color-primary);

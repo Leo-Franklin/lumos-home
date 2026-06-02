@@ -67,7 +67,7 @@ async function fetchTypeStats() {
     typeData.value = (data.data || []).map((d) => ({
       label: DEVICE_TYPE_LABELS[d.type] || d.type,
       value: d.count,
-      color: DEVICE_TYPE_COLORS[d.type] || '#8B8B96',
+      color: DEVICE_TYPE_COLORS[d.type] || 'var(--color-type-unknown)',
     }))
   } catch { ElMessage.error(t('analytics.typeStatsFailed')) }
   finally { typeLoading.value = false }
@@ -120,7 +120,7 @@ async function fetchNewDevices() {
     newDevData.value = items.map((d) => ({
       label: d.period,
       value: d.count,
-      color: d.count > prev4Avg * 2 ? '#F07D38' : '#5E5CE6',
+      color: d.count > prev4Avg * 2 ? 'var(--color-warning)' : 'var(--color-primary)',
     }))
   } catch { ElMessage.error(t('analytics.newDevicesFailed')) }
   finally { newDevLoading.value = false }
@@ -132,9 +132,9 @@ const stabilityRange   = ref('7d')
 const stabilityLoading = ref(false)
 
 function stabilityColor(pct) {
-  if (pct >= 90) return '#26C281'
-  if (pct >= 70) return '#F2C94C'
-  return '#F07D38'
+  if (pct >= 90) return 'var(--color-online)'
+  if (pct >= 70) return 'var(--color-scanning)'
+  return 'var(--color-warning)'
 }
 
 async function fetchStability() {
@@ -237,7 +237,7 @@ onMounted(fetchAll)
         :ranges="[{ label: $t('analytics.range7d'), value: '7d' }, { label: $t('analytics.range30d'), value: '30d' }]"
         @range-change="(r) => { trendRange = r; fetchTrend() }"
       >
-        <LineChart :data="trendData" color="#5E5CE6" :height="160" />
+        <LineChart :data="trendData" color="var(--color-primary)" :height="160" />
       </BaseChart>
 
       <BaseChart
@@ -283,7 +283,7 @@ onMounted(fetchAll)
           mode="horizontal"
           :height="220"
           :scroll-max-height="400"
-          :color-fn="(v) => v < 50 ? '#26C281' : v < 200 ? '#F2C94C' : '#F07D38'"
+          :color-fn="(v) => v < 50 ? 'var(--color-online)' : v < 200 ? 'var(--color-scanning)' : 'var(--color-warning)'"
           @bar-click="(d) => navigateToDevice(d.label)"
         />
       </BaseChart>

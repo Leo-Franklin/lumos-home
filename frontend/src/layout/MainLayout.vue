@@ -161,8 +161,8 @@ function logout() {
 .brand-icon-wrap {
   width: 30px;
   height: 30px;
-  background: rgba(94, 92, 230, 0.12);
-  border: 1px solid rgba(94, 92, 230, 0.22);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;

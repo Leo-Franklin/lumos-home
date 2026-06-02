@@ -801,7 +801,7 @@ onMounted(async () => {
 }
 
 .action-btn--record {
-  --el-button-hover-bg-color: rgba(16, 185, 129, 0.1);
+  --el-button-hover-bg-color: var(--color-primary-subtle);
   --el-button-hover-text-color: var(--color-online);
 }
 

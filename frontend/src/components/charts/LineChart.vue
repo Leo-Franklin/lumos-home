@@ -5,7 +5,7 @@ import * as d3 from 'd3'
 
 const props = defineProps({
   data:    { type: Array,    default: () => [] }, // [{ x: Date|string, y: number }]
-  color:   { type: String,   default: '#5E5CE6' },
+  color:   { type: String,   default: 'var(--color-primary)' },
   height:  { type: Number,   default: 160 },
   // mini=true: hides all axes for sparkline use
   mini:    { type: Boolean,  default: false },
@@ -77,15 +77,15 @@ function renderChart() {
   g.append('g')
     .attr('transform', `translate(0,${h})`)
     .call(d3.axisBottom(x).ticks(5).tickFormat(props.xFormat ?? d3.timeFormat('%m/%d')))
-    .call((ax) => { ax.select('.domain').remove(); ax.selectAll('line').attr('stroke', '#444') })
-    .selectAll('text').attr('fill', '#888').attr('font-size', 10)
+    .call((ax) => { ax.select('.domain').remove(); ax.selectAll('line').attr('stroke', 'var(--color-text-muted)') })
+    .selectAll('text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
 
   g.append('g')
     .call(d3.axisLeft(y).ticks(4).tickSize(-w))
     .call((ax) => {
       ax.select('.domain').remove()
-      ax.selectAll('.tick line').attr('stroke', '#2a2a30').attr('stroke-dasharray', '3,3')
-      ax.selectAll('.tick text').attr('fill', '#888').attr('font-size', 10)
+      ax.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-dasharray', '3,3')
+      ax.selectAll('.tick text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
     })
 }
 

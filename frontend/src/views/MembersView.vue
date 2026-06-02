@@ -519,7 +519,7 @@ function formatLogTime(iso) {
 
 .daily-bar {
   width: 100%;
-  background: var(--color-primary, #5e5ce6);
+  background: var(--color-primary);
   border-radius: 2px 2px 0 0;
   cursor: default;
   transition: opacity 0.15s;
@@ -620,11 +620,11 @@ function formatLogTime(iso) {
 }
 
 .log-dot--arrive {
-  border-color: var(--color-success, #67c23a);
+  border-color: var(--color-online);
 }
 
 .log-dot--leave {
-  border-color: var(--color-warning, #e6a23c);
+  border-color: var(--color-warning);
 }
 
 .log-content {
@@ -650,13 +650,13 @@ function formatLogTime(iso) {
 }
 
 .log-badge--arrive {
-  background: rgba(103, 194, 58, 0.1);
-  color: var(--color-success, #67c23a);
+  background: var(--color-primary-subtle);
+  color: var(--color-online);
 }
 
 .log-badge--leave {
-  background: rgba(230, 162, 60, 0.1);
-  color: var(--color-warning, #e6a23c);
+  background: var(--color-primary-subtle);
+  color: var(--color-warning);
 }
 
 .log-device {
@@ -750,8 +750,8 @@ function formatLogTime(iso) {
 }
 
 .action-btn--danger {
-  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);
   --el-button-hover-text-color: var(--color-error);
-  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+  --el-button-active-bg-color: rgba(239, 68, 68, 0.15);
 }
 </style>
