@@ -52,4 +52,10 @@ export default {
     wearable: 'Wearable',
     unknown: 'Unknown',
   },
+  notFound: {
+    code: '404',
+    title: 'Page Went Wandering',
+    desc: 'The page you are looking for does not exist or has been moved.',
+    backHome: 'Back to Home',
+  },
 }

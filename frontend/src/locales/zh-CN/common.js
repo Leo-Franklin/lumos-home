@@ -52,4 +52,10 @@ export default {
     wearable: '可穿戴',
     unknown: '未知',
   },
+  notFound: {
+    code: '404',
+    title: '页面去浪了',
+    desc: '你访问的页面不存在，或者已经搬走了。',
+    backHome: '返回首页',
+  },
 }
