@@ -12,6 +12,7 @@ import {
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
+import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 
 const { t } = useI18n()
 const { formatDuration } = useFormatDuration()
@@ -277,23 +278,15 @@ function formatLogTime(iso) {
 
       <el-table-column :label="$t('members.actions')" width="200" align="center">
         <template #default="{ row }">
-          <div class="action-group">
-            <el-tooltip :content="$t('members.bindDevice')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Link" @click="openDevices(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('members.logs')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Document" @click="openLogs(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('members.stats')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="DataAnalysis" @click="openStats(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.edit')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Edit" @click="openEditMember(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.delete')" :show-after="400">
-              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDeleteMember(row)" />
-            </el-tooltip>
-          </div>
+          <ActionButtonGroup
+            :actions="[
+              { icon: Link, tooltip: $t('members.bindDevice'), onClick: () => openDevices(row) },
+              { icon: Document, tooltip: $t('members.logs'), onClick: () => openLogs(row) },
+              { icon: DataAnalysis, tooltip: $t('members.stats'), onClick: () => openStats(row) },
+              { icon: Edit, tooltip: $t('common.edit'), onClick: () => openEditMember(row) },
+              { icon: Delete, tooltip: $t('common.delete'), danger: true, onClick: () => handleDeleteMember(row) },
+            ]"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -367,9 +360,11 @@ function formatLogTime(iso) {
         </el-table-column>
         <el-table-column :label="$t('members.actions')" width="80" align="center">
           <template #default="{ row }">
-          <el-tooltip :content="$t('members.unbind')" :show-after="400">
-            <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleUnbind(row.mac)" />
-          </el-tooltip>
+            <ActionButtonGroup
+              :actions="[
+                { icon: Delete, tooltip: $t('members.unbind'), danger: true, onClick: () => handleUnbind(row.mac) },
+              ]"
+            />
           </template>
         </el-table-column>
       </el-table>

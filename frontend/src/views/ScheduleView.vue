@@ -6,6 +6,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Clock, Calendar } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import CronSelector from '@/components/CronSelector.vue'
+import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 import { useCamerasStore } from '@/stores/cameras'
 
 const { t } = useI18n()
@@ -174,14 +175,12 @@ async function handleDelete(row) {
       </el-table-column>
       <el-table-column :label="$t('schedule.actions')" width="100" align="center" fixed="right">
         <template #default="{ row }">
-          <div class="action-group">
-            <el-tooltip :content="$t('common.edit')" :show-after="400" placement="top">
-              <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.delete')" :show-after="400" placement="top">
-              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
-            </el-tooltip>
-          </div>
+          <ActionButtonGroup
+            :actions="[
+              { icon: Edit, tooltip: $t('common.edit'), onClick: () => openEdit(row) },
+              { icon: Delete, tooltip: $t('common.delete'), danger: true, onClick: () => handleDelete(row) },
+            ]"
+          />
         </template>
       </el-table-column>
     </el-table>
