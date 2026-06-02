@@ -150,8 +150,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="devicesStore.loading" class="device-grid">
-      <div v-for="i in 6" :key="i" class="device-skeleton glass-card" />
+    <div v-if="devicesStore.loading" class="device-list">
+      <div v-for="i in 6" :key="i" class="device-row-skeleton" />
     </div>
 
     <div v-else-if="devicesStore.items.length === 0" class="empty-container">
@@ -164,7 +164,7 @@ onMounted(() => {
       />
     </div>
 
-    <div v-else class="device-grid">
+    <div v-else class="device-list">
       <DeviceCard
         v-for="device in devicesStore.items"
         :key="device.mac"
@@ -274,15 +274,24 @@ onMounted(() => {
   gap: var(--space-2);
 }
 
-/* Device grid */
-.device-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-4);
+/* Device list (row layout, per DESIGN.md §9) */
+.device-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
-.device-skeleton {
-  height: 200px;
+.device-list > :first-child {
+  border-top: 0;
+}
+
+.device-row-skeleton {
+  height: 52px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
   animation: shimmer 1.4s ease infinite;
   background: linear-gradient(
     90deg,

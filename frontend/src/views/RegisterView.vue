@@ -22,19 +22,38 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const form = ref({ email: '', password: '', confirmPassword: '' })
+const formRef = ref(null)
 const loading = ref(false)
 
+const rules = {
+  email: [
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('login.emailInvalid'), trigger: ['blur', 'change'] },
+  ],
+  password: [
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
+    { min: 8, message: t('login.passwordTooShort'), trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: t('login.confirmPasswordRequired'), trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== form.value.password) {
+          callback(new Error(t('login.passwordMismatch')))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
 async function handleRegister() {
-  if (!form.value.email || !form.value.password || !form.value.confirmPassword) {
-    ElMessage.warning(t('login.fillRequired'))
-    return
-  }
-  if (form.value.password !== form.value.confirmPassword) {
-    ElMessage.error(t('login.passwordMismatch'))
-    return
-  }
-  if (form.value.password.length < 8) {
-    ElMessage.error(t('login.passwordTooShort'))
+  if (!formRef.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
     return
   }
   loading.value = true
@@ -81,8 +100,15 @@ async function handleRegister() {
         <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
       <div class="register-divider" />
-      <el-form @submit.prevent="handleRegister" :model="form" label-width="0">
-        <el-form-item>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="0"
+        :disabled="loading"
+        @submit.prevent="handleRegister"
+      >
+        <el-form-item prop="email">
           <el-input
             v-model="form.email"
             :placeholder="$t('login.email')"
@@ -91,7 +117,7 @@ async function handleRegister() {
             :prefix-icon="User"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="password">
           <el-input
             v-model="form.password"
             :placeholder="$t('login.password')"
@@ -101,7 +127,7 @@ async function handleRegister() {
             show-password
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="confirmPassword">
           <el-input
             v-model="form.confirmPassword"
             :placeholder="$t('login.confirmPassword')"
@@ -125,6 +151,7 @@ async function handleRegister() {
           text
           size="small"
           style="width: 100%; margin-top: 16px"
+          :disabled="loading"
           @click="router.push('/login')"
         >
           {{ $t('login.goToRegister') }}

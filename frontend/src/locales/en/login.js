@@ -5,6 +5,11 @@ export default {
   password: 'Password',
   submit: 'Login',
   fillRequired: 'Please enter email and password',
+  emailRequired: 'Please enter your email',
+  emailInvalid: 'Invalid email format',
+  passwordRequired: 'Please enter your password',
+  passwordTooShortLogin: 'Password must be at least 6 characters',
+  confirmPasswordRequired: 'Please confirm your password',
   langChinese: '中文',
   langEnglish: 'English',
   goToRegister: 'No account? Register',
@@ -14,4 +19,5 @@ export default {
   passwordTooShort: 'Password must be at least 8 characters',
   registerSuccess: 'Registration successful! Please verify your email.',
   registerFailed: 'Registration failed',
+  loginFailed: 'Login failed',
 }

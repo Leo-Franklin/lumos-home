@@ -22,12 +22,26 @@ function switchLang(lang) {
 }
 
 const form = ref({ email: '', password: '' })
+const formRef = ref(null)
 const loading = ref(false)
 
+const rules = {
+  email: [
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('login.emailInvalid'), trigger: ['blur', 'change'] },
+  ],
+  password: [
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('login.passwordTooShortLogin'), trigger: 'blur' },
+  ],
+}
+
 async function handleLogin() {
-  if (!form.value.email || !form.value.password) {
-    ElMessage.warning(t('login.fillRequired'))
-    return
+  if (!formRef.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
+    return  // 校验未通过，错误信息已经显示
   }
   loading.value = true
   try {
@@ -71,8 +85,15 @@ async function handleLogin() {
         <h2 class="logo-title">{{ $t('login.brandTitle') }}</h2>
         <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
-      <el-form @submit.prevent="handleLogin" :model="form" label-width="0">
-        <el-form-item>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="0"
+        :disabled="loading"
+        @submit.prevent="handleLogin"
+      >
+        <el-form-item prop="email">
           <el-input
             v-model="form.email"
             :placeholder="$t('login.email')"
@@ -80,7 +101,7 @@ async function handleLogin() {
             :prefix-icon="User"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="password">
           <el-input
             v-model="form.password"
             :placeholder="$t('login.password')"
@@ -104,6 +125,7 @@ async function handleLogin() {
           text
           size="small"
           style="width: 100%; margin-top: 16px"
+          :disabled="loading"
           @click="router.push('/register')"
         >
           {{ $t('login.goToRegister') }}
