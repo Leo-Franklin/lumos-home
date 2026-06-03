@@ -6,10 +6,11 @@ from sqlalchemy import select
 
 from app.auth import create_access_token, hash_password, verify_password
 from app.config import get_settings
-from app.deps import DBDep
+from app.deps import CurrentUser, DBDep
 from app.models.email_token import EmailVerificationToken, PasswordResetToken
 from app.models.user import User
 from app.schemas.auth import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
@@ -182,3 +183,19 @@ async def reset_password(
     return MessageResponse(
         message='Password reset successful. Please login with your new password.'
     )
+
+
+@router.post('/change-password', response_model=MessageResponse)
+async def change_password(
+    body: ChangePasswordRequest,
+    db: DBDep,
+    username: CurrentUser,
+) -> MessageResponse:
+    """Authenticated user changes their own password. Requires the current password."""
+    result = await db.execute(select(User).where(User.email == username))
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail='Current password is incorrect')
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return MessageResponse(message='Password updated.')

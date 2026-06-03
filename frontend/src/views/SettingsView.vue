@@ -9,6 +9,7 @@ import {
   Camera as CameraIcon, Film, Connection, Failed,
 } from '@element-plus/icons-vue'
 import api from '@/api/index'
+import { changePassword } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useLocaleStore } from '@/stores/locale'
 import { useDevicesStore } from '@/stores/devices'
@@ -96,8 +97,7 @@ async function submitChangePassword() {
   } catch { return }
   passwordSubmitting.value = true
   try {
-    // 后端目前无 change-password 端点，给出成功提示（如有 API 改为真实调用）
-    // await api.post('/auth/change-password', { current: passwordForm.value.current, next: passwordForm.value.next })
+    await changePassword(passwordForm.value.current, passwordForm.value.next)
     ElMessage.success(t('settings.user.passwordChanged'))
     changePasswordDialog.value = false
   } catch (e) {
