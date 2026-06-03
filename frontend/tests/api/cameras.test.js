@@ -17,7 +17,6 @@ import {
   takeSnapshot,
   startLive,
   stopLive,
-  hlsLiveUrl,
 } from '@/api/cameras'
 
 const mockGet = vi.hoisted(() => vi.fn())
@@ -138,12 +137,12 @@ describe('cameras API', () => {
     expect(mockDelete).toHaveBeenCalledWith(`/cameras/${mac}/presets/${presetId}`)
   })
 
-  it('setDefaultPreset sends POST /cameras/:mac/presets/default (uppercase mac)', async () => {
+  it('setDefaultPreset sends POST /cameras/:mac/presets/default (preserves mac case)', async () => {
     const mac = 'aa:bb:cc:dd:ee:ff'
     const presetId = 1
     mockPost.mockResolvedValue({})
     await setDefaultPreset(mac, presetId)
-    expect(mockPost).toHaveBeenCalledWith(`/cameras/${mac.toUpperCase()}/presets/default`, {
+    expect(mockPost).toHaveBeenCalledWith(`/cameras/${mac}/presets/default`, {
       preset_id: presetId,
     })
   })
@@ -174,11 +173,5 @@ describe('cameras API', () => {
     mockDelete.mockResolvedValue({})
     await stopLive(mac)
     expect(mockDelete).toHaveBeenCalledWith(`/cameras/${mac}/live/stop`)
-  })
-
-  it('hlsLiveUrl returns HLS URL', () => {
-    const mac = 'AA:BB:CC:DD:EE:FF'
-    const url = hlsLiveUrl(mac)
-    expect(url).toBe(`/hls/${mac}/index.m3u8`)
   })
 })

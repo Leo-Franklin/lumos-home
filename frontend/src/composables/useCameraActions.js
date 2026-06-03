@@ -18,7 +18,6 @@ import {
   deletePreset,
   setDefaultPreset,
   mjpegStreamUrl,
-  hlsLiveUrl,
 } from '@/api/cameras'
 
 /**
@@ -217,7 +216,7 @@ export function useCameraActions() {
     try {
       await startLive(cam.device_mac)
       hlsTitle.value = t('cameras.hlsTitle', { host: cam.onvif_host })
-      hlsSrc.value = hlsLiveUrl(cam.device_mac)
+      hlsSrc.value = mjpegStreamUrl(cam.device_mac)
       hlsDialog.value = true
     } catch (e) {
       handleError(e, 'cameras.hlsStartFailed')

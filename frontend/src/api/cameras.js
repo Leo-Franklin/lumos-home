@@ -19,7 +19,7 @@ export const listPresets = (mac) => api.get(`/cameras/${mac}/presets`)
 export const createPreset = (mac, data) => api.post(`/cameras/${mac}/presets`, data)
 export const updatePreset = (mac, presetId, data) => api.put(`/cameras/${mac}/presets/${presetId}`, data)
 export const deletePreset = (mac, presetId) => api.delete(`/cameras/${mac}/presets/${presetId}`)
-export const setDefaultPreset = (mac, presetId) => api.post(`/cameras/${mac.toUpperCase()}/presets/default`, { preset_id: presetId })
+export const setDefaultPreset = (mac, presetId) => api.post(`/cameras/${mac}/presets/default`, { preset_id: presetId })
 
 export const mjpegStreamUrl = (mac) => {
   const token = localStorage.getItem('token')
@@ -31,4 +31,3 @@ export const takeSnapshot = (mac) =>
 
 export const startLive = (mac) => api.post(`/cameras/${mac}/live/start`)
 export const stopLive = (mac) => api.delete(`/cameras/${mac}/live/stop`)
-export const hlsLiveUrl = (mac) => `/hls/${mac}/index.m3u8`
