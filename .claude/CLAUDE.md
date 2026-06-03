@@ -25,8 +25,9 @@ These rules apply **across all three subprojects**. Violating them is a bug:
    backend, the corresponding `frontend/src/api/*.js` endpoint and
    `frontend/src/views/*.vue` page must be present and tested.
 3. **Build artifacts are ignored, not committed.** `backend/frontend/`
-   is the Vite output copied here at packaging time — never edit it
-   directly. Run `pnpm --dir frontend build` to regenerate.
+   is the Vite output (target of `frontend/vite.config.js`'s
+   `outDir: '../backend/frontend'`) — never edit it directly. Run
+   `pnpm --dir frontend build` to regenerate.
 4. **Design tokens live in CSS variables.** See `frontend/DESIGN.md`
    §2 — never hardcode hex/rgba in components.
 5. **TDD is mandatory for the backend.** See
@@ -66,8 +67,12 @@ docs/                   Project-wide documents (design doc, plans)
 - It is **not** a multi-tenant SaaS. The user table is for a single
   household with shared device access.
 - The frontend is **not** deployable independently. It is designed to
-  be embedded in the backend's static mount (see `main.py` line ~285
-  and `installer/build.ps1` Step 2).
+  be embedded in the backend's static mount when packaged (see
+  `main.py` line ~285 and `installer/build.ps1` Step 2). **In dev
+  mode the FastAPI backend does NOT serve the SPA** — it only mounts
+  `/api/*` and the WebSocket. The Vite dev server (:5173) hosts the
+  UI; see `frontend/vite.config.js` for the proxy rules. Users open
+  :5173, not :8000.
 
 ## 6. When unsure
 

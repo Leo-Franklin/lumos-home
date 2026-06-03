@@ -28,26 +28,39 @@ lumos-home/
 │   └── smart_home_tool_design_v3.md   Original design document
 ├── docker-compose.yml       Container deployment (NAS-oriented)
 ├── .github/workflows/       Consolidated CI (backend + frontend)
-├── .claude/CLAUDE.md        Project-level Claude Code instructions
-└── scripts/                 Dev helpers
+└── .claude/CLAUDE.md        Project-level Claude Code instructions
 ```
 
 ## Quick start (development)
 
-```bash
-# 1. Backend
-cd backend
-cp .env.example .env       # edit secrets
+You need **two terminals** — the frontend is a Vite dev server that
+proxies API/WS calls to the FastAPI backend.
+
+**Terminal 1 — backend (port 8000):**
+```powershell
+cd D:\Project\Demo\lumos-home\backend
+cp .env.example .env        # edit secrets (JWT_SECRET_KEY, ADMIN_PASSWORD, ...)
 uv sync --dev
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# 2. Frontend (separate terminal)
-cd frontend
-pnpm install
-pnpm dev                   # http://localhost:5173 — proxies /api → :8000
 ```
 
+**Terminal 2 — frontend (port 5173):**
+```powershell
+cd D:\Project\Demo\lumos-home\frontend
+pnpm install
+pnpm dev
+```
+
+Now open **<http://localhost:5173>** in your browser. Vite will forward
+`/api/*`, `/hls/*`, `/ws/*` to the backend on :8000. You do not need
+to access :8000 directly during development.
+
 Health check: `curl http://localhost:8000/api/v1/health`
+
+> **Note:** in dev mode, the backend does **not** serve the SPA — only
+> the API and WebSocket. The Vite dev server hosts the UI. If you want
+> to see the production layout (one exe, one port), run the full
+> installer build (see below).
 
 ## Build the Windows installer
 
