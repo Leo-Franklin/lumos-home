@@ -1,8 +1,10 @@
+import asyncio
 import os
 import sys
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from pathlib import Path as _Path
 from urllib.parse import urlparse, urlunparse
 
@@ -16,6 +18,7 @@ from sqlalchemy import select
 from app.api import (
     analytics,
     auth,
+    camera_events,
     cameras,
     devices,
     dlna,
@@ -31,12 +34,19 @@ from app.database import AsyncSessionLocal, init_db
 from app.domain.models.camera import Camera
 from app.domain.models.recording import Recording
 from app.domain.models.schedule import Schedule as ScheduleModel
+from app.domain.services._bg import spawn_bg
 from app.domain.services.camera_health import CameraHealthChecker
+from app.domain.services.frigate_bridge import (
+    FrigateBridgeConfig,
+    FrigateBridgeService,
+)
+from app.domain.services.mqtt_service import MqttConfig, MqttService
 from app.domain.services.presence_domain import PresenceDomainService
 from app.domain.services.presence_service import presence_service
 from app.domain.services.recorder import Recorder, RecordingParams
 from app.domain.services.recording_domain import RecordingDomainService
 from app.domain.services.scheduler_service import scheduler_service
+from app.domain.services.stream_manager import StreamManager
 from app.services.nas_syncer import NasSyncer
 
 settings = get_settings()
@@ -60,6 +70,35 @@ logger.add(
 )
 
 recorder = Recorder(settings.recording_temp_dir)
+stream_manager = StreamManager(max_concurrent=8, hls_base=Path('data/hls'))
+# Strong-reference bag for background tasks spawned by the Frigate callback
+_frigate_bg_tasks: set[asyncio.Task] = set()
+mqtt_service = MqttService(
+    config=MqttConfig(
+        host=settings.mqtt_host,
+        port=settings.mqtt_port,
+        username=settings.mqtt_username,
+        password=settings.mqtt_password,
+        topic_prefix=settings.mqtt_topic_prefix,
+        tls=settings.mqtt_tls,
+    )
+)
+if not settings.mqtt_enabled:
+    mqtt_service.disable()
+# Frigate bridge: real paho client is wired at lifespan start() when enabled.
+# Passing None here is safe because start() bails when config.enabled=False.
+frigate_bridge = FrigateBridgeService(
+    mqtt_client=None,  # type: ignore[arg-type]  # real client wired in lifespan
+    session_factory=AsyncSessionLocal,
+    config=FrigateBridgeConfig(
+        enabled=settings.mqtt_frigate_enabled,
+        host=settings.mqtt_frigate_host,
+        port=settings.mqtt_frigate_port,
+        username=settings.mqtt_frigate_username,
+        password=settings.mqtt_frigate_password,
+        topic_prefix=settings.mqtt_frigate_topic_prefix,
+    ),
+)
 nas_syncer = NasSyncer(
     mode=settings.nas_mode,
     local_storage_path=settings.local_storage_path,
@@ -224,9 +263,40 @@ async def lifespan(app: FastAPI):
     app.state.recorder = recorder
     app.state.nas_syncer = nas_syncer
     app.state.presence_service = presence_service
+    app.state.stream_manager = stream_manager
+    app.state.mqtt_service = mqtt_service
+    app.state.frigate_bridge = frigate_bridge
+    # Start the Frigate bridge if enabled. The real paho client is constructed
+    # here so the bridge can subscribe and route messages into the DB.
+    if frigate_bridge.config.enabled:
+        try:
+            import paho.mqtt.client as mqtt
+
+            frigate_client = mqtt.Client()
+            if frigate_bridge.config.username:
+                frigate_client.username_pw_set(
+                    frigate_bridge.config.username, frigate_bridge.config.password
+                )
+            frigate_client.connect(
+                frigate_bridge.config.host, frigate_bridge.config.port, keepalive=60
+            )
+            frigate_client.loop_start()
+            # Register the bridge's handler on the wildcard topic
+            for topic in frigate_bridge.subscribe_topics():
+                frigate_client.message_callback_add(topic, _make_frigate_callback(frigate_bridge))
+            frigate_bridge.set_client(frigate_client)
+            frigate_bridge.start()
+            logger.info('FrigateBridge connected and subscribed')
+        except ImportError:
+            logger.warning('paho-mqtt 未安装，FrigateBridge 跳过启动')
+        except Exception as e:  # noqa: BLE001 - broker connection is best-effort
+            logger.warning(f'FrigateBridge 启动失败: {e}')
     yield
     if _shutdown_event is not None:
         _shutdown_event.set()
+    frigate_bridge.stop()
+    mqtt_service.disconnect()
+    await stream_manager.stop_all()
     await camera_health_checker.stop()
     await recorder.stop_monitor()
     await presence_service.stop()
@@ -253,6 +323,7 @@ P = '/api/v1'
 app.include_router(system.router, prefix=P)
 app.include_router(devices.router, prefix=P)
 app.include_router(cameras.router, prefix=P)
+app.include_router(camera_events.router, prefix=P)
 app.include_router(recordings.router, prefix=P)
 app.include_router(schedules.router, prefix=P)
 app.include_router(members.router, prefix=P)
@@ -311,6 +382,31 @@ def _dev():
     import uvicorn
 
     uvicorn.run('app.main:app', host='0.0.0.0', port=8000, reload=True)
+
+
+def _make_frigate_callback(bridge: FrigateBridgeService):
+    """Build a paho on_message callback that delegates to the bridge's handler."""
+    import json as _json
+
+    def _on_message(_client, _userdata, msg):
+        try:
+            payload = _json.loads(msg.payload.decode('utf-8', errors='replace'))
+        except (ValueError, UnicodeDecodeError):
+            logger.warning(f'FrigateBridge: 无法解析消息 on {msg.topic}')
+            return
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        if loop.is_running():
+            spawn_bg(bridge.handle_message(msg.topic, payload), _frigate_bg_tasks)
+        else:
+            loop.run_until_complete(bridge.handle_message(msg.topic, payload))
+
+    return _on_message
 
 
 if __name__ == '__main__':

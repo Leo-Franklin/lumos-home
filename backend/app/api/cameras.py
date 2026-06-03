@@ -1,20 +1,26 @@
 import asyncio
-import shutil
 import subprocess
 import threading
 import uuid
 from datetime import datetime
-from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
 
 from app.deps import CurrentUser, DBDep, NasSyncerDep, RecorderDep, StreamUser
 from app.domain.models.camera import RecordingPreset
+from app.domain.models.camera_event import (
+    CameraEvent,
+    EventSource,
+    EventStatus,
+    EventType,
+)
+from app.domain.services.mqtt_service import MqttService
 from app.domain.services.recorder import RecordingParams
+from app.domain.services.stream_manager import StreamManager
 from app.models.camera import Camera
 from app.models.recording import Recording
 from app.schemas.camera import (
@@ -28,10 +34,12 @@ from app.schemas.camera import (
 from app.services.onvif_client import OnvifClient
 from app.services.ws_manager import ws_manager
 
-router = APIRouter(prefix='/cameras', tags=['cameras'])
 
-_live_procs: dict[str, subprocess.Popen] = {}
-_HLS_BASE = Path('data/hls')
+def _get_mqtt(request: Request) -> MqttService | None:
+    return getattr(request.app.state, 'mqtt_service', None)
+
+
+router = APIRouter(prefix='/cameras', tags=['cameras'])
 
 
 @router.get('', response_model=list[CameraOut])
@@ -139,6 +147,7 @@ async def start_recording(
     db: DBDep,
     _: CurrentUser,
     recorder: RecorderDep,
+    http_request: Request,
     request: StartRecordingRequest | None = None,
 ):
     mac = mac.upper()
@@ -186,16 +195,32 @@ async def start_recording(
     rtsp_url = _rtsp_with_creds(camera)
 
     # Recording.started_at is a naive DateTime column; keep naive.
+    # Also create a CameraEvent so this manual recording participates in the
+    # unified timeline (P0-2). The Recording row gets linked to the event via
+    # event_id; if recorder startup fails below, we roll back both rows.
+    event = CameraEvent(
+        camera_mac=mac,
+        event_type=EventType.MANUAL_RECORDING,
+        source=EventSource.USER,
+        status=EventStatus.ACTIVE,
+        started_at=datetime.now(),  # noqa: DTZ005
+        summary='手动录制',
+    )
+    db.add(event)
+    await db.flush()  # populate event.id
+
     rec = Recording(
         camera_mac=mac,
         file_path='(pending)',
-        started_at=datetime.now(),  # noqa: DTZ005
+        started_at=event.started_at,
         status='recording',
+        event_id=event.id,
     )
     db.add(rec)
     camera.is_recording = True
     await db.commit()
     await db.refresh(rec)
+    await db.refresh(event)
 
     try:
         await recorder.start_recording(mac, rtsp_url, params)
@@ -204,12 +229,19 @@ async def start_recording(
         camera.is_recording = False
         rec.status = 'failed'
         rec.error_msg = str(e)
+        event.status = EventStatus.FAILED
+        event.ended_at = datetime.now()  # noqa: DTZ005
+        event.summary = f'启动失败: {e}'
         await db.commit()
         raise HTTPException(status_code=500, detail=f'启动录制失败: {e}')
 
     if mac in recorder.active:
         recorder.active[mac].recording_id = rec.id
         recorder.active[mac].session_recording_id = rec.id
+
+    mqtt = _get_mqtt(http_request)
+    if mqtt is not None:
+        mqtt.publish_recording_started(mac, event_id=event.id)
 
     return {'message': '录制已启动', 'recording_id': rec.id}
 
@@ -467,8 +499,15 @@ async def snapshot_camera(mac: str, db: DBDep, _: CurrentUser):
 # ── HLS live stream ───────────────────────────────────────────
 
 
+def _get_stream_manager(request: Request) -> StreamManager:
+    sm: StreamManager | None = getattr(request.app.state, 'stream_manager', None)
+    if sm is None:
+        raise HTTPException(status_code=503, detail='StreamManager not initialized')
+    return sm
+
+
 @router.post('/{mac}/live/start', status_code=status.HTTP_202_ACCEPTED)
-async def start_live(mac: str, db: DBDep, _: CurrentUser):
+async def start_live(mac: str, db: DBDep, _: CurrentUser, request: Request):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
@@ -478,85 +517,24 @@ async def start_live(mac: str, db: DBDep, _: CurrentUser):
         raise HTTPException(
             status_code=422, detail='摄像头 rtsp_url 未设置，请先通过 ONVIF 探测配置 RTSP 地址'
         )
-    if mac in _live_procs and _live_procs[mac].poll() is None:
-        return {'message': '直播已在运行'}
+    sm = _get_stream_manager(request)
+    info = sm.get(mac)
+    if info.state in ('starting', 'running'):
+        return {'message': '直播已在运行', 'state': info.state}
     rtsp_url = _rtsp_with_creds(camera)
-    output_dir = _HLS_BASE / mac.replace(':', '-')
-    # 每次启动前清理目录，确保无残留文件（Windows 上 stop 时 rmtree 可能静默失败）
-    if output_dir.exists():
-        shutil.rmtree(output_dir, ignore_errors=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        'ffmpeg',
-        '-y',
-        '-rtsp_transport',
-        'tcp',
-        '-i',
-        rtsp_url,
-        '-c:v',
-        'libx264',
-        '-preset',
-        'ultrafast',
-        '-tune',
-        'zerolatency',
-        '-g',
-        '25',  # GOP=25帧，保证每秒至少1个IDR关键帧（配合hls_time=1）
-        '-sc_threshold',
-        '0',  # 禁用场景切换自动关键帧，保持固定间隔
-        '-c:a',
-        'aac',
-        '-f',
-        'hls',
-        '-hls_time',
-        '1',  # 缩短分片到1s，减少等待时间
-        '-hls_list_size',
-        '5',
-        '-hls_flags',
-        'delete_segments',
-        str(output_dir / 'index.m3u8'),
-    ]
-    loop = asyncio.get_running_loop()
-    stderr_path = output_dir / 'ffmpeg.log'
-    stderr_file = open(stderr_path, 'w')
-    # stderr写文件：保留诊断输出，同时避免管道缓冲区满后阻塞FFmpeg
-    proc = await loop.run_in_executor(
-        None,
-        lambda: subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=stderr_file),
-    )
-    stderr_file.close()
-    _live_procs[mac] = proc
-    m3u8_path = output_dir / 'index.m3u8'
-    for _ in range(60):  # type: ignore[assignment]
-        await asyncio.sleep(0.5)
-        if proc.poll() is not None:
-            _live_procs.pop(mac, None)
-            ffmpeg_log = (
-                stderr_path.read_text(errors='replace')[-1000:] if stderr_path.exists() else ''
-            )
-            logger.error(f'HLS启动失败 [{mac}] 退出码={proc.returncode}\n{ffmpeg_log}')
-            raise HTTPException(status_code=500, detail='HLS 直播启动失败，请检查摄像头 RTSP 连接')
-        if m3u8_path.exists():
-            return {'message': 'HLS 直播已启动'}
-    proc.kill()
-    _live_procs.pop(mac, None)
-    ffmpeg_log = stderr_path.read_text(errors='replace')[-1000:] if stderr_path.exists() else ''
-    logger.error(f'HLS启动超时 [{mac}]\n{ffmpeg_log}')
-    raise HTTPException(status_code=500, detail='HLS 直播启动超时，请检查摄像头 RTSP 连接')
+    try:
+        await sm.start_hls(mac, rtsp_url)
+    except (RuntimeError, TimeoutError) as e:
+        logger.error(f'HLS 启动失败 [{mac}]: {e}')
+        raise HTTPException(status_code=500, detail=f'HLS 直播启动失败: {e}') from e
+    return {'message': 'HLS 直播已启动', 'state': sm.get(mac).state}
 
 
 @router.delete('/{mac}/live/stop', status_code=status.HTTP_202_ACCEPTED)
-async def stop_live(mac: str, _: CurrentUser):
+async def stop_live(mac: str, _: CurrentUser, request: Request):
     mac = mac.upper()
-    proc = _live_procs.pop(mac, None)
-    if proc and proc.poll() is None:
-        proc.kill()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
-    output_dir = _HLS_BASE / mac.replace(':', '-')
-    if output_dir.exists():
-        shutil.rmtree(output_dir, ignore_errors=True)
+    sm = _get_stream_manager(request)
+    await sm.stop(mac)
     return {'message': 'HLS 直播已停止'}
 
 

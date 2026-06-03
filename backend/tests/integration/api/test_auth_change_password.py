@@ -36,9 +36,7 @@ async def _create_active_user(password: str = 'OldPass123!') -> tuple[str, str]:
 
 
 async def _login(client: AsyncClient, email: str, password: str) -> str:
-    resp = await client.post(
-        '/api/v1/auth/login', json={'email': email, 'password': password}
-    )
+    resp = await client.post('/api/v1/auth/login', json={'email': email, 'password': password})
     assert resp.status_code == 200, resp.text
     return resp.json()['access_token']
 
@@ -87,7 +85,10 @@ async def test_change_password_wrong_current():
             headers={'Authorization': f'Bearer {token}'},
         )
         assert resp.status_code == 401
-        assert 'current' in resp.json()['error']['message'].lower() or 'incorrect' in resp.json()['error']['message'].lower()
+        assert (
+            'current' in resp.json()['error']['message'].lower()
+            or 'incorrect' in resp.json()['error']['message'].lower()
+        )
 
 
 @pytest.mark.asyncio

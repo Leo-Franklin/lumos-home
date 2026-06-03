@@ -116,6 +116,23 @@ class Settings(BaseSettings):
     github_client_id: str = ''
     github_client_secret: str = ''
 
+    # MQTT (P1-2 — internal event publishing + Frigate bridge subscription)
+    mqtt_enabled: bool = False
+    mqtt_host: str = 'localhost'
+    mqtt_port: int = 1883
+    mqtt_username: str = ''
+    mqtt_password: str = ''
+    mqtt_topic_prefix: str = 'lumos'
+    mqtt_tls: bool = False
+    mqtt_keepalive_seconds: int = 60
+    # Frigate Bridge subscribes to a separate broker to consume external events
+    mqtt_frigate_enabled: bool = False
+    mqtt_frigate_host: str = 'localhost'
+    mqtt_frigate_port: int = 1883
+    mqtt_frigate_username: str = ''
+    mqtt_frigate_password: str = ''
+    mqtt_frigate_topic_prefix: str = 'frigate'
+
     @field_validator('jwt_secret_key')
     @classmethod
     def jwt_secret_must_be_changed(cls, v: str) -> str:

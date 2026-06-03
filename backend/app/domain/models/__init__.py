@@ -1,6 +1,13 @@
 """Domain models - re-exported from app.models for backward compatibility."""
 
 from app.domain.models.camera import Camera
+from app.domain.models.camera_event import (
+    CameraEvent,
+    EventSeverity,
+    EventSource,
+    EventStatus,
+    EventType,
+)
 from app.domain.models.device import Device
 from app.domain.models.device_online_log import DeviceOnlineLog
 from app.domain.models.dlna_device import DLNADevice
@@ -13,10 +20,15 @@ from app.models.user import User
 
 __all__ = [
     'Camera',
+    'CameraEvent',
     'Device',
     'DeviceOnlineLog',
     'DLNADevice',
     'EmailVerificationToken',
+    'EventSeverity',
+    'EventSource',
+    'EventStatus',
+    'EventType',
     'Member',
     'MemberDevice',
     'PasswordResetToken',

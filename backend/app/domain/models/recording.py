@@ -22,4 +22,7 @@ class Recording(Base):
     status: Mapped[str] = mapped_column(String(32), default='recording')
     error_msg: Mapped[str | None] = mapped_column(Text)
     segment_index: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    event_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey('camera_events.id'), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

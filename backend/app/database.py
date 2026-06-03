@@ -76,6 +76,7 @@ async def init_db() -> None:
             'ALTER TABLE cameras ADD COLUMN auto_cast_dlna VARCHAR(256)',
             "ALTER TABLE cameras ADD COLUMN recording_presets JSON DEFAULT '[]'",
             'ALTER TABLE cameras ADD COLUMN default_preset_id VARCHAR(36)',
+            'ALTER TABLE cameras ADD COLUMN frigate_name VARCHAR(64)',
             'ALTER TABLE schedules ADD COLUMN preset_id VARCHAR(36)',
             'ALTER TABLE schedules ADD COLUMN overrides TEXT',
             'ALTER TABLE users ADD COLUMN github_id VARCHAR(64)',
@@ -84,6 +85,8 @@ async def init_db() -> None:
             'ALTER TABLE recordings ADD COLUMN segment_index INTEGER',
             'CREATE INDEX IF NOT EXISTS ix_recordings_recording_id ON recordings(recording_id)',
             'CREATE INDEX IF NOT EXISTS ix_recordings_segment_index ON recordings(segment_index)',
+            'ALTER TABLE recordings ADD COLUMN event_id INTEGER',
+            'CREATE INDEX IF NOT EXISTS ix_recordings_event_id ON recordings(event_id)',
         ):
             try:
                 await conn.execute(text(stmt))

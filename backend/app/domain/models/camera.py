@@ -61,6 +61,8 @@ class Camera(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     recording_presets: Mapped[list] = mapped_column(JSON, default=list)  # JSON 存储
     default_preset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # Frigate integration: bridge maps a Frigate camera_name to our MAC
+    frigate_name: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     @validates('device_mac')
     def normalize_device_mac(self, key, device_mac: str) -> str:
