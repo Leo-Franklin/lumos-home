@@ -22,7 +22,7 @@ describe('system API', () => {
   })
 
   it('getDashboard sends GET /dashboard', async () => {
-    const mockResponse = { data: { items: [] } }
+    const mockResponse = { data: { members_home: 0 } }
     mockGet.mockResolvedValue(mockResponse)
 
     const result = await getDashboard()
