@@ -5,6 +5,11 @@ export default {
   password: '密码',
   submit: '登录',
   fillRequired: '请填写邮箱和密码',
+  emailRequired: '请输入邮箱',
+  emailInvalid: '邮箱格式不正确',
+  passwordRequired: '请输入密码',
+  passwordTooShortLogin: '密码至少6个字符',
+  confirmPasswordRequired: '请再次输入密码',
   langChinese: '中文',
   langEnglish: 'English',
   goToRegister: '没有账号？去注册',
@@ -14,4 +19,5 @@ export default {
   passwordTooShort: '密码至少8个字符',
   registerSuccess: '注册成功！请查收验证邮件。',
   registerFailed: '注册失败',
+  loginFailed: '登录失败',
 }

@@ -29,7 +29,7 @@ function renderChart() {
   svg.selectAll('path').data(pie(props.data)).join('path')
     .attr('d', arc)
     .attr('fill', (d) => d.data.color)
-    .attr('stroke', 'var(--color-bg, #161618)')
+    .attr('stroke', 'var(--color-bg)')
     .attr('stroke-width', 2)
     .style('cursor', 'pointer')
     .on('mouseenter', function() { d3.select(this).attr('d', arcHover) })
@@ -39,7 +39,7 @@ function renderChart() {
   svg.append('text')
     .attr('text-anchor', 'middle').attr('dy', '0.35em')
     .attr('font-size', props.mini ? 14 : 20).attr('font-weight', 700)
-    .attr('fill', 'var(--color-text-primary, #fff)')
+    .attr('fill', 'var(--color-text-primary)')
     .text(d3.sum(props.data, (d) => d.value))
 }
 

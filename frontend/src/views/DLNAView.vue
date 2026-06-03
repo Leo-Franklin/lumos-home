@@ -3,10 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useDLNAStore } from '@/stores/dlna'
 import { castURL, castFile, playDevice, pauseDevice, stopDevice } from '@/api/dlna'
 import { ElMessage } from 'element-plus'
-import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link, Monitor } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useApiError } from '@/composables/useApiError'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
+const handleError = useApiError()
 const dlna = useDLNAStore()
 
 const castMode = ref('url')
@@ -66,7 +69,7 @@ async function handleCast() {
     }
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.castFailed'))
+    handleError(e, 'dlna.castFailed')
   } finally {
     castLoading.value = false
   }
@@ -80,7 +83,7 @@ async function handlePlay() {
     ElMessage.success(t('dlna.played'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }
@@ -94,7 +97,7 @@ async function handlePause() {
     ElMessage.success(t('dlna.paused'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }
@@ -108,7 +111,7 @@ async function handleStop() {
     ElMessage.success(t('dlna.stopped'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }
@@ -142,7 +145,7 @@ function handleFileRemove() {
           </el-button>
         </el-tooltip>
         <el-tooltip :content="$t('common.refresh')" :show-after="400">
-          <el-button :icon="Refresh" circle @click="dlna.fetchDevices()" />
+          <el-button :icon="Refresh" circle :aria-label="$t('common.refresh')" @click="dlna.fetchDevices()" />
         </el-tooltip>
       </div>
     </div>
@@ -161,19 +164,26 @@ function handleFileRemove() {
         </div>
 
         <div v-if="dlna.devices.length === 0 && !dlna.discovering && !dlna.loading" class="empty-tip">
-          <el-icon :size="32" style="color: var(--color-text-muted)"><Monitor /></el-icon>
-          <p>{{ $t('dlna.noDevices') }}</p>
-          <p class="sub">{{ $t('dlna.noDevicesHint') }}</p>
+          <EmptyState
+            compact
+            size="small"
+            icon="dlna"
+            :title="$t('common.empty.dlna.title')"
+            :description="$t('common.empty.dlna.description')"
+          />
         </div>
 
-        <div
+        <button
           v-for="device in dlna.devices"
           :key="device.id"
+          type="button"
           class="device-item"
           :class="{ selected: dlna.selectedDevice?.id === device.id }"
+          :aria-pressed="dlna.selectedDevice?.id === device.id"
+          :aria-label="`${device.friendly_name}${device.is_online ? ' (' + $t('common.online') + ')' : ' (' + $t('common.offline') + ')'}`"
           @click="dlna.selectDevice(device)"
         >
-          <div class="device-icon">
+          <div class="device-icon" aria-hidden="true">
             <el-icon :size="20"><Monitor /></el-icon>
           </div>
           <div class="device-info">
@@ -182,16 +192,24 @@ function handleFileRemove() {
             <div v-if="device.manufacturer" class="device-meta">{{ device.manufacturer }}</div>
           </div>
           <div class="device-status">
-            <span class="status-dot" :class="device.is_online ? 'online' : 'offline'" />
+            <span
+              class="status-dot"
+              :class="device.is_online ? 'online' : 'offline'"
+              role="status"
+              :aria-label="device.is_online ? $t('common.online') : $t('common.offline')"
+            />
           </div>
-        </div>
+        </button>
       </div>
 
       <!-- 右侧：控制面板 -->
       <div class="dlna-control-panel">
         <div v-if="!dlna.selectedDevice" class="no-selection">
-          <el-icon :size="48" style="color: var(--color-text-muted)"><VideoPlay /></el-icon>
-          <p>{{ $t('dlna.selectDevice') }}</p>
+          <EmptyState
+            icon="dlna"
+            :title="$t('common.empty.selection.title')"
+            :description="$t('common.empty.selection.description')"
+          />
         </div>
 
         <template v-else>
@@ -218,6 +236,7 @@ function handleFileRemove() {
                     size="small"
                     circle
                     style="margin-left: 6px"
+                    :aria-label="$t('common.refresh')"
                     @click="dlna.refreshStatus()"
                   />
                 </el-tooltip>
@@ -285,6 +304,7 @@ function handleFileRemove() {
                 :icon="VideoPlay"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.play')"
                 @click="handlePlay"
               />
             </el-tooltip>
@@ -294,6 +314,7 @@ function handleFileRemove() {
                 :icon="VideoPause"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.pause')"
                 @click="handlePause"
               />
             </el-tooltip>
@@ -303,6 +324,7 @@ function handleFileRemove() {
                 :icon="SwitchButton"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.stop')"
                 @click="handleStop"
               />
             </el-tooltip>
@@ -375,16 +397,8 @@ function handleFileRemove() {
 }
 
 .empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  padding: 8px;
 }
-.empty-tip p { margin: 8px 0 0; }
-.empty-tip .sub { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
 
 .device-item {
   display: flex;
@@ -452,13 +466,6 @@ function handleFileRemove() {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 80px 20px;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  gap: 12px;
 }
 
 .control-section {
@@ -492,8 +499,8 @@ function handleFileRemove() {
   width: 42px;
   height: 42px;
   border-radius: var(--radius-md);
-  background: rgba(94, 92, 230, 0.10);
-  border: 1px solid rgba(94, 92, 230, 0.18);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   display: flex;
   align-items: center;
   justify-content: center;

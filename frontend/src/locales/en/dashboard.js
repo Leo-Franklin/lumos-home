@@ -28,6 +28,7 @@ export default {
   event_scan_completed:          'Network scan completed',
   event_dlna_discover:           'DLNA device discovery completed',
   event_dlna_cast:               'DLNA casting started',
+  bulkEvents: '{count} new events',
   zeroMinutes: '0 min',
   durationFormat: '{h}h {m}m',
   durationMinutesOnly: '{m}m',

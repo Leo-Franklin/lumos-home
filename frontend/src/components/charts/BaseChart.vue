@@ -1,11 +1,15 @@
 <!-- src/components/charts/BaseChart.vue -->
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   title:   String,
   loading: { type: Boolean, default: false },
   empty:   { type: Boolean, default: false },
   range:   { type: String, default: null },
-  // [{ label: '近7天', value: '7d' }, ...]  — renders range selector in header when provided
+  // [{ label: t('charts.ranges.last7d'), value: '7d' }, ...]  — renders range selector in header when provided
   ranges:  { type: Array, default: null },
 })
 const emit = defineEmits(['range-change'])
@@ -28,7 +32,7 @@ const emit = defineEmits(['range-change'])
     </div>
     <div class="chart-body">
       <el-skeleton v-if="loading" :rows="3" animated />
-      <div v-else-if="empty" class="chart-empty">暂无数据</div>
+      <div v-else-if="empty" class="chart-empty">{{ t('charts.empty') }}</div>
       <slot v-else />
     </div>
   </div>

@@ -6,28 +6,38 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Histogram } from '@element-plus/icons-vue'
 import { useDevicesStore } from '@/stores/devices'
 import { useI18n } from 'vue-i18n'
+import { useApiError } from '@/composables/useApiError'
+import EmptyState from '@/components/EmptyState.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const handleError = useApiError()
 const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
+// Colors reference --color-type-* tokens (see src/style.css and chartColors.js).
+// d3 attr() accepts CSS var() strings; backgrounds use color-mix() to derive alpha tints.
+// Labels are derived from t('common.deviceTypes.*') at render time via typeLabel().
 const TYPE_CONFIG = {
-  phone:         { color: '#F2C94C', label: '手机',    icon: '📱' },
-  computer:      { color: '#26C281', label: '电脑',    icon: '💻' },
-  camera:        { color: '#5E5CE6', label: '摄像头',  icon: '📷' },
-  iot:           { color: '#F07D38', label: 'IoT',     icon: '🔌' },
-  router:        { color: '#06B6D4', label: '路由器',  icon: '📡' },
-  tablet:        { color: '#D946EF', label: '平板',    icon: '📋' },
-  tv:            { color: '#7C3AED', label: '电视',    icon: '📺' },
-  printer:       { color: '#14B8A6', label: '打印机',  icon: '🖨️' },
-  smart_speaker: { color: '#A3E635', label: '智能音箱', icon: '🔊' },
-  game_console:  { color: '#EF4444', label: '游戏机',  icon: '🎮' },
-  nas:           { color: '#60A5FA', label: 'NAS',     icon: '🗄️' },
-  wearable:      { color: '#FB7185', label: '可穿戴',  icon: '⌚' },
-  unknown:       { color: '#8B8B96', label: '未知',    icon: '⬡'  },
+  phone:         { color: 'var(--color-type-phone)',         icon: '📱' },
+  computer:      { color: 'var(--color-type-computer)',      icon: '💻' },
+  camera:        { color: 'var(--color-type-camera)',        icon: '📷' },
+  iot:           { color: 'var(--color-type-iot)',           icon: '🔌' },
+  router:        { color: 'var(--color-type-router)',        icon: '📡' },
+  tablet:        { color: 'var(--color-type-tablet)',        icon: '📋' },
+  tv:            { color: 'var(--color-type-tv)',            icon: '📺' },
+  printer:       { color: 'var(--color-type-printer)',       icon: '🖨️' },
+  smart_speaker: { color: 'var(--color-type-smart-speaker)', icon: '🔊' },
+  game_console:  { color: 'var(--color-type-game-console)',  icon: '🎮' },
+  nas:           { color: 'var(--color-type-nas)',           icon: '🗄️' },
+  wearable:      { color: 'var(--color-type-wearable)',      icon: '⌚' },
+  unknown:       { color: 'var(--color-type-unknown)',       icon: '⬡'  },
 }
 
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown
+
+function typeLabel(type) {
+  return t(`common.deviceTypes.${type || 'unknown'}`)
+}
 
 // ── State ────────────────────────────────────────────────
 const svgEl      = ref(null)
@@ -57,8 +67,8 @@ async function loadTopology() {
     nodes.value = data.nodes
     await nextTick()
     renderGraph()
-  } catch {
-    ElMessage.error(t('topology.loadFailed'))
+  } catch (e) {
+    handleError(e, 'topology.loadFailed')
   } finally {
     loading.value = false
   }
@@ -236,7 +246,7 @@ function renderGraph() {
       .attr('fill', cfg.color)
       .attr('opacity', 0.65)
       .attr('pointer-events', 'none')
-      .text(`${t(`common.deviceTypes.${type}`).toUpperCase()} · ${group.length}`)
+      .text(`${typeLabel(type).toUpperCase()} · ${group.length}`)
   })
 
   // ── Device nodes ──
@@ -273,20 +283,20 @@ function renderGraph() {
   // ── Gateway node (center) ──
   const gwG = g.append('g').attr('class', 'gateway')
   gwG.append('circle')
-    .attr('r', 38).attr('fill', '#5E5CE6').attr('opacity', 0.07)
+    .attr('r', 38).attr('fill', 'var(--color-primary)').attr('opacity', 0.07)
     .attr('filter', 'url(#topo-glow)')
   gwG.append('circle')
-    .attr('r', 24).attr('fill', '#1a1a2e')
-    .attr('stroke', '#5E5CE6').attr('stroke-width', 2)
+    .attr('r', 24).attr('fill', 'var(--color-bg)')
+    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 2)
   gwG.append('circle')
     .attr('r', 30).attr('fill', 'none')
-    .attr('stroke', '#5E5CE6').attr('stroke-width', 1).attr('opacity', 0.2)
+    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 1).attr('opacity', 0.2)
   gwG.append('text')
     .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
     .attr('font-size', '18px').attr('pointer-events', 'none').text('🏠')
   gwG.append('text')
     .attr('y', 40).attr('text-anchor', 'middle')
-    .attr('font-size', '11px').attr('fill', '#9898b8').attr('font-weight', 600)
+    .attr('font-size', '11px').attr('fill', 'var(--color-text-secondary)').attr('font-weight', 600)
     .attr('pointer-events', 'none').text(t('topology.gatewayLabel'))
 
   if (activeTypes.value.length > 0) updateNodeOpacity()
@@ -306,11 +316,12 @@ function resetZoom() {
 
 // ── Helpers ───────────────────────────────────────────────
 function latencyColor(ms) {
-  return ms < 5 ? '#26C281' : ms < 30 ? '#F2C94C' : '#F07D38'
+  return ms < 5 ? 'var(--color-online)' : ms < 30 ? 'var(--color-scanning)' : 'var(--color-warning)'
 }
 
 function formatTime(v) {
-  return v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '—'
+  if (!v) return '—'
+  return new Date(v).toLocaleString(locale.value, { hour12: false })
 }
 
 function avatarInitial(name) {
@@ -375,9 +386,9 @@ onMounted(loadTopology)
 
         <!-- Zoom controls -->
         <div class="zoom-controls">
-          <button class="zoom-btn" @click="zoomIn">+</button>
-          <button class="zoom-btn" @click="resetZoom" :title="$t('topology.resetView')">⊙</button>
-          <button class="zoom-btn" @click="zoomOut">−</button>
+          <button class="zoom-btn" :aria-label="$t('topology.zoomIn')" @click="zoomIn">+</button>
+          <button class="zoom-btn" :aria-label="$t('topology.resetView')" :title="$t('topology.resetView')" @click="resetZoom">⊙</button>
+          <button class="zoom-btn" :aria-label="$t('topology.zoomOut')" @click="zoomOut">−</button>
         </div>
 
         <!-- Legend (interactive filter) -->
@@ -402,8 +413,14 @@ onMounted(loadTopology)
         </div>
 
         <!-- Empty state -->
-        <div v-if="!loading && nodes.length === 0" class="empty-hint">
-          {{ $t('topology.noDevices') }}
+        <div v-if="!loading && nodes.length === 0" class="topology-empty">
+          <EmptyState
+            icon="topology"
+            :title="$t('common.empty.topology.title')"
+            :description="$t('common.empty.topology.description')"
+            :action-label="$t('common.empty.topology.action')"
+            @action="devicesStore.scan()"
+          />
         </div>
       </div>
 
@@ -413,11 +430,11 @@ onMounted(loadTopology)
           <div class="panel-head">
             <span
               class="type-badge"
-              :style="{ background: typeOf(selected).color + '20', color: typeOf(selected).color }"
+              :style="{ background: `color-mix(in srgb, ${typeOf(selected).color} 12%, transparent)`, color: typeOf(selected).color }"
             >
-              {{ typeOf(selected).icon }} {{ $t(`common.deviceTypes.${selected.device_type || 'unknown'}`) }}
+              {{ typeOf(selected).icon }} {{ typeLabel(selected.device_type) }}
             </span>
-            <button class="close-btn" @click="selected = null">✕</button>
+            <button class="close-btn" :aria-label="$t('common.close')" @click="selected = null">✕</button>
           </div>
 
           <div class="panel-name">
@@ -425,7 +442,12 @@ onMounted(loadTopology)
           </div>
 
           <div class="panel-status-row">
-            <span class="status-dot" :class="selected.is_online ? 'online' : 'offline'" />
+            <span
+              class="status-dot"
+              :class="selected.is_online ? 'online' : 'offline'"
+              role="status"
+              :aria-label="selected.is_online ? $t('topology.online') : $t('topology.offline')"
+            />
             <span class="status-text">{{ selected.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
             <span
               v-if="selected.is_online && selected.response_time_ms != null"
@@ -490,7 +512,7 @@ onMounted(loadTopology)
   color: var(--color-text-muted);
 }
 .scanning-tag {
-  color: #F2C94C;
+  color: var(--color-scanning);
   animation: blink 1.2s ease-in-out infinite;
   margin-left: 6px;
 }
@@ -499,8 +521,8 @@ onMounted(loadTopology)
   50% { opacity: 0.35 }
 }
 @keyframes breathe {
-  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); }
-  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(38, 194, 129, 0.8); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
+  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
 }
 .header-actions {
   display: flex;
@@ -535,7 +557,7 @@ onMounted(loadTopology)
 .node-tooltip {
   position: absolute;
   pointer-events: none;
-  background: rgba(20, 20, 36, 0.92);
+  background: var(--color-surface-overlay);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 5px 9px;
@@ -546,7 +568,7 @@ onMounted(loadTopology)
   gap: 5px;
   z-index: 10;
   backdrop-filter: blur(4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-md);
 }
 .tt-name   { color: var(--color-text-primary); font-weight: 500; }
 .tt-sep    { color: var(--color-text-muted); }
@@ -634,16 +656,18 @@ onMounted(loadTopology)
   flex-shrink: 0;
 }
 
-/* Empty hint */
-.empty-hint {
+/* Empty state */
+.topo-page :deep(.topology-empty) {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.topo-page :deep(.topology-empty .empty-state) {
+  pointer-events: auto;
 }
 
 /* ── Detail panel ───────────────────────── */
@@ -711,7 +735,7 @@ onMounted(loadTopology)
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(38, 194, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
+.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
 .status-dot.offline { background: var(--color-offline); }
 .latency {
   margin-left: auto;
@@ -775,7 +799,7 @@ onMounted(loadTopology)
 }
 .owner-avatar.home {
   border-color: var(--color-online);
-  background: rgba(38, 194, 129, 0.1);
+  background: var(--color-primary-subtle);
   color: var(--color-online);
 }
 .owner-avatar.away {
@@ -801,7 +825,7 @@ onMounted(loadTopology)
   font-weight: 600;
 }
 .tag-home {
-  background: rgba(38, 194, 129, 0.12);
+  background: var(--color-primary-subtle);
   color: var(--color-online);
 }
 .tag-away {

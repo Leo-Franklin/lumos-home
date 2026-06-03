@@ -2,7 +2,10 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import { useI18n } from 'vue-i18n'
 import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS } from './chartColors'
+
+const { t, tm, rt } = useI18n()
 
 const props = defineProps({
   data:        { type: Array,  default: () => [] },
@@ -18,25 +21,30 @@ const tooltipRef   = ref(null)
 const containerRef = ref(null)
 let ro = null
 
-const RANGES = [
-  { label: '今日',   value: '24h' },
-  { label: '近7天',  value: '7d'  },
-  { label: '近30天', value: '30d' },
-]
+const RANGES = computed(() => [
+  { label: t('charts.ranges.today'),   value: '24h' },
+  { label: t('charts.ranges.last7d'),  value: '7d'  },
+  { label: t('charts.ranges.last30d'), value: '30d' },
+])
 
 const TYPE_OPTIONS = Object.entries(DEVICE_TYPE_LABELS).map(([value, label]) => ({
   value, label, color: DEVICE_TYPE_COLORS[value],
 }))
 
-const DAYS_7 = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+// Localized weekday labels (Sunday=0 … Saturday=6) — re-derived reactively
+// because vue-i18n's `t()` only returns a translated string, not an array.
+const DAYS_7 = computed(() => {
+  const wd = tm('charts.weekdays')
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => rt(wd[i]))
+})
 
-// Background shading bands by time of day
-const TIME_BANDS = [
-  { start: 0,  end: 6,  label: '深夜', bg: 'rgba(30,20,50,0.55)'   },
-  { start: 6,  end: 12, label: '上午', bg: 'rgba(20,30,50,0.40)'   },
-  { start: 12, end: 18, label: '下午', bg: 'rgba(20,25,40,0.35)'   },
-  { start: 18, end: 24, label: '傍晚', bg: 'rgba(30,15,45,0.50)'   },
-]
+// Background shading bands by time of day (rgba tints on the dark canvas)
+const TIME_BANDS = computed(() => [
+  { start: 0,  end: 6,  label: t('charts.timeBands.lateNight'), bg: 'rgba(99,102,241,0.06)' },
+  { start: 6,  end: 12, label: t('charts.timeBands.morning'),    bg: 'rgba(99,102,241,0.04)' },
+  { start: 12, end: 18, label: t('charts.timeBands.afternoon'),  bg: 'rgba(99,102,241,0.03)' },
+  { start: 18, end: 24, label: t('charts.timeBands.evening'),    bg: 'rgba(99,102,241,0.05)' },
+])
 
 // Derived summary stats shown in the toolbar
 const stats = computed(() => {
@@ -62,7 +70,7 @@ const stats = computed(() => {
     total,
     maxCount,
     peakHour: peakHour != null ? `${peakHour}:00` : '--',
-    peakDay:  peakDay  != null ? (DAYS_7[+peakDay] || '--') : '--',
+    peakDay:  peakDay  != null ? (DAYS_7.value[+peakDay] || '--') : '--',
   }
 })
 
@@ -71,7 +79,8 @@ function renderChart() {
 
   const containerW = containerRef.value.clientWidth || 800
   const isDay      = props.range === '24h'
-  const rowLabels  = isDay ? ['00', '10', '20', '30', '40', '50'] : DAYS_7
+  const dayLabels  = DAYS_7.value
+  const rowLabels  = isDay ? ['00', '10', '20', '30', '40', '50'] : dayLabels
   const rowCount   = rowLabels.length
 
   // Layout constants
@@ -99,11 +108,12 @@ function renderChart() {
 
   const maxVal = d3.max(props.data, (d) => d.count) || 1
 
-  // Power-scale color interpolation — amplifies sparse data so even count=1 is clearly visible
+  // Power-scale color interpolation — amplifies sparse data so even count=1 is clearly visible.
+  // Endpoints are interpolation anchors (d3 requires real RGB values).
   const colorScale = (v) => {
     if (v === 0) return null
     const t = Math.pow(v / maxVal, 0.4)
-    return d3.interpolateRgb('#2a1f5e', '#5E5CE6')(t)
+    return d3.interpolateRgb('#1e1e40', '#6366F1')(t)
   }
 
   // ── Defs: gradient for color legend ──────────────────
@@ -114,12 +124,12 @@ function renderChart() {
     const t = Math.pow(i / 10, 0.4)
     grad.append('stop')
       .attr('offset', `${i * 10}%`)
-      .attr('stop-color', d3.interpolateRgb('#2a1f5e', '#5E5CE6')(t))
+      .attr('stop-color', d3.interpolateRgb('#1e1e40', '#6366F1')(t))
   })
 
   // ── Time-band background zones ────────────────────────
   const bandG = svg.append('g')
-  TIME_BANDS.forEach(({ start, end, bg }) => {
+  TIME_BANDS.value.forEach(({ start, end, bg }) => {
     const x = ml + start * (cell + pad)
     const w = (end - start) * (cell + pad) - pad
     const h = rowCount * (cell + pad) - pad
@@ -131,14 +141,14 @@ function renderChart() {
   })
 
   // ── Time-band zone labels ─────────────────────────────
-  TIME_BANDS.forEach(({ start, end, label }) => {
+  TIME_BANDS.value.forEach(({ start, end, label }) => {
     const mid = (start + end) / 2
     svg.append('text')
       .attr('x', ml + mid * (cell + pad))
       .attr('y', mt - 20)
       .attr('text-anchor', 'middle')
       .attr('font-size', 9)
-      .attr('fill', '#4a4a5a')
+      .attr('fill', 'var(--color-text-muted)')
       .attr('letter-spacing', '0.06em')
       .text(label)
   })
@@ -150,7 +160,7 @@ function renderChart() {
       .attr('y', mt - 8)
       .attr('text-anchor', 'middle')
       .attr('font-size', 9)
-      .attr('fill', '#555')
+      .attr('fill', 'var(--color-text-muted)')
       .text(h)
   })
 
@@ -161,7 +171,7 @@ function renderChart() {
       .attr('y', mt + i * (cell + pad) + cell / 2 + 4)
       .attr('text-anchor', 'end')
       .attr('font-size', 10)
-      .attr('fill', '#666')
+      .attr('fill', 'var(--color-text-muted)')
       .text(label)
   })
 
@@ -186,22 +196,22 @@ function renderChart() {
         .attr('x', x).attr('y', y)
         .attr('width', cell).attr('height', cell)
         .attr('rx', 3)
-        .attr('fill',         isActive ? fill : 'rgba(255,255,255,0.03)')
-        .attr('stroke',       isActive ? 'rgba(94,92,230,0.35)' : 'rgba(255,255,255,0.05)')
+        .attr('fill',         isActive ? fill : 'var(--color-surface-overlay)')
+        .attr('stroke',       isActive ? 'var(--color-primary-border)' : 'var(--color-border-subtle)')
         .attr('stroke-width', isActive ? 1 : 0.5)
         .style('cursor', isActive ? 'pointer' : 'default')
         .on('mousemove', isActive ? (event) => {
           const timeLabel = isDay
             ? `${d.hour}:${String((d.minuteBlock ?? 0) * 10).padStart(2, '0')}`
-            : `${DAYS_7[d.day ?? row]} ${d.hour}:00`
+            : `${DAYS_7.value[d.day ?? row]} ${d.hour}:00`
           const list = (d.devices || []).slice(0, 5).join('<br>')
           const more = (d.devices || []).length > 5
-            ? `<br><span style="color:#888">+${d.devices.length - 5} 台…</span>` : ''
+            ? `<br><span style="color:var(--color-text-muted)">${t('charts.heatmap.moreDevices', { count: d.devices.length - 5 })}</span>` : ''
           tooltip
             .style('display', 'block')
             .style('left', event.clientX + 14 + 'px')
             .style('top',  event.clientY - 40 + 'px')
-            .html(`<strong>${timeLabel}</strong><br>${d.count} 台在线${list ? '<br>' + list + more : ''}`)
+            .html(`<strong>${timeLabel}</strong><br>${t('charts.heatmap.devicesOnline', { count: d.count })}${list ? '<br>' + list + more : ''}`)
         } : null)
         .on('mouseleave', isActive ? () => tooltip.style('display', 'none') : null)
         .on('click', isActive
@@ -222,14 +232,14 @@ function renderChart() {
 
   svg.append('text')
     .attr('x', ml).attr('y', legendY + 17)
-    .attr('font-size', 9).attr('fill', '#444')
+    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
     .text('0')
 
   svg.append('text')
     .attr('x', ml + legendW).attr('y', legendY + 17)
     .attr('text-anchor', 'end')
-    .attr('font-size', 9).attr('fill', '#666')
-    .text(`${maxVal} 台`)
+    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
+    .text(t('charts.heatmap.legendMax', { count: maxVal }))
 }
 
 watch(() => [props.data, props.range], renderChart, { deep: true })
@@ -271,15 +281,15 @@ onUnmounted(() => ro?.disconnect())
       <div v-if="stats" class="hm-stats">
         <div class="hm-stat">
           <span class="hm-stat-val">{{ stats.peakHour }}</span>
-          <span class="hm-stat-lbl">峰值时段</span>
+          <span class="hm-stat-lbl">{{ t('charts.heatmap.peakHour') }}</span>
         </div>
         <div v-if="range !== '24h'" class="hm-stat">
           <span class="hm-stat-val">{{ stats.peakDay }}</span>
-          <span class="hm-stat-lbl">最活跃日</span>
+          <span class="hm-stat-lbl">{{ t('charts.heatmap.peakDay') }}</span>
         </div>
         <div class="hm-stat">
           <span class="hm-stat-val">{{ stats.total }}</span>
-          <span class="hm-stat-lbl">总事件数</span>
+          <span class="hm-stat-lbl">{{ t('charts.heatmap.total') }}</span>
         </div>
       </div>
     </div>

@@ -6,8 +6,10 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
+import { useApiError } from '@/composables/useApiError'
 
 const { t, locale } = useI18n()
+const handleError = useApiError()
 const localeStore = useLocaleStore()
 
 const langOptions = [
@@ -22,19 +24,38 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const form = ref({ email: '', password: '', confirmPassword: '' })
+const formRef = ref(null)
 const loading = ref(false)
 
+const rules = {
+  email: [
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('login.emailInvalid'), trigger: ['blur', 'change'] },
+  ],
+  password: [
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
+    { min: 8, message: t('login.passwordTooShort'), trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: t('login.confirmPasswordRequired'), trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== form.value.password) {
+          callback(new Error(t('login.passwordMismatch')))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
 async function handleRegister() {
-  if (!form.value.email || !form.value.password || !form.value.confirmPassword) {
-    ElMessage.warning(t('login.fillRequired'))
-    return
-  }
-  if (form.value.password !== form.value.confirmPassword) {
-    ElMessage.error(t('login.passwordMismatch'))
-    return
-  }
-  if (form.value.password.length < 8) {
-    ElMessage.error(t('login.passwordTooShort'))
+  if (!formRef.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
     return
   }
   loading.value = true
@@ -43,7 +64,7 @@ async function handleRegister() {
     ElMessage.success(t('login.registerSuccess'))
     router.push('/login')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('login.registerFailed'))
+    handleError(e, 'login.registerFailed')
   } finally {
     loading.value = false
   }
@@ -81,8 +102,15 @@ async function handleRegister() {
         <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
       <div class="register-divider" />
-      <el-form @submit.prevent="handleRegister" :model="form" label-width="0">
-        <el-form-item>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="0"
+        :disabled="loading"
+        @submit.prevent="handleRegister"
+      >
+        <el-form-item prop="email">
           <el-input
             v-model="form.email"
             :placeholder="$t('login.email')"
@@ -91,7 +119,7 @@ async function handleRegister() {
             :prefix-icon="User"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="password">
           <el-input
             v-model="form.password"
             :placeholder="$t('login.password')"
@@ -101,7 +129,7 @@ async function handleRegister() {
             show-password
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="confirmPassword">
           <el-input
             v-model="form.confirmPassword"
             :placeholder="$t('login.confirmPassword')"
@@ -125,6 +153,7 @@ async function handleRegister() {
           text
           size="small"
           style="width: 100%; margin-top: 16px"
+          :disabled="loading"
           @click="router.push('/login')"
         >
           {{ $t('login.goToRegister') }}
@@ -186,7 +215,7 @@ async function handleRegister() {
   transform: translateX(-50%);
   width: 60%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(94, 92, 230, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
 }
 
 .register-logo {
@@ -196,14 +225,14 @@ async function handleRegister() {
 .logo-icon-wrap {
   width: 50px;
   height: 50px;
-  background: rgba(94, 92, 230, 0.1);
-  border: 1px solid rgba(94, 92, 230, 0.22);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 14px;
-  box-shadow: 0 0 18px rgba(94, 92, 230, 0.14);
+  box-shadow: 0 0 18px var(--color-primary-subtle);
 }
 .logo-icon {
   color: var(--color-primary);

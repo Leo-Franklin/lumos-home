@@ -23,11 +23,22 @@ const routes = [
       { path: 'settings', component: () => import('@/views/SettingsView.vue') },
     ],
   },
+  // Catch-all 404 route - must be registered LAST
+  { path: '/:pathMatch(.*)*', component: () => import('@/views/NotFoundView.vue'), meta: { public: true } },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  },
 })
 
 router.beforeEach((to) => {

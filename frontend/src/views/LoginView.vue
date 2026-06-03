@@ -2,15 +2,16 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
 import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
+import { useApiError } from '@/composables/useApiError'
 
 const { t, locale } = useI18n()
 const localeStore = useLocaleStore()
 const auth = useAuthStore()
 const router = useRouter()
+const handleError = useApiError()
 
 const langOptions = [
   { label: t('login.langChinese'), value: 'zh-CN' },
@@ -22,19 +23,33 @@ function switchLang(lang) {
 }
 
 const form = ref({ email: '', password: '' })
+const formRef = ref(null)
 const loading = ref(false)
 
+const rules = {
+  email: [
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('login.emailInvalid'), trigger: ['blur', 'change'] },
+  ],
+  password: [
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('login.passwordTooShortLogin'), trigger: 'blur' },
+  ],
+}
+
 async function handleLogin() {
-  if (!form.value.email || !form.value.password) {
-    ElMessage.warning(t('login.fillRequired'))
-    return
+  if (!formRef.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
+    return  // 校验未通过，错误信息已经显示
   }
   loading.value = true
   try {
     await auth.login(form.value.email, form.value.password)
     router.push('/devices')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('login.loginFailed'))
+    handleError(e, 'login.loginFailed')
   } finally {
     loading.value = false
   }
@@ -71,8 +86,15 @@ async function handleLogin() {
         <h2 class="logo-title">{{ $t('login.brandTitle') }}</h2>
         <p class="logo-sub">{{ $t('login.subtitle') }}</p>
       </div>
-      <el-form @submit.prevent="handleLogin" :model="form" label-width="0">
-        <el-form-item>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="0"
+        :disabled="loading"
+        @submit.prevent="handleLogin"
+      >
+        <el-form-item prop="email">
           <el-input
             v-model="form.email"
             :placeholder="$t('login.email')"
@@ -80,7 +102,7 @@ async function handleLogin() {
             :prefix-icon="User"
           />
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="password">
           <el-input
             v-model="form.password"
             :placeholder="$t('login.password')"
@@ -104,6 +126,7 @@ async function handleLogin() {
           text
           size="small"
           style="width: 100%; margin-top: 16px"
+          :disabled="loading"
           @click="router.push('/register')"
         >
           {{ $t('login.goToRegister') }}
@@ -124,6 +147,7 @@ async function handleLogin() {
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
 }
+
 
 .lang-bar {
   width: 380px;
@@ -165,7 +189,7 @@ async function handleLogin() {
   transform: translateX(-50%);
   width: 60%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(94, 92, 230, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
 }
 
 .login-logo {
@@ -175,14 +199,14 @@ async function handleLogin() {
 .logo-icon-wrap {
   width: 50px;
   height: 50px;
-  background: rgba(94, 92, 230, 0.1);
-  border: 1px solid rgba(94, 92, 230, 0.22);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 14px;
-  box-shadow: 0 0 18px rgba(94, 92, 230, 0.14);
+  box-shadow: 0 0 18px var(--color-primary-subtle);
 }
 .logo-icon {
   color: var(--color-primary);

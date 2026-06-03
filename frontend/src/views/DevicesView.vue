@@ -10,11 +10,14 @@ import { Refresh, Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
+import { useApiError } from '@/composables/useApiError'
+import { scheduleUndo } from '@/composables/useUndo'
 
 const { t } = useI18n()
 const route = useRoute()
 const devicesStore = useDevicesStore()
 const searchInput = ref('')
+const handleError = useApiError()
 
 function onAllClick() {
   searchInput.value = ''
@@ -41,17 +44,29 @@ async function saveEdit() {
     ElMessage.success(t('devices.saveSuccess'))
     editDialog.value = false
     devicesStore.fetchDevices()
-  } catch {
-    ElMessage.error(t('devices.saveFailed'))
+  } catch (e) {
+    handleError(e, 'devices.saveFailed')
   }
 }
 
 // ── 删除 ──────────────────────────────────────────────
 async function handleDelete(row) {
-  await ElMessageBox.confirm(t('devices.deleteConfirm', { name: row.alias || row.mac }), t('common.confirmDelete'), { type: 'warning' })
-  await deleteDevice(row.mac)
-  ElMessage.success(t('devices.deleted'))
-  devicesStore.fetchDevices()
+  // P2-10: 撤销模式（5s 内可恢复）
+  const originalIndex = devicesStore.items.findIndex((d) => d.mac === row.mac)
+  if (originalIndex === -1) return
+  // 1. 立即从 store 中隐藏
+  devicesStore.items.splice(originalIndex, 1)
+  if (devicesStore.total > 0) devicesStore.total -= 1
+  // 2. 弹出 5s 撤销 toast
+  scheduleUndo({
+    label: t('devices.deleted'),
+    performDelete: () => deleteDevice(row.mac),
+    onUndo: () => {
+      devicesStore.items.splice(originalIndex, 0, row)
+      devicesStore.total += 1
+    },
+    onError: (e) => handleError(e, 'devices.saveFailed'),
+  })
 }
 
 // ── 详情 ──────────────────────────────────────────────
@@ -81,21 +96,13 @@ const deviceTypeOptions = [
   'unknown',
 ]
 
-const filterOptions = [
-  { value: 'camera',        label: 'Camera',        hex: '#5E5CE6', rgba: 'rgba(94,92,230,' },
-  { value: 'computer',      label: 'Computer',      hex: '#26C281', rgba: 'rgba(38,194,129,' },
-  { value: 'phone',         label: 'Phone',         hex: '#F2C94C', rgba: 'rgba(242,201,76,' },
-  { value: 'iot',           label: 'IoT',           hex: '#F07D38', rgba: 'rgba(240,125,56,' },
-  { value: 'router',        label: 'Router',        hex: '#06B6D4', rgba: 'rgba(6,182,212,' },
-  { value: 'tablet',        label: 'Tablet',        hex: '#D946EF', rgba: 'rgba(217,70,239,' },
-  { value: 'tv',            label: 'TV',            hex: '#7C3AED', rgba: 'rgba(124,58,237,' },
-  { value: 'printer',       label: 'Printer',       hex: '#14B8A6', rgba: 'rgba(20,184,166,' },
-  { value: 'smart_speaker', label: 'Smart Speaker', hex: '#A3E635', rgba: 'rgba(163,230,53,' },
-  { value: 'game_console',  label: 'Game Console',  hex: '#EF4444', rgba: 'rgba(239,68,68,' },
-  { value: 'nas',           label: 'NAS',           hex: '#60A5FA', rgba: 'rgba(96,165,250,' },
-  { value: 'wearable',      label: 'Wearable',      hex: '#FB7185', rgba: 'rgba(251,113,133,' },
-  { value: 'unknown',       label: 'Unknown',       hex: '#8B8B96', rgba: 'rgba(139,139,150,' },
-]
+// Filter chips reference --color-type-* tokens directly. FilterChip supports
+// `var(...)` strings and uses color-mix() to derive alpha tints.
+const filterOptions = deviceTypeOptions.map((value) => ({
+  value,
+  label: value,
+  color: `var(--color-type-${value})`,
+}))
 
 onMounted(() => {
   if (route.query.mac) {
@@ -152,14 +159,14 @@ onMounted(() => {
           :key="opt.value"
           :label="$t(`common.deviceTypes.${opt.value}`)"
           :active="devicesStore.filterTypes.includes(opt.value)"
-          :color="opt.hex"
+          :color="opt.color"
           @click="devicesStore.toggleFilter(opt.value)"
         />
       </div>
     </div>
 
-    <div v-if="devicesStore.loading" class="device-grid">
-      <div v-for="i in 6" :key="i" class="device-skeleton glass-card" />
+    <div v-if="devicesStore.loading" class="device-list">
+      <el-skeleton :rows="3" animated class="device-list-skeleton" />
     </div>
 
     <div v-else-if="devicesStore.items.length === 0" class="empty-container">
@@ -172,7 +179,7 @@ onMounted(() => {
       />
     </div>
 
-    <div v-else class="device-grid">
+    <div v-else class="device-list">
       <DeviceCard
         v-for="device in devicesStore.items"
         :key="device.mac"
@@ -224,7 +231,12 @@ onMounted(() => {
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
       <div class="detail-header">
-        <span class="detail-status-dot" :class="detailDevice.is_online ? 'online' : 'offline'" />
+        <span
+          class="detail-status-dot"
+          :class="detailDevice.is_online ? 'online' : 'offline'"
+          role="status"
+          :aria-label="detailDevice.is_online ? $t('common.online') : $t('common.offline')"
+        />
         <span class="detail-title">{{ detailDevice.alias || detailDevice.hostname || $t('devices.unnamedDevice') }}</span>
         <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
           {{ detailDevice.is_online ? $t('common.online') : $t('common.offline') }}
@@ -282,28 +294,30 @@ onMounted(() => {
   gap: var(--space-2);
 }
 
-/* Device grid */
-.device-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-4);
+/* Device list (row layout, per DESIGN.md §9) */
+.device-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
-.device-skeleton {
-  height: 200px;
-  animation: shimmer 1.4s ease infinite;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-raised) 25%,
-    var(--color-surface-overlay) 37%,
-    var(--color-surface-raised) 63%
-  );
-  background-size: 400% 100%;
+.device-list > :first-child {
+  border-top: 0;
 }
 
-@keyframes shimmer {
-  0%   { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.device-list-skeleton {
+  padding: var(--space-3) var(--space-4);
+}
+.device-list-skeleton :deep(.el-skeleton__item) {
+  height: 52px;
+  margin-bottom: var(--space-3);
+  border-radius: 0;
+}
+.device-list-skeleton :deep(.el-skeleton__item:last-child) {
+  margin-bottom: 0;
 }
 
 .empty-container {
@@ -325,7 +339,7 @@ onMounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(38,194,129,.5); }
+.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(16,185,129,.5); }
 .detail-status-dot.offline { background: var(--color-offline); }
 .detail-title {
   font-size: 16px;

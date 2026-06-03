@@ -23,6 +23,10 @@ export default {
   scanning: 'Scanning...',
   connecting: 'Connecting...',
   scanResult: 'Found {found}, {new} new',
+  scanProgress: 'Scan progress {pct}%',
+  scanStage: 'Scanning {subnet}',
+  cancelScan: 'Cancel scan',
+  scanCancelled: 'Scan cancelled',
   noData: 'No data',
   confirmDelete: 'Confirm Delete',
   operationFailed: 'Operation failed',
@@ -51,5 +55,51 @@ export default {
     nas: 'NAS',
     wearable: 'Wearable',
     unknown: 'Unknown',
+  },
+  notFound: {
+    code: '404',
+    title: 'Page Went Wandering',
+    desc: 'The page you are looking for does not exist or has been moved.',
+    backHome: 'Back to Home',
+  },
+  empty: {
+    devices: {
+      title: 'No devices yet',
+      description: 'Click "Scan Network" to discover LAN devices',
+      action: 'Scan Network',
+    },
+    cameras: {
+      title: 'No cameras yet',
+      description: 'Add an ONVIF camera to start managing',
+      action: 'Add Camera',
+    },
+    recordings: {
+      title: 'No recordings',
+      description: 'Recordings will appear here once completed',
+    },
+    members: {
+      title: 'No family members',
+      description: 'Add a family member to enable arrival notifications',
+      action: 'Add Member',
+    },
+    topology: {
+      title: 'No topology data',
+      description: 'Click "Scan Network" to discover LAN devices',
+      action: 'Scan Network',
+    },
+    dlna: {
+      title: 'No DLNA devices found',
+      description: 'Click "Search DLNA Devices" to start scanning',
+      action: 'Search Devices',
+    },
+    schedules: {
+      title: 'No recording schedules',
+      description: 'Create your first schedule to get started',
+      action: 'New Schedule',
+    },
+    selection: {
+      title: 'Select an item on the left',
+      description: 'Choose a device from the left list to begin',
+    },
   },
 }

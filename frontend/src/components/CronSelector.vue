@@ -236,7 +236,7 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 }
 .preset-card:hover { border-color: var(--color-primary); }
 .preset-card.selected {
-  background: rgba(94, 92, 230, 0.08);
+  background: var(--color-primary-subtle);
   border-color: var(--color-primary);
 }
 
@@ -301,20 +301,20 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   font-size: 13px;
 }
 .preview-bar.valid {
-  background: rgba(38, 194, 129, 0.06);
-  border-color: rgba(38, 194, 129, 0.2);
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-border);
 }
 .preview-bar.invalid {
-  background: rgba(240, 82, 82, 0.06);
-  border-color: rgba(240, 82, 82, 0.2);
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .preview-icon { flex-shrink: 0; }
-.preview-bar.valid  .preview-icon { color: var(--color-online, #26C281); }
-.preview-bar.invalid .preview-icon { color: var(--color-error, #F05252); }
+.preview-bar.valid  .preview-icon { color: var(--color-online); }
+.preview-bar.invalid .preview-icon { color: var(--color-error); }
 
-.preview-bar.valid  .preview-text { color: var(--color-online, #26C281); }
-.preview-bar.invalid .preview-text { color: var(--color-error, #F05252); }
+.preview-bar.valid  .preview-text { color: var(--color-online); }
+.preview-bar.invalid .preview-text { color: var(--color-error); }
 
 .preview-cron {
   display: none; /* Hide technical cron syntax from regular users */

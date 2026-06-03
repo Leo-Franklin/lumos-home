@@ -1,4 +1,5 @@
 <script setup>
+import { ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -7,6 +8,8 @@ const props = defineProps({
   items: { type: Array, default: () => [] },
   maxHeight: { type: Number, default: 420 },
   showViewAll: { type: Boolean, default: false },
+  /** Batching window for incoming items (ms). */
+  batchIntervalMs: { type: Number, default: 500 },
 })
 
 const emit = defineEmits(['viewAll'])
@@ -34,6 +37,74 @@ function formatTime(timestamp) {
   if (diffMins < 1440) return t('dashboard.timeHoursAgo', { h: Math.floor(diffMins / 60) })
   return t('dashboard.timeDaysAgo', { d: Math.floor(diffMins / 1440) })
 }
+
+// Batch-merge behaviour: incoming `items` are throttled to one update per
+// `batchIntervalMs` ms. Within a 1s window, if N>=3 items arrived, we collapse
+// them into a single "+N new events" row at the top instead of N rows.
+const RENDER_BULK_THRESHOLD = 3
+
+const renderedItems = ref(props.items.slice())
+let _flushTimer = null
+
+function _flush() {
+  // Strip the __pending marker from any leftover rows.
+  renderedItems.value = renderedItems.value.map((it) => {
+    if (it && it.__pending) {
+      const { __pending, ...rest } = it
+      return rest
+    }
+    return it
+  })
+}
+
+function _scheduleFlush() {
+  if (_flushTimer) return
+  _flushTimer = setTimeout(() => {
+    _flushTimer = null
+    _flush()
+  }, props.batchIntervalMs)
+}
+
+watch(
+  () => props.items,
+  (newItems, oldItems) => {
+    if (!Array.isArray(newItems)) return
+    const oldLen = Array.isArray(oldItems) ? oldItems.length : 0
+    const diff = newItems.length - oldLen
+    if (diff <= 0) {
+      // Parent reset or truncation: just sync the rendered list.
+      renderedItems.value = newItems.slice()
+      return
+    }
+
+    if (diff >= RENDER_BULK_THRESHOLD) {
+      // Collapse the burst into a single bulk row at the top.
+      const burstRow = {
+        __bulk: true,
+        count: diff,
+        timestamp: newItems[0]?.timestamp || new Date().toISOString(),
+      }
+      const tail = newItems.slice(diff)
+      renderedItems.value = [burstRow, ...tail]
+    } else {
+      // Small delta — just sync (avoid extra render passes).
+      renderedItems.value = newItems.slice()
+    }
+    _scheduleFlush()
+  },
+  { deep: true, immediate: false }
+)
+
+onUnmounted(() => {
+  if (_flushTimer) {
+    clearTimeout(_flushTimer)
+    _flushTimer = null
+  }
+})
+
+defineExpose({
+  flush: _flush,
+})
 </script>
 
 <template>
@@ -52,28 +123,39 @@ function formatTime(timestamp) {
     </div>
 
     <div class="activity-list" :style="{ maxHeight: maxHeight + 'px' }">
-      <div v-if="items.length === 0" class="activity-empty">
+      <div v-if="renderedItems.length === 0" class="activity-empty">
         <span>{{ $t('dashboard.noRecentActivity') }}</span>
       </div>
-      <div
-        v-else
-        v-for="(item, index) in items"
-        :key="index"
-        class="activity-item"
-        :style="{ animationDelay: Math.min(index * 30, 200) + 'ms' }"
-      >
-        <span
-          class="activity-dot"
-          :style="{ background: getDotColor(item.category) }"
-        />
-        <span class="activity-label">{{ item.label }}</span>
-        <span v-if="item.timestamp" class="activity-time">
-          {{ formatTime(item.timestamp) }}
-        </span>
-      </div>
+      <template v-else>
+        <div
+          v-for="(item, index) in renderedItems"
+          :key="(item.__bulk ? 'bulk-' + item.count + '-' + item.timestamp : 'row-' + index)"
+          class="activity-item"
+          :class="{ 'activity-item--bulk': item.__bulk }"
+          :style="{ animationDelay: Math.min(index * 30, 200) + 'ms' }"
+        >
+          <span
+            v-if="!item.__bulk"
+            class="activity-dot"
+            :style="{ background: getDotColor(item.category) }"
+          />
+          <span v-else class="activity-dot activity-dot--bulk" />
+          <span class="activity-label">
+            <template v-if="item.__bulk">
+              {{ t('dashboard.bulkEvents', { count: item.count }) }}
+            </template>
+            <template v-else>
+              {{ item.label }}
+            </template>
+          </span>
+          <span v-if="item.timestamp" class="activity-time">
+            {{ formatTime(item.timestamp) }}
+          </span>
+        </div>
+      </template>
     </div>
 
-    <div v-if="items.length > 0" class="activity-fade" />
+    <div v-if="renderedItems.length > 0" class="activity-fade" />
   </div>
 </template>
 
@@ -135,11 +217,30 @@ function formatTime(timestamp) {
   border-top: 1px solid var(--color-border-subtle);
 }
 
+.activity-item--bulk {
+  font-weight: 600;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border-radius: var(--radius-sm);
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+  margin: 2px 0;
+}
+
+.activity-item--bulk + .activity-item {
+  border-top: none;
+}
+
 .activity-dot {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.activity-dot--bulk {
+  background: var(--color-primary);
+  opacity: 0.6;
 }
 
 .activity-label {
@@ -172,7 +273,7 @@ function formatTime(timestamp) {
   left: 0;
   right: var(--space-2);
   height: 40px;
-  background: linear-gradient(to top, rgba(24, 24, 28, 0.9), transparent);
+  background: linear-gradient(to top, var(--color-surface), transparent);
   pointer-events: none;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }

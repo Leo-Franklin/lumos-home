@@ -6,9 +6,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Clock, Calendar } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import CronSelector from '@/components/CronSelector.vue'
+import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useCamerasStore } from '@/stores/cameras'
+import { useApiError } from '@/composables/useApiError'
 
 const { t } = useI18n()
+const handleError = useApiError()
 const camerasStore = useCamerasStore()
 
 const schedules = ref([])
@@ -104,7 +108,7 @@ async function handleSubmit() {
     dialog.value = false
     fetch()
   } catch (e) {
-    ElMessage.error(e.response?.data?.error?.message || t('common.operationFailed'))
+    handleError(e, 'common.operationFailed')
   } finally {
     submitting.value = false
   }
@@ -136,9 +140,7 @@ async function handleDelete(row) {
     </div>
 
     <div v-if="loading" class="table-loading">
-      <div class="skeleton-row" v-for="i in 4" :key="i">
-        <div class="skeleton-cell" v-for="j in 5" :key="j"></div>
-      </div>
+      <el-skeleton :rows="4" animated class="table-loading-skeleton" />
     </div>
     <div v-else-if="schedules.length > 0" class="table-content">
     <el-table :data="schedules" style="width: 100%" row-key="id">
@@ -174,34 +176,24 @@ async function handleDelete(row) {
       </el-table-column>
       <el-table-column :label="$t('schedule.actions')" width="100" align="center" fixed="right">
         <template #default="{ row }">
-          <div class="action-group">
-            <el-tooltip :content="$t('common.edit')" :show-after="400" placement="top">
-              <el-button class="action-btn" size="small" :icon="Edit" @click="openEdit(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.delete')" :show-after="400" placement="top">
-              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDelete(row)" />
-            </el-tooltip>
-          </div>
+          <ActionButtonGroup
+            :actions="[
+              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEdit(row) },
+              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDelete(row) },
+            ]"
+          />
         </template>
       </el-table-column>
     </el-table>
     </div>
-    <div v-else class="empty-state">
-      <div class="empty-icon">
-        <svg viewBox="0 0 48 48" fill="none">
-          <rect x="4" y="8" width="40" height="32" rx="4" stroke="currentColor" stroke-width="2"/>
-          <path d="M4 16h40" stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="12" r="2" fill="currentColor"/>
-          <circle cx="20" cy="12" r="2" fill="currentColor"/>
-          <path d="M14 28h20M14 34h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <p class="empty-title">{{ $t('schedule.emptyTitle') }}</p>
-      <p class="empty-desc">{{ $t('schedule.emptyDesc') }}</p>
-      <el-button type="primary" class="empty-action" @click="openAdd">
-        <Plus />
-        {{ $t('schedule.newSchedule') }}
-      </el-button>
+    <div v-else class="schedule-empty">
+      <EmptyState
+        icon="schedule"
+        :title="$t('common.empty.schedules.title')"
+        :description="$t('common.empty.schedules.description')"
+        :action-label="$t('common.empty.schedules.action')"
+        @action="openAdd"
+      />
     </div>
 
     <el-dialog
@@ -263,8 +255,8 @@ async function handleDelete(row) {
           <el-form-item class="override-toggle">
             <el-button text type="primary" @click="showOverrides = !showOverrides">
               {{ showOverrides ? $t('schedule.hideOverrides') : $t('schedule.showOverrides') }}
-              <span class="toggle-arrow" :class="{ open: showOverrides }">
-                <svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="toggle-arrow" :class="{ open: showOverrides }" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
             </el-button>
           </el-form-item>
@@ -444,84 +436,28 @@ async function handleDelete(row) {
 
 /* ── Loading skeleton ──────────────────────── */
 .table-loading {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1px;
-  background: var(--color-border-subtle);
+  display: block;
+  padding: var(--space-3) 0;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--color-border);
 }
 
-.skeleton-row {
-  display: contents;
-}
-
-.skeleton-cell {
-  background: var(--color-surface-raised);
+.table-loading-skeleton :deep(.el-skeleton__item) {
   height: 54px;
-  animation: shimmer 1.5s ease-in-out infinite;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-sm);
 }
 
-@keyframes shimmer {
-  0%   { opacity: 1; }
-  50%  { opacity: 0.5; }
-  100% { opacity: 1; }
+.table-loading-skeleton :deep(.el-skeleton__item:last-child) {
+  margin-bottom: 0;
 }
 
 /* ── Empty state ───────────────────────────── */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 24px;
-  text-align: center;
-  background: transparent;
+.schedule-empty {
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);
+  background: transparent;
   animation: fade-up 400ms ease both;
-}
-
-.empty-icon {
-  width: 56px;
-  height: 56px;
-  color: var(--color-text-muted);
-  margin-bottom: 16px;
-  opacity: 0.4;
-}
-
-.empty-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0 0 6px;
-}
-
-.empty-desc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 0 0 20px;
-}
-
-.empty-action {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  height: 32px;
-  transition: all var(--duration-fast) ease-out;
-}
-
-.empty-action:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
 }
 
 /* ── Table entry animation ──────────────────── */

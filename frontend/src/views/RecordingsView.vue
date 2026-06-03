@@ -9,12 +9,16 @@ import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { VideoCameraFilled, Clock, FolderOpened, VideoPlay, Download, Delete } from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useI18n } from 'vue-i18n'
 import { useFormatDuration } from '@/composables/useFormatDuration'
+import { useApiError } from '@/composables/useApiError'
+import { scheduleUndo } from '@/composables/useUndo'
 
 const { t } = useI18n()
 const { formatDurationLong } = useFormatDuration()
+const handleError = useApiError()
 
 const recordings = ref([])
 const total = ref(0)
@@ -104,7 +108,7 @@ function pollHlsReady(rec) {
         clearInterval(hlsPollTimer)
         hlsPollTimer = null
         hlsConvertingId.value = null
-        ElMessage.error(t('recordings.transcodeFailed'))
+        handleError(e, 'recordings.transcodeFailed')
       }
     }
   }, 3000)
@@ -122,23 +126,29 @@ async function openFolder(row) {
   if (row.storage_type === 'local') {
     try {
       await openRecordingFolder(row.id)
-    } catch {
-      ElMessage.error(t('recordings.openFolderFailed'))
+    } catch (e) {
+      handleError(e, 'recordings.openFolderFailed')
     }
   }
 }
 
 async function handleDelete(rec) {
-  try {
-    await ElMessageBox.confirm(t('recordings.deleteConfirm'), t('common.confirmDelete'), { type: 'warning' })
-  } catch { return }
-  try {
-    await deleteRecording(rec.id)
-    ElMessage.success(t('recordings.deleted'))
-    fetchRecordings()
-  } catch (err) {
-    ElMessage.error(err.response?.data?.detail || t('recordings.deleteFailed'))
-  }
+  // P2-10: 撤销模式
+  // 1. 立即从列表中隐藏
+  const originalIndex = recordings.value.findIndex((r) => r.id === rec.id)
+  if (originalIndex === -1) return
+  recordings.value.splice(originalIndex, 1)
+  total.value = Math.max(0, total.value - 1)
+  // 2. 弹出 5s 撤销 toast，5s 后才真正发请求
+  scheduleUndo({
+    label: t('recordings.deleted'),
+    performDelete: () => deleteRecording(rec.id),
+    onUndo: () => {
+      recordings.value.splice(originalIndex, 0, rec)
+      total.value += 1
+    },
+    onError: (e) => handleError(e, 'recordings.deleteFailed'),
+  })
 }
 
 function downloadRecording(rec) {
@@ -169,7 +179,7 @@ async function fetchStats() {
     const { data } = await getRecordingStats(params)
     statsData.value = data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('recordings.statsFailed'))
+    handleError(e, 'recordings.statsFailed')
   } finally {
     statsLoading.value = false
   }
@@ -177,12 +187,16 @@ async function fetchStats() {
 
 function formatSize(bytes) {
   if (!bytes) return '-'
-  return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  if (bytes < 1024) return t('charts.size.bytes', { n: bytes })
+  if (bytes < 1024 * 1024) return t('charts.size.kb', { n: (bytes / 1024).toFixed(1) })
+  if (bytes < 1024 * 1024 * 1024) return t('charts.size.mb', { n: (bytes / 1024 / 1024).toFixed(1) })
+  if (bytes < 1024 * 1024 * 1024 * 1024) return t('charts.size.gb', { n: (bytes / 1024 / 1024 / 1024).toFixed(1) })
+  return t('charts.size.tb', { n: (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) })
 }
 function formatDuration(s) {
   if (!s) return '-'
   const m = Math.floor(s / 60), sec = s % 60
-  return `${m}:${String(sec).padStart(2, '0')}`
+  return t('charts.duration.short', { m, s: String(sec).padStart(2, '0') })
 }
 function statusType(s) {
   return { completed: 'success', recording: 'warning', failed: 'danger', synced: 'info' }[s] || ''
@@ -238,6 +252,13 @@ function cameraLabel(mac) {
     </div>
 
     <el-table v-loading="loading" :data="recordings" style="width: 100%">
+      <template #empty>
+        <EmptyState
+          icon="recording"
+          :title="$t('common.empty.recordings.title')"
+          :description="$t('common.empty.recordings.description')"
+        />
+      </template>
       <el-table-column prop="camera_mac" :label="$t('recordings.cameraMac')" min-width="160" />
       <el-table-column :label="$t('recordings.file')" width="220">
         <template #default="{ row }">
@@ -248,6 +269,7 @@ function cameraLabel(mac) {
                 class="action-btn"
                 size="small"
                 :icon="FolderOpened"
+                :aria-label="row.storage_type === 'local' ? $t('recordings.openLocalFolder') : $t('recordings.openNasFolder')"
                 @click="openFolder(row)"
               />
             </el-tooltip>
@@ -255,7 +277,7 @@ function cameraLabel(mac) {
         </template>
       </el-table-column>
       <el-table-column :label="$t('recordings.startTime')" width="170">
-        <template #default="{ row }">{{ new Date(row.started_at).toLocaleString('zh-CN') }}</template>
+        <template #default="{ row }">{{ $d(new Date(row.started_at), 'short') }}</template>
       </el-table-column>
       <el-table-column :label="$t('recordings.duration')" width="90">
         <template #default="{ row }">{{ formatDuration(row.duration) }}</template>
@@ -280,6 +302,7 @@ function cameraLabel(mac) {
                 class="action-btn action-btn--play"
                 size="small"
                 :icon="VideoPlay"
+                :aria-label="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
                 :loading="hlsConvertingId === row.id"
                 @click="playRecording(row)"
@@ -292,6 +315,7 @@ function cameraLabel(mac) {
                 class="action-btn"
                 size="small"
                 :icon="Download"
+                :aria-label="$t('recordings.download')"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
                 @click="downloadRecording(row)"
               />
@@ -303,6 +327,7 @@ function cameraLabel(mac) {
                 class="action-btn action-btn--danger"
                 size="small"
                 :icon="Delete"
+                :aria-label="$t('common.delete')"
                 @click="handleDelete(row)"
               />
             </el-tooltip>
@@ -336,7 +361,7 @@ function cameraLabel(mac) {
       </div>
 
       <div v-if="statsLoading" class="stats-skeleton">
-        <div v-for="i in 3" :key="i" class="stats-skeleton-tile" />
+        <el-skeleton :rows="1" animated class="stats-skeleton-inner" />
       </div>
 
       <template v-else-if="statsData">
@@ -435,22 +460,9 @@ function cameraLabel(mac) {
   gap: 12px;
 }
 
-.stats-skeleton-tile {
+.stats-skeleton-inner :deep(.el-skeleton__item) {
   height: 88px;
   border-radius: var(--radius-md);
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-raised) 25%,
-    var(--color-surface-overlay) 37%,
-    var(--color-surface-raised) 63%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
-}
-
-@keyframes shimmer {
-  0%   { background-position: 100% 50%; }
-  100% { background-position: 0%   50%; }
 }
 
 /* grid */
@@ -492,11 +504,11 @@ function cameraLabel(mac) {
 }
 
 .stat-tile--count::after   { background: var(--color-primary); }
-.stat-tile--duration::after { background: var(--color-online, #26C281); }
-.stat-tile--size::after    { background: var(--color-warning, #F07D38); }
+.stat-tile--duration::after { background: var(--color-online); }
+.stat-tile--size::after    { background: var(--color-warning); }
 
 .stat-tile:hover {
-  border-color: var(--color-border-subtle, #28282b);
+  border-color: var(--color-border-subtle);
   background: var(--color-surface-overlay);
 }
 
@@ -511,17 +523,17 @@ function cameraLabel(mac) {
   justify-content: center;
 }
 
-.stat-tile--count   .stat-icon-wrap { background: rgba(94, 92, 230, 0.12); }
-.stat-tile--duration .stat-icon-wrap { background: rgba(38, 194, 129, 0.12); }
-.stat-tile--size    .stat-icon-wrap { background: rgba(240, 125, 56, 0.12); }
+.stat-tile--count   .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-tile--duration .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-tile--size    .stat-icon-wrap { background: var(--color-primary-subtle); }
 
 .stat-icon {
   font-size: 18px;
 }
 
 .stat-tile--count   .stat-icon { color: var(--color-primary); }
-.stat-tile--duration .stat-icon { color: var(--color-online, #26C281); }
-.stat-tile--size    .stat-icon { color: var(--color-warning, #F07D38); }
+.stat-tile--duration .stat-icon { color: var(--color-online); }
+.stat-tile--size    .stat-icon { color: var(--color-warning); }
 
 /* text */
 .stat-body {
@@ -563,8 +575,8 @@ function cameraLabel(mac) {
 }
 
 .stat-glow--count    { background: var(--color-primary); }
-.stat-glow--duration { background: var(--color-online, #26C281); }
-.stat-glow--size     { background: var(--color-warning, #F07D38); }
+.stat-glow--duration { background: var(--color-online); }
+.stat-glow--size     { background: var(--color-warning); }
 
 /* empty hint */
 .stats-empty {
@@ -636,8 +648,8 @@ function cameraLabel(mac) {
 
 
 .action-btn--danger {
-  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);
   --el-button-hover-text-color: var(--color-error);
-  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+  --el-button-active-bg-color: rgba(239, 68, 68, 0.15);
 }
 </style>

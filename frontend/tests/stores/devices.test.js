@@ -24,6 +24,8 @@ describe('useDevicesStore', () => {
     expect(store.pageSize).toBe(20)
     expect(store.loading).toBe(false)
     expect(store.scanning).toBe(false)
+    expect(store.scanningProgress).toBe(0)
+    expect(store.scanningStage).toBe('')
     expect(store.filterTypes).toEqual([])
     expect(store.search).toBe('')
   })
@@ -118,6 +120,22 @@ describe('useDevicesStore', () => {
     await store.scan()
 
     expect(api.post).toHaveBeenCalledWith('/devices/scan')
+    // Cleanup: scan() schedules a setInterval — cancel it to avoid leaking
+    // timers into the next test.
+    store.cancelScan()
+  })
+
+  it('cancelScan resets scanning state', () => {
+    const store = useDevicesStore()
+    store.scanning = true
+    store.scanningProgress = 50
+    store.scanningStage = '192.168.1.x'
+
+    store.cancelScan()
+
+    expect(store.scanning).toBe(false)
+    expect(store.scanningProgress).toBe(0)
+    expect(store.scanningStage).toBe('')
   })
 
   it('onScanCompleted fetches devices', async () => {

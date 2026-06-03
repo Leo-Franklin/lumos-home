@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatDuration } from '@/composables/useFormatDuration'
+import { useApiError } from '@/composables/useApiError'
 import { useMembersStore } from '@/stores/members'
 import { listDevices } from '@/api/devices'
 import { listCameras } from '@/api/cameras'
@@ -12,9 +13,12 @@ import {
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
+import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
 const { formatDuration } = useFormatDuration()
+const handleError = useApiError()
 
 const membersStore = useMembersStore()
 
@@ -75,7 +79,7 @@ async function submitMember() {
     memberDialog.value = false
     membersStore.fetchMembers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('common.operationFailed'))
+    handleError(e, 'common.operationFailed')
   }
 }
 
@@ -118,7 +122,7 @@ async function handleBind() {
     bindForm.value = { mac: '', label: '' }
     loadBoundDevices(currentMember.value.id)
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('members.bindFailed'))
+    handleError(e, 'members.bindFailed')
   }
 }
 
@@ -180,7 +184,7 @@ async function fetchMemberStats(id) {
     const { data } = await getMemberStats(id, { range: statsRange.value })
     statsData.value = data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('members.statsFailed'))
+    handleError(e, 'members.statsFailed')
   } finally {
     statsLoading.value = false
   }
@@ -209,9 +213,9 @@ const groupedLogs = computed(() => {
     yesterday.setDate(yesterday.getDate() - 1)
     const dateKey = new Date(d.getFullYear(), d.getMonth(), d.getDate())
     let label
-    if (dateKey.getTime() === today.getTime()) label = '今天'
-    else if (dateKey.getTime() === yesterday.getTime()) label = '昨天'
-    else label = `${d.getMonth() + 1}月${d.getDate()}日`
+    if (dateKey.getTime() === today.getTime()) label = t('charts.date.today')
+    else if (dateKey.getTime() === yesterday.getTime()) label = t('charts.date.yesterday')
+    else label = t('charts.date.fallback', { m: d.getMonth() + 1, d: d.getDate() })
     if (!groups[label]) groups[label] = []
     groups[label].push(log)
   }
@@ -277,23 +281,15 @@ function formatLogTime(iso) {
 
       <el-table-column :label="$t('members.actions')" width="200" align="center">
         <template #default="{ row }">
-          <div class="action-group">
-            <el-tooltip :content="$t('members.bindDevice')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Link" @click="openDevices(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('members.logs')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Document" @click="openLogs(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('members.stats')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="DataAnalysis" @click="openStats(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.edit')" :show-after="400">
-              <el-button class="action-btn" size="small" :icon="Edit" @click="openEditMember(row)" />
-            </el-tooltip>
-            <el-tooltip :content="$t('common.delete')" :show-after="400">
-              <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleDeleteMember(row)" />
-            </el-tooltip>
-          </div>
+          <ActionButtonGroup
+            :actions="[
+              { icon: Link, tooltip: $t('members.bindDevice'), ariaLabel: $t('members.bindDevice'), onClick: () => openDevices(row) },
+              { icon: Document, tooltip: $t('members.logs'), ariaLabel: $t('members.logs'), onClick: () => openLogs(row) },
+              { icon: DataAnalysis, tooltip: $t('members.stats'), ariaLabel: $t('members.stats'), onClick: () => openStats(row) },
+              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEditMember(row) },
+              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDeleteMember(row) },
+            ]"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -367,9 +363,11 @@ function formatLogTime(iso) {
         </el-table-column>
         <el-table-column :label="$t('members.actions')" width="80" align="center">
           <template #default="{ row }">
-          <el-tooltip :content="$t('members.unbind')" :show-after="400">
-            <el-button class="action-btn action-btn--danger" size="small" :icon="Delete" @click="handleUnbind(row.mac)" />
-          </el-tooltip>
+            <ActionButtonGroup
+              :actions="[
+                { icon: Delete, tooltip: $t('members.unbind'), ariaLabel: $t('members.unbind'), danger: true, onClick: () => handleUnbind(row.mac) },
+              ]"
+            />
           </template>
         </el-table-column>
       </el-table>
@@ -411,7 +409,12 @@ function formatLogTime(iso) {
             </div>
           </template>
           <div v-else-if="!logsLoading" class="logs-empty">
-            <span>{{ $t('members.noData') }}</span>
+            <EmptyState
+              compact
+              size="small"
+              icon="member"
+              :title="$t('members.noData')"
+            />
           </div>
         </div>
       </div>
@@ -519,7 +522,7 @@ function formatLogTime(iso) {
 
 .daily-bar {
   width: 100%;
-  background: var(--color-primary, #5e5ce6);
+  background: var(--color-primary);
   border-radius: 2px 2px 0 0;
   cursor: default;
   transition: opacity 0.15s;
@@ -620,11 +623,11 @@ function formatLogTime(iso) {
 }
 
 .log-dot--arrive {
-  border-color: var(--color-success, #67c23a);
+  border-color: var(--color-online);
 }
 
 .log-dot--leave {
-  border-color: var(--color-warning, #e6a23c);
+  border-color: var(--color-warning);
 }
 
 .log-content {
@@ -650,13 +653,13 @@ function formatLogTime(iso) {
 }
 
 .log-badge--arrive {
-  background: rgba(103, 194, 58, 0.1);
-  color: var(--color-success, #67c23a);
+  background: var(--color-primary-subtle);
+  color: var(--color-online);
 }
 
 .log-badge--leave {
-  background: rgba(230, 162, 60, 0.1);
-  color: var(--color-warning, #e6a23c);
+  background: var(--color-primary-subtle);
+  color: var(--color-warning);
 }
 
 .log-device {
@@ -669,10 +672,7 @@ function formatLogTime(iso) {
 }
 
 .logs-empty {
-  text-align: center;
-  padding: 32px 0;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  padding: 16px 0;
 }
 
 .logs-footer {
@@ -750,8 +750,8 @@ function formatLogTime(iso) {
 }
 
 .action-btn--danger {
-  --el-button-hover-bg-color: rgba(240, 82, 82, 0.1);
+  --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);
   --el-button-hover-text-color: var(--color-error);
-  --el-button-active-bg-color: rgba(240, 82, 82, 0.15);
+  --el-button-active-bg-color: rgba(239, 68, 68, 0.15);
 }
 </style>

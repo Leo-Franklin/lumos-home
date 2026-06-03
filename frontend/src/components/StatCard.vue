@@ -138,11 +138,11 @@ defineProps({
 }
 
 /* Variant colors for icon backgrounds */
-.stat-card--members .stat-icon-wrap { background: rgba(99, 102, 241, 0.12); }
-.stat-card--cameras .stat-icon-wrap { background: rgba(16, 185, 129, 0.12); }
-.stat-card--devices .stat-icon-wrap { background: rgba(59, 130, 246, 0.12); }
-.stat-card--recordings .stat-icon-wrap { background: rgba(245, 158, 11, 0.12); }
-.stat-card--unknown .stat-icon-wrap { background: rgba(107, 114, 128, 0.12); }
+.stat-card--members .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-card--cameras .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-card--devices .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-card--recordings .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-card--unknown .stat-icon-wrap { background: var(--color-primary-subtle); }
 .stat-card--warn .stat-icon-wrap { background: rgba(245, 158, 11, 0.15); }
 
 /* Animation */

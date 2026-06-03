@@ -1,23 +1,22 @@
 # Smart Home Frontend — Design System
 
-**Base:** Linear (Dark Mode)
+**Source of truth:** `src/style.css` (`:root` token table). This document is the human-readable mirror of those tokens.
 **Archetype:** 技术仪表盘 · 深色 · 信息密集
 **Atmosphere:** 精准、高效、实时。每个像素都服务于状态感知与设备控制。专业用户导向，强调信息密度与操作效率。
 
-> **选型依据：** 现有代码（DeviceCard.vue、DevicesView.vue）已自发采用 Linear 的完整色彩系统，
-> 从 `#5E5CE6`（主色）到 `#26C281`（在线/成功）再到 `#1E1E20`（卡片背景）均精确吻合。
-> 本文件将这一隐式选择正式化，并将其扩展为完整的设计语言，消除当前 MainLayout（浅色）
-> 与 DeviceCard（深色）之间的风格断层。
+> **历史背景：** 早期版本基于 Linear 设计系统（`#5E5CE6` / `#26C281` / `#1E1E20`），与 `MainLayout` 浅色版本并存导致风格断层。
+> 当前 `src/style.css` 已迁移到 Indigo 体系（`#6366F1` / `#10B981` / `#0F0F12`），全局统一深色主题。
+> 本文件与 `src/style.css` 严格同步；如调整颜色，先改 `style.css`，再回填本文件。
 
 ---
 
 ## 1. 视觉主题与氛围
 
-**整体基调：** 深色技术仪表盘，冷感紫蓝主色，高对比度状态色。加入暖色调辅助色，营造家庭氛围。
-**核心关键词：** 精准 · 实时 · 可控 · 专业 · 信息密集 · 温暖
+**整体基调：** 深色技术仪表盘，冷感蓝紫主色（Indigo），高对比度状态色。
+**核心关键词：** 精准 · 实时 · 可控 · 专业 · 信息密集
 
-- 全局深色主题，消除浅色/深色混搭
-- 状态色作为语言系统（在线=绿、离线=灰、告警=橙/红）
+- 全局深色主题（无浅色页面）
+- 状态色作为语言系统（在线=绿、离线=灰、告警=橙/红、扫描=琥珀）
 - 排版偏小（14px base），服务信息密度
 - 动画极简，仅用于状态变化，不做装饰
 
@@ -25,94 +24,99 @@
 
 ## 2. 色彩系统
 
-### 主色（Linear Purple）
-| Token | Hex | 用途 |
-|-------|-----|------|
-| `--color-primary` | `#5E5CE6` | CTA 按钮、激活状态、链接、摄像头类型标签 |
-| `--color-primary-hover` | `#4E4CCF` | 悬停态 |
-| `--color-primary-subtle` | `rgba(94,92,230,0.15)` | 轻量高亮、选中行背景 |
-| `--color-primary-border` | `rgba(94,92,230,0.35)` | 激活边框 |
+> 以下值直接来自 `src/style.css` 的 `:root` 块。所有组件必须通过 `var(--color-*)` 引用，
+> 禁止硬编码 hex / rgba（`src/components/charts/chartColors.js` 例外，作为图表 JS 端颜色源）。
+
+### 主色（Indigo）
+| Token | Hex / RGBA | 用途 |
+|-------|-----------|------|
+| `--color-primary` | `#6366F1` | CTA 按钮、激活状态、链接、强调色 |
+| `--color-primary-hover` | `#4F46E5` | 悬停态 |
+| `--color-primary-subtle` | `rgba(99, 102, 241, 0.12)` | 轻量高亮、选中行背景、tag 背景 |
+| `--color-primary-border` | `rgba(99, 102, 241, 0.30)` | 激活边框、轮廓 |
 
 ### 深色画布
 | Token | Hex | 用途 |
 |-------|-----|------|
-| `--color-bg` | `#161618` | 页面底色 |
-| `--color-surface` | `#1E1E20` | 卡片、侧边栏、列表行背景 |
-| `--color-surface-raised` | `#252528` | 悬停行、次级面板 |
-| `--color-surface-overlay` | `#2C2C2F` | 下拉菜单、模态框背景 |
-| `--color-border` | `#2F2F33` | 分割线、卡片边框 |
-| `--color-border-subtle` | `#28282B` | 极细分割、嵌套边框 |
+| `--color-bg` | `#0F0F12` | 页面底色（最深） |
+| `--color-surface` | `#18181C` | 卡片、侧边栏、列表行背景（首层） |
+| `--color-surface-raised` | `#222228` | 悬停行、次级面板（次层） |
+| `--color-surface-overlay` | `#2A2A32` | 下拉菜单、模态框（最高层） |
+| `--color-border` | `#32323C` | 分割线、卡片边框 |
+| `--color-border-subtle` | `#28282E` | 极细分割、嵌套边框 |
 
 ### 文字
 | Token | Hex | 用途 |
 |-------|-----|------|
-| `--color-text-primary` | `#E8E8EC` | 主文字、设备名称、标题 |
-| `--color-text-secondary` | `#8B8B96` | 辅助信息、IP 地址、描述 |
-| `--color-text-muted` | `#56565E` | 时间戳、元数据、禁用状态 |
+| `--color-text-primary` | `#F4F4F6` | 主文字、设备名称、标题 |
+| `--color-text-secondary` | `#A0A0AB` | 辅助信息、IP 地址、描述 |
+| `--color-text-muted` | `#6B6B76` | 时间戳、元数据、禁用状态 |
 | `--color-text-inverse` | `#FFFFFF` | 按钮上的白色文字 |
 
-### 设备状态色（语义系统）
+### 语义色
 | 状态 | Token | Hex | 用途 |
 |------|-------|-----|------|
-| 在线 | `--color-online` | `#26C281` | 在线指示点、在线徽章背景（透明度 15%）|
-| 离线 | `--color-offline` | `#56565E` | 离线指示点、灰色徽章 |
-| 告警/错误 | `--color-error` | `#F05252` | 删除按钮 hover、连接失败 |
-| 扫描中 | `--color-scanning` | `#F2C94C` | 扫描进度条、活跃任务 |
-| 高优先级 | `--color-warning` | `#F07D38` | 警告状态、重要通知 |
-| 信息 | `--color-info` | `#5E5CE6` | 提示信息（与主色复用）|
+| 在线 | `--color-online` | `#10B981` | 在线指示点、徽章、录制状态 |
+| 离线 | `--color-offline` | `#6B7280` | 离线指示点、灰色徽章 |
+| 成功 | `--color-success` | `#10B981` | 成功提示、确认 |
+| 错误 | `--color-error` | `#EF4444` | 删除按钮 hover、连接失败、错误 |
+| 警告 | `--color-warning` | `#F59E0B` | 警告状态、IO 设备色 |
+| 扫描中 | `--color-scanning` | `#F59E0B` | 扫描进度条、活跃任务 |
 
-### 设备类型色（Type Badge System）
-| 设备类型 | Token | Hex | 说明 |
-|---------|-------|-----|------|
-| 摄像头 | `--color-type-camera` | `#5E5CE6` | 紫色 = 主色复用 |
-| 电脑 | `--color-type-computer` | `#26C281` | 绿色 = 在线色复用 |
-| 手机 | `--color-type-phone` | `#F2C94C` | 黄色 |
-| IoT | `--color-type-iot` | `#F07D38` | 橙色 |
-| 未知 | `--color-type-unknown` | `#8B8B96` | 灰色 = 次文字色复用 |
+### 设备类型色
+| 设备类型 | Token | Hex |
+|---------|-------|-----|
+| 摄像头 | `--color-type-camera` | `#6366F1` |
+| 电脑 | `--color-type-computer` | `#10B981` |
+| 手机 | `--color-type-phone` | `#F59E0B` |
+| IoT | `--color-type-iot` | `#F97316` |
+| 未知 | `--color-type-unknown` | `#6B7280` |
+| 路由器 | `--color-type-router` | `#06B6D4` |
+| 平板 | `--color-type-tablet` | `#D946EF` |
+| 电视 | `--color-type-tv` | `#8B5CF6` |
+| 打印机 | `--color-type-printer` | `#14B8A6` |
+| 智能音箱 | `--color-type-smart-speaker` | `#84CC16` |
+| 游戏机 | `--color-type-game-console` | `#EF4444` |
+| NAS | `--color-type-nas` | `#3B82F6` |
+| 可穿戴 | `--color-type-wearable` | `#EC4899` |
 
 ### 活动流分类色（Activity Feed）
-| 分类 | Token | Hex | 用途 |
-|------|-------|-----|------|
-| 设备事件 | `--color-cat-device` | `#007AFF` | 设备上/下线、未知设备检测 |
-| 摄像头事件 | `--color-cat-camera` | `#34C759` | 摄头状态、录像事件 |
-| 成员事件 | `--color-cat-member` | `#5E5CE6` | 成员到达/离开 |
-| 系统事件 | `--color-cat-system` | `#8B8B96` | 扫描完成、DLNA 发现 |
+| 分类 | Token | Hex |
+|------|-------|-----|
+| 设备事件 | `--color-cat-device` | `#3B82F6` |
+| 摄像头事件 | `--color-cat-camera` | `#10B981` |
+| 成员事件 | `--color-cat-member` | `#6366F1` |
+| 系统事件 | `--color-cat-system` | `#6B7280` |
 
 ### Stat Card 图标强调色
-| 卡片 | Token | Hex | 说明 |
-|------|-------|-----|------|
-| 成员 | `--color-accent-members` | `#5E5CE6` | 配合 `--color-type-camera` 用同一色系 |
-| 摄像头 | `--color-accent-cameras` | `#34C759` | 强调在线/录制状态 |
-| 网络设备 | `--color-accent-devices` | `#007AFF` | 设备在线率感知 |
-| 录像 | `--color-accent-recordings` | `#FF9500` | 时间长度统计 |
-| 未知设备 | `--color-accent-unknown` | `#8B8B96` | 默认灰 |
-| 未知设备（警告）| `--color-accent-unknown-warn` | `#E6A23C` | 有新增设备时变橙色 |
+| 卡片 | Token | Hex |
+|------|-------|-----|
+| 成员 | `--color-accent-members` | `#6366F1` |
+| 摄像头 | `--color-accent-cameras` | `#10B981` |
+| 网络设备 | `--color-accent-devices` | `#3B82F6` |
+| 录像 | `--color-accent-recordings` | `#F59E0B` |
+| 未知设备 | `--color-accent-unknown` | `#6B7280` |
+| 未知设备（警告） | `--color-accent-unknown-warn` | `#F59E0B` |
 
-### 暖色调（家庭氛围辅助色）
-| Token | Hex | 用途 |
-|-------|-----|------|
-| `--color-warm-peach` | `#E8A87C` | 家庭成员、温馨场景辅助 |
-| `--color-warm-coral` | `#F08080` | 在家状态、亲和感 |
-| `--color-warm-amber` | `#E8B86D` | 提醒、关注 |
-
-> **设计原则：** 暖色仅用于 Members/Home 等与人相关的模块，不替代主色/状态色系统。
-
-> **设计原则：** 类型色与语义状态色刻意复用，减少颜色总量，降低认知负担。
-> 紫=主色/摄像头，绿=成功/在线/电脑，黄=进行中/手机，橙=警告/IoT。
+> **设计原则：** 紫=主色/摄像头/成员，绿=成功/在线/电脑/摄像头事件，黄=进行中/手机/警告，橙=警告/IoT。
+> 状态色与类型色刻意复用，减少颜色总量，降低认知负担。
 
 ---
 
 ## 3. 字体排版
 
+字体来源：Google Fonts，CSS 顶部 `@import` 加载。
+
 ```css
---font-sans: "Outfit", -apple-system, BlinkMacSystemFont, "PingFang SC",
-             "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
---font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
---font-tabular: "Outfit", monospace; /* 用于数字统计，使用 tabular-nums */
+--font-display: "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;     /* 数字、显示 */
+--font-sans:    "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+                "Microsoft YaHei", sans-serif;                               /* 正文（中文优先） */
+--font-mono:    "JetBrains Mono", "Fira Code", Consolas, monospace;          /* MAC/IP */
+--font-tabular: "Outfit", monospace;                                         /* 等宽数字 */
 ```
 
-> **字体选择理由：** Outfit 相比 Inter/Plus Jakarta Sans 更具科技感与几何美感，同时保留良好的可读性。
-> 中文使用系统回退（PingFang SC → Hiragino Sans GB → Microsoft YaHei）。
+> **字体选择理由：** `Outfit` 几何感强、可读性高，用于数字展示；`Noto Sans SC` 完整覆盖简中/繁中/日韩字形，
+> 比系统回退更稳定；`JetBrains Mono` 提供等宽标识符的清晰识别。
 
 | Token | 大小 | 字重 | 行高 | 字距 | 用途 |
 |-------|------|------|------|------|------|
@@ -133,7 +137,7 @@
 ## 4. 间距与布局
 
 **基础单位：** 4px  
-**间距序列：** `2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64`
+**间距序列：** `4, 8, 12, 16, 20, 24, 32, 40`
 
 | Token | 值 | 用途 |
 |-------|---|------|
@@ -141,9 +145,10 @@
 | `--space-2` | 8px | 组件内部间距 |
 | `--space-3` | 12px | 列表项内边距（紧凑） |
 | `--space-4` | 16px | 标准间距、按钮内边距 |
-| `--space-6` | 24px | 卡片内边距、分组间距 |
+| `--space-5` | 20px | 卡片内边距 |
+| `--space-6` | 24px | 内容区内边距 |
 | `--space-8` | 32px | 区块间距 |
-| `--space-12` | 48px | 页面级间距 |
+| `--space-10` | 40px | 页面级间距 |
 
 **页面布局：**
 ```
@@ -159,7 +164,7 @@
 └──────────┴──────────────────────────────────┘
 ```
 
-- **Header 高度：** 56px（统一，替换当前混用值）
+- **Header 高度：** 56px
 - **Sidebar 宽度：** 220px（展开），48px（收起）
 - **内容最大宽度：** 1400px
 - **内容内边距：** 24px
@@ -170,10 +175,11 @@
 
 | Token | 值 | 用途 |
 |-------|---|------|
-| `--radius-xs` | 3px | 标签（tag）、键盘快捷键 chip |
+| `--radius-xs` | 3px | 标签、键盘快捷键 chip |
 | `--radius-sm` | 4px | 按钮、输入框、徽章 |
 | `--radius-md` | 6px | 卡片、设备行、下拉菜单 |
 | `--radius-lg` | 8px | 模态框、面板、对话框 |
+| `--radius-xl` | 12px | glass-card |
 | `--radius-full` | 9999px | 状态指示点、在线/离线 pill |
 
 ---
@@ -190,10 +196,10 @@
 --color-surface-overlay /* 最高层：下拉、模态 */
 
 /* 仅在浮层上使用轻微阴影 */
---shadow-sm:    0 1px 4px rgba(0,0,0,0.5);
---shadow-md:    0 4px 12px rgba(0,0,0,0.6);
---shadow-lg:    0 8px 24px rgba(0,0,0,0.7);
---shadow-focus: 0 0 0 2px rgba(94,92,230,0.4);
+--shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.5);
+--shadow-md:    0 4px 12px rgba(0, 0, 0, 0.6);
+--shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.7);
+--shadow-focus: 0 0 0 2px rgba(99, 102, 241, 0.4);
 ```
 
 ---
@@ -207,90 +213,67 @@
 下边框: 1px solid --color-border
 内容: Logo（左）| WebSocket 连接状态（中右）| 用户头像+下拉（右）
 
-WebSocket 状态指示：
-  已连接: 绿点 (#26C281) + "已连接" text-muted
-  断开:   灰点 (#56565E) + "未连接" text-muted  
-  重连中: 黄点闪烁 (#F2C94C)
+WebSocket 状态指示:
+  已连接: 绿点 (--color-online) + text-muted
+  断开:   灰点 (--color-offline) + text-muted
+  重连中: 黄点闪烁 (--color-scanning)
 ```
 
 ### Sidebar（侧边栏）
 ```
 宽度: 220px
-背景: --color-surface（与内容区颜色一致，通过右边框区分）
+背景: --color-surface
 右边框: 1px solid --color-border
 
 导航项:
-  高度: 32px
-  内边距: 0 12px
+  高度: 36px
+  内边距: 0 16px
   图标: 16px, --color-text-muted
   文字: text-sm --color-text-secondary
-  
+
   hover:  bg --color-surface-raised, text-primary
   active: bg --color-primary-subtle, text-primary,
-          左侧 2px accent 条 --color-primary
-
-分组标题: text-xs uppercase letter-spacing:0.06em --color-text-muted, padding: 16px 12px 4px
+          左侧 3px accent 条 --color-primary
 ```
 
 ### 设备列表行（DeviceCard）
 ```
-高度: 52px（舒适模式）或 44px（紧凑模式）
-背景: transparent（在 --color-bg 上）或 --color-surface（在卡片中）
-下边框: 1px solid --color-border-subtle
-内边距: 0 16px
-hover: bg --color-surface-raised
-
-布局（从左到右）:
-  [状态指示点 8px] [类型图标 32x32 rounded-md] [设备名称+IP] [... 弹性占位] [MAC 地址] [类型徽章] [操作按钮]
-
 状态指示点:
-  在线: 8px 圆点, background: #26C281, box-shadow: 0 0 6px rgba(38,194,129,0.5)
-  离线: 8px 圆点, background: #56565E
+  在线: 10px 圆点, background: --color-online,
+         box-shadow: 0 0 8px rgba(16, 185, 129, 0.5), pulse-glow 2s
+  离线: 10px 圆点, background: --color-offline
 
-类型图标区:
-  32x32px, radius: --radius-md
-  背景: rgba([type-color], 0.15)
+类型图标区 (32x32):
+  背景: color-mix(in srgb, [type-color] 10%, transparent)
   图标色: [type-color]
 
-设备名称: text-base --color-text-primary font-weight:500
-IP 地址:  text-sm --color-text-muted font-mono（mono 字体）
-MAC 地址: text-xs --color-text-muted font-mono，仅 hover 时完整显示
-
-类型徽章 (Type Badge):
-  背景: rgba([type-color], 0.15)
-  文字: [type-color], text-xs, weight:500
-  radius: --radius-full, padding: 2px 8px
-
-操作按钮（hover 时出现）:
-  编辑: Ghost 按钮, icon-only, hover text-primary
-  删除: Ghost 按钮, icon-only, hover text-error
+类型徽章 (Type Badge Pill):
+  背景: color-mix(in srgb, [type-color] 10%, transparent)
+  文字: [type-color], text-xs, weight: 500
+  radius: --radius-full, padding: 2px 10px
 ```
 
 ### 按钮
 ```
-Primary:   bg #5E5CE6, text white, radius 4px, height 32px, px 12px, text-sm
-           hover: bg #4E4CCF, transition 150ms
+Primary:   bg var(--color-primary), text --color-text-inverse,
+           radius --radius-sm, height 32px, px 12px, text-sm
+           hover: bg var(--color-primary-hover), 150ms
 
 Secondary: bg --color-surface-raised, border 1px --color-border,
-           text --color-text-secondary, radius 4px, height 32px
+           text --color-text-secondary, radius --radius-sm, height 32px
 
 Ghost:     transparent, text --color-text-secondary
            hover: bg --color-surface-raised, text-primary
 
-Danger:    默认同 Ghost, hover: bg rgba(240,82,82,0.1), text #F05252
-
-Icon-only: 28x28px, radius --radius-sm
-           hover: bg --color-surface-raised
-
-Disabled:  opacity: 0.4, cursor: not-allowed
+Danger:    默认同 Ghost, hover: bg rgba(239, 68, 68, 0.1), text --color-error
 ```
 
 ### 输入框 / 搜索框
 ```
 高度: 32px
 背景: --color-surface-raised
-边框: 1px solid --color-border
-圆角: --radius-sm (4px)
+边框: 1px solid --color-border (wrapper inset)
+圆角: --radius-sm
 内边距: 0 12px
 文字: text-sm --color-text-primary
 占位符: --color-text-muted
@@ -300,64 +283,47 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
 
 ### 模态框 / 对话框
 ```
-蒙层: rgba(0,0,0,0.6) backdrop
+蒙层: rgba(0, 0, 0, 0.6) backdrop
 面板背景: --color-surface-overlay
 边框: 1px solid --color-border
-圆角: --radius-lg (8px)
+圆角: --radius-lg
 阴影: --shadow-lg
 内边距: 24px
-标题: text-xl --color-text-primary
-副标题/说明: text-sm --color-text-secondary
 ```
 
 ### 状态徽章（在线/离线 Pill）
 ```
-在线: bg rgba(38,194,129,0.15), text #26C281, radius full, px:8 py:2, text-xs weight:500
-离线: bg rgba(86,86,94,0.2),    text #56565E, radius full, px:8 py:2, text-xs weight:500
-```
-
-### 扫描进度条（ScanProgress）
-```
-轨道: bg --color-border, radius full, height 4px
-进度: bg #F2C94C（扫描中黄色）, transition: width 300ms ease
-完成后: bg #26C281 + 0.3s 延迟消失动画
-
-状态文字: text-sm --color-text-secondary
-设备计数: text-sm #F2C94C（扫描中）/ #26C281（完成）
+在线: bg rgba(16, 185, 129, 0.15), text --color-online,
+      radius full, px: 8 py: 2, text-xs weight: 500
+离线: bg rgba(107, 114, 128, 0.2), text --color-offline,
+      radius full, px: 8 py: 2, text-xs weight: 500
 ```
 
 ### 摄像头播放器
 ```
 容器: bg #000000, radius --radius-md
-控制条: bg rgba(0,0,0,0.7), backdrop-filter: blur(8px)
-边框: 1px solid --color-border
 最大高度: 480px
-
-无信号状态:
-  bg: #0A0A0A
-  图标: #56565E
-  文字: text-sm --color-text-muted
+无信号状态: 图标 #f56c6c, padding 20px
 ```
 
 ### 通知 / Toast
 ```
-容器: bg --color-surface-overlay, border 1px --color-border, radius --radius-md
-阴影: --shadow-lg
+容器: bg --color-surface-overlay, border 1px --color-border,
+      radius --radius-md, shadow --shadow-lg
 最大宽度: 360px
 
 类型:
-  成功: 左边 3px 实线 #26C281
-  错误: 左边 3px 实线 #F05252
-  警告: 左边 3px 实线 #F07D38
-  信息: 左边 3px 实线 #5E5CE6
+  成功: 左边 3px 实线 --color-online
+  错误: 左边 3px 实线 --color-error
+  警告: 左边 3px 实线 --color-warning
+  信息: 左边 3px 实线 --color-primary
 ```
 
 ### 表单（设置页 / 编辑对话框）
 ```
 标签: text-sm --color-text-secondary, margin-bottom: 4px
-输入框: 同上"输入框"规格
-选择器: 同输入框，展开时 bg --color-surface-overlay
-错误提示: text-xs #F05252, margin-top: 4px
+输入框: 同"输入框"规格
+错误提示: text-xs --color-error, margin-top: 4px
 表单组间距: 16px
 ```
 
@@ -366,37 +332,34 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
 ## 8. 动效与过渡
 
 ```css
-/* 微交互（hover、toggle） */
---duration-fast: 100ms;
---easing-fast: ease-out;
-
-/* 状态变化（展开/收起、进度更新） */
---duration-base: 200ms;
---easing-base: cubic-bezier(0.16, 1, 0.3, 1);
-
-/* 页面级过渡 */
---duration-slow: 300ms;
---easing-slow: cubic-bezier(0.4, 0, 0.2, 1);
+--duration-fast:   100ms;
+--duration-base:   200ms;
+--duration-slow:   300ms;
+--duration-slower: 400ms;
+--easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+--easing-snap:     cubic-bezier(0.16, 1, 0.3, 1);
+--easing-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
 **动效规则：**
-- 列表行进入：`opacity 0→1 + translateY(4px→0)`，200ms，stagger 20ms（CSS `animationFillMode: both`）
-- Stat Card 入场：5 张卡片的 stagger 延迟分别为 0/40/80/120/160ms，营造依次浮现的层次感
-- 状态指示点（在线）：静态，无呼吸动画（避免视觉噪声）
+- 列表行进入：`opacity 0→1 + translateY(8px→0)`，200ms
+- Stat Card 入场：stagger 0–160ms
+- 状态指示点（在线）：`pulse-glow` 2s infinite
 - 扫描进度：`width` 过渡 300ms
-- 模态框：`opacity + scale(0.96→1)` 200ms
-- WebSocket 重连点：闪烁 `opacity 1→0.3` 1s infinite（仅重连时）
+- 模态框：`opacity + scale` 300ms
+- WebSocket 重连点：闪烁 `opacity 1→0.5` 1s infinite（仅重连时）
 
 ---
 
 ## 9. 设计护栏
 
 **必须遵守：**
-- 全局使用深色主题，不引入浅色背景页面（当前 MainLayout 的 `#f5f7fa` 需替换为 `--color-bg`）
-- 所有颜色使用 CSS 变量，禁止在组件内硬编码 hex 值（活动流用 `--color-cat-*`，Stat Card 用 `--color-accent-*`）
+- 全局使用深色主题，不引入浅色背景页面
+- 所有颜色使用 CSS 变量，禁止在组件内硬编码 hex 值（`src/components/charts/chartColors.js` 作为图表 JS 端颜色源除外）
 - IP 地址、MAC 地址、文件名等机器标识符一律使用 mono 字体
 - 状态色用于传达含义，不用于美化（绿色=在线，不是"好看"）
 - Element Plus 组件通过 CSS 变量覆盖（不修改 element-plus 源码）
+- 修改任何 token，先改 `src/style.css`，再回填本文件
 
 **禁止：**
 - 不在深色页面上放置纯白（`#FFF`）大块背景
@@ -410,85 +373,84 @@ focus: border-color --color-primary, box-shadow: --shadow-focus
 
 ## 附录：CSS 变量声明（根文件）
 
+> 与 `src/style.css` `:root` 块保持一致。完整变量（含 Element Plus 覆盖）请直接阅读 `src/style.css`。
+
 ```css
-/* 在 src/style.css 中添加 :root 声明 */
 :root {
   /* 主色 */
-  --color-primary:        #5E5CE6;
-  --color-primary-hover:  #4E4CCF;
-  --color-primary-subtle: rgba(94, 92, 230, 0.15);
-  --color-primary-border: rgba(94, 92, 230, 0.35);
+  --color-primary:        #6366F1;
+  --color-primary-hover:  #4F46E5;
+  --color-primary-subtle: rgba(99, 102, 241, 0.12);
+  --color-primary-border: rgba(99, 102, 241, 0.30);
 
   /* 深色画布 */
-  --color-bg:              #161618;
-  --color-surface:         #1E1E20;
-  --color-surface-raised:  #252528;
-  --color-surface-overlay: #2C2C2F;
-  --color-border:          #2F2F33;
-  --color-border-subtle:   #28282B;
+  --color-bg:              #0F0F12;
+  --color-surface:         #18181C;
+  --color-surface-raised:  #222228;
+  --color-surface-overlay: #2A2A32;
+  --color-border:          #32323C;
+  --color-border-subtle:   #28282E;
 
   /* 文字 */
-  --color-text-primary:   #E8E8EC;
-  --color-text-secondary: #8B8B96;
-  --color-text-muted:     #56565E;
+  --color-text-primary:   #F4F4F6;
+  --color-text-secondary: #A0A0AB;
+  --color-text-muted:     #6B6B76;
   --color-text-inverse:   #FFFFFF;
 
   /* 语义色 */
-  --color-online:   #26C281;
-  --color-offline:  #56565E;
-  --color-error:    #F05252;
-  --color-warning:  #F07D38;
-  --color-scanning: #F2C94C;
+  --color-online:   #10B981;
+  --color-offline:  #6B7280;
+  --color-error:    #EF4444;
+  --color-warning:  #F59E0B;
+  --color-success:  #10B981;
+  --color-scanning: #F59E0B;
 
   /* 设备类型色 */
-  --color-type-camera:        #5E5CE6;
-  --color-type-computer:      #26C281;
-  --color-type-phone:         #F2C94C;
-  --color-type-iot:           #F07D38;
-  --color-type-unknown:       #8B8B96;
-
-  /* 活动流分类色 */
-  --color-cat-device:   #007AFF;
-  --color-cat-camera:   #34C759;
-  --color-cat-member:   #5E5CE6;
-  --color-cat-system:   #8B8B96;
-
-  /* Stat Card 图标强调色 */
-  --color-accent-members:      #5E5CE6;
-  --color-accent-cameras:      #34C759;
-  --color-accent-devices:      #007AFF;
-  --color-accent-recordings:   #FF9500;
-  --color-accent-unknown:      #8B8B96;
-  --color-accent-unknown-warn: #E6A23C;
+  --color-type-camera:        #6366F1;
+  --color-type-computer:      #10B981;
+  --color-type-phone:         #F59E0B;
+  --color-type-iot:           #F97316;
+  --color-type-unknown:       #6B7280;
+  --color-type-router:        #06B6D4;
+  --color-type-tablet:        #D946EF;
+  --color-type-tv:            #8B5CF6;
+  --color-type-printer:       #14B8A6;
+  --color-type-smart-speaker: #84CC16;
+  --color-type-game-console:  #EF4444;
+  --color-type-nas:           #3B82F6;
+  --color-type-wearable:      #EC4899;
 
   /* 圆角 */
   --radius-xs:   3px;
   --radius-sm:   4px;
   --radius-md:   6px;
   --radius-lg:   8px;
+  --radius-xl:   12px;
   --radius-full: 9999px;
 
   /* 阴影 */
   --shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.5);
   --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.6);
   --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.7);
-  --shadow-focus: 0 0 0 2px rgba(94, 92, 230, 0.4);
+  --shadow-focus: 0 0 0 2px rgba(99, 102, 241, 0.4);
 
   /* 动效 */
-  --duration-fast: 100ms;
-  --duration-base: 200ms;
-  --duration-slow: 300ms;
-  --easing-snap:   cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast:   100ms;
+  --duration-base:   200ms;
+  --duration-slow:   300ms;
+  --duration-slower: 400ms;
 
   /* 布局 */
-  --sidebar-width:        220px;
+  --sidebar-width:           220px;
   --sidebar-width-collapsed: 48px;
-  --header-height:        56px;
-  --content-max-width:    1400px;
+  --header-height:           56px;
+  --content-max-width:       1400px;
 
   /* 字体 */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont,
-               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --font-display: "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:    "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+                  "Microsoft YaHei", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --font-tabular: "Outfit", monospace;
 }
 ```
