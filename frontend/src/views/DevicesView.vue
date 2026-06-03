@@ -151,7 +151,7 @@ onMounted(() => {
     </div>
 
     <div v-if="devicesStore.loading" class="device-list">
-      <div v-for="i in 6" :key="i" class="device-row-skeleton" />
+      <el-skeleton :rows="3" animated class="device-list-skeleton" />
     </div>
 
     <div v-else-if="devicesStore.items.length === 0" class="empty-container">
@@ -288,23 +288,16 @@ onMounted(() => {
   border-top: 0;
 }
 
-.device-row-skeleton {
-  height: 52px;
-  margin-bottom: 0;
-  border-bottom: 1px solid var(--color-border-subtle);
-  animation: shimmer 1.4s ease infinite;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-raised) 25%,
-    var(--color-surface-overlay) 37%,
-    var(--color-surface-raised) 63%
-  );
-  background-size: 400% 100%;
+.device-list-skeleton {
+  padding: var(--space-3) var(--space-4);
 }
-
-@keyframes shimmer {
-  0%   { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.device-list-skeleton :deep(.el-skeleton__item) {
+  height: 52px;
+  margin-bottom: var(--space-3);
+  border-radius: 0;
+}
+.device-list-skeleton :deep(.el-skeleton__item:last-child) {
+  margin-bottom: 0;
 }
 
 .empty-container {

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatDuration } from '@/composables/useFormatDuration'
+import { useApiError } from '@/composables/useApiError'
 import { useMembersStore } from '@/stores/members'
 import { listDevices } from '@/api/devices'
 import { listCameras } from '@/api/cameras'
@@ -13,9 +14,11 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
 import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
 const { formatDuration } = useFormatDuration()
+const handleError = useApiError()
 
 const membersStore = useMembersStore()
 
@@ -76,7 +79,7 @@ async function submitMember() {
     memberDialog.value = false
     membersStore.fetchMembers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('common.operationFailed'))
+    handleError(e, 'common.operationFailed')
   }
 }
 
@@ -119,7 +122,7 @@ async function handleBind() {
     bindForm.value = { mac: '', label: '' }
     loadBoundDevices(currentMember.value.id)
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('members.bindFailed'))
+    handleError(e, 'members.bindFailed')
   }
 }
 
@@ -181,7 +184,7 @@ async function fetchMemberStats(id) {
     const { data } = await getMemberStats(id, { range: statsRange.value })
     statsData.value = data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('members.statsFailed'))
+    handleError(e, 'members.statsFailed')
   } finally {
     statsLoading.value = false
   }
@@ -210,9 +213,9 @@ const groupedLogs = computed(() => {
     yesterday.setDate(yesterday.getDate() - 1)
     const dateKey = new Date(d.getFullYear(), d.getMonth(), d.getDate())
     let label
-    if (dateKey.getTime() === today.getTime()) label = '今天'
-    else if (dateKey.getTime() === yesterday.getTime()) label = '昨天'
-    else label = `${d.getMonth() + 1}月${d.getDate()}日`
+    if (dateKey.getTime() === today.getTime()) label = t('charts.date.today')
+    else if (dateKey.getTime() === yesterday.getTime()) label = t('charts.date.yesterday')
+    else label = t('charts.date.fallback', { m: d.getMonth() + 1, d: d.getDate() })
     if (!groups[label]) groups[label] = []
     groups[label].push(log)
   }
@@ -406,7 +409,12 @@ function formatLogTime(iso) {
             </div>
           </template>
           <div v-else-if="!logsLoading" class="logs-empty">
-            <span>{{ $t('members.noData') }}</span>
+            <EmptyState
+              compact
+              size="small"
+              icon="member"
+              :title="$t('members.noData')"
+            />
           </div>
         </div>
       </div>
@@ -664,10 +672,7 @@ function formatLogTime(iso) {
 }
 
 .logs-empty {
-  text-align: center;
-  padding: 32px 0;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  padding: 16px 0;
 }
 
 .logs-footer {

@@ -550,6 +550,30 @@ html, body {
   ) !important;
 }
 
+/* Shared skeleton utility classes — re-use the el-skeleton gradient.
+   Used by views that need a non-el-skeleton wrapper (device list rows,
+   stats tile placeholders, table cells). */
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 25%,
+    var(--color-surface-overlay) 37%,
+    var(--color-surface-raised) 63%
+  );
+  background-size: 400% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Convenience shapes */
+.skeleton-row-52 { height: 52px; border-radius: 0; }
+.skeleton-tile-88 { height: 88px; border-radius: var(--radius-md); }
+
 /* ── El Date Picker ──────────────────────── */
 .el-date-editor .el-input__wrapper {
   background-color: var(--color-surface-raised) !important;

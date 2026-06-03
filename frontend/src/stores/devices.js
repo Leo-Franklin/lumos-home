@@ -9,6 +9,8 @@ export const useDevicesStore = defineStore('devices', () => {
   const pageSize = ref(20)
   const loading = ref(false)
   const scanning = ref(false)
+  const scanningProgress = ref(0)
+  const scanningStage = ref('')
   const filterTypes = ref([])
   const search = ref('')
   let searchTimeoutId = null
@@ -69,26 +71,69 @@ export const useDevicesStore = defineStore('devices', () => {
   }
 
   let scanTimeoutId = null
+  let scanProgressTimer = null
 
   async function scan() {
     scanning.value = true
+    scanningProgress.value = 0
+    scanningStage.value = '192.168.1.x'
     clearTimeout(scanTimeoutId)
+    clearInterval(scanProgressTimer)
+    // Safety net: stop scanning after 60s if backend never reports completion.
     scanTimeoutId = setTimeout(() => {
       scanning.value = false
+      scanningProgress.value = 0
+      scanningStage.value = ''
+      clearInterval(scanProgressTimer)
+      scanProgressTimer = null
     }, 60000)
+    // Optimistic progress simulation until backend reports real progress.
+    // The backend currently doesn't push progress events, so we interpolate
+    // up to 95% to give the user visible feedback.
+    scanProgressTimer = setInterval(() => {
+      if (scanningProgress.value < 95) {
+        scanningProgress.value = Math.min(95, scanningProgress.value + 5)
+      }
+    }, 2000)
     try {
       await triggerScan()
     } catch {
       scanning.value = false
+      scanningProgress.value = 0
+      scanningStage.value = ''
       clearTimeout(scanTimeoutId)
+      clearInterval(scanProgressTimer)
+      scanProgressTimer = null
     }
+  }
+
+  // Mock: backend has no cancel endpoint yet, but the UI surface is required.
+  // Locally reset state — the real scan still runs to completion in the
+  // background and onScanCompleted will clear the remaining refs.
+  function cancelScan() {
+    clearTimeout(scanTimeoutId)
+    clearInterval(scanProgressTimer)
+    scanProgressTimer = null
+    scanning.value = false
+    scanningProgress.value = 0
+    scanningStage.value = ''
   }
 
   function onScanCompleted() {
     clearTimeout(scanTimeoutId)
+    clearInterval(scanProgressTimer)
+    scanProgressTimer = null
     scanning.value = false
+    scanningProgress.value = 100
+    scanningStage.value = ''
     fetchDevices()
   }
 
-  return { items, total, page, pageSize, loading, scanning, filterTypes, search, fetchDevices, changePage, changePageSize, toggleFilter, setSearch, clearSearch, scan, onScanCompleted }
+  return {
+    items, total, page, pageSize, loading, scanning,
+    scanningProgress, scanningStage,
+    filterTypes, search,
+    fetchDevices, changePage, changePageSize, toggleFilter,
+    setSearch, clearSearch, scan, cancelScan, onScanCompleted,
+  }
 })

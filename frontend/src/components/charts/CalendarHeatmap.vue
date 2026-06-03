@@ -2,6 +2,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import { useI18n } from 'vue-i18n'
+
+const { t, tm, rt } = useI18n()
 
 const props = defineProps({
   data:   { type: Array,  default: () => [] }, // [{ date: 'YYYY-MM-DD', count: number, duration_seconds: number }]
@@ -48,8 +51,10 @@ function renderChart() {
     .append('svg').attr('width', W).attr('height', props.height)
 
   // Weekday labels (Sun, Tue, Thu, Sat)
+  const weekdayShortMap = tm('charts.weekdayShort')
+  const weekdayShort = [0, 2, 4, 6].map((i) => rt(weekdayShortMap[i]))
   svg.selectAll('.dl')
-    .data(['日', '二', '四', '六']).join('text')
+    .data(weekdayShort).join('text')
     .attr('x', ml - 4)
     .attr('y', (_, i) => mt + [0, 2, 4, 6][i] * (cell + gap) + cell)
     .attr('text-anchor', 'end').attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
@@ -66,7 +71,7 @@ function renderChart() {
         .attr('x', ml + wk * (cell + gap))
         .attr('y', mt - 4)
         .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
-        .text(d3.timeFormat('%m月')(d))
+        .text(t('charts.calendar.monthsFormat', { m: d3.timeFormat('%m')(d) }))
     }
   })
 
@@ -86,11 +91,11 @@ function renderChart() {
       .style('cursor', 'pointer')
       .on('mousemove', (event) => {
         const dur = entry?.duration_seconds
-          ? ` · ${Math.round(entry.duration_seconds / 60)} 分钟` : ''
+          ? t('charts.calendar.minutes', { count: Math.round(entry.duration_seconds / 60) }) : ''
         tooltip.style('display', 'block')
           .style('left', event.clientX + 14 + 'px')
           .style('top',  event.clientY - 40 + 'px')
-          .html(`<strong>${dateStr}</strong><br>${count} 条录像${dur}`)
+          .html(`<strong>${dateStr}</strong><br>${t('charts.calendar.recordings', { count: count })}${dur}`)
       })
       .on('mouseleave', () => tooltip.style('display', 'none'))
   })

@@ -60,7 +60,12 @@ function typeBadgeStyle(t) {
 <template>
   <div class="device-row" :class="{ 'device-row--offline': !device.is_online }">
     <!-- 状态点 -->
-    <span class="status-dot" :class="device.is_online ? 'online' : 'offline'" />
+    <span
+      class="status-dot"
+      :class="device.is_online ? 'online' : 'offline'"
+      role="status"
+      :aria-label="device.is_online ? $t('common.online') : $t('common.offline')"
+    />
 
     <!-- 类型图标 -->
     <div class="type-icon" :style="typeIconStyle(device.device_type)">
@@ -126,17 +131,16 @@ function typeBadgeStyle(t) {
 
 .status-dot.online {
   background: var(--color-online);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
-  animation: pulse-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.45);
+  transition: box-shadow var(--duration-base) var(--easing-standard);
 }
 
 .status-dot.offline {
   background: var(--color-offline);
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); }
-  50%      { box-shadow: 0 0 10px rgba(16, 185, 129, 0.7); }
+.device-row:hover .status-dot.online {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
 }
 
 /* 类型图标 32x32 */

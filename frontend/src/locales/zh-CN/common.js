@@ -23,6 +23,10 @@ export default {
   scanning: '扫描中...',
   connecting: '连接摄像头中...',
   scanResult: '发现 {found} 台，新增 {new}',
+  scanProgress: '扫描进度 {pct}%',
+  scanStage: '正在扫描 {subnet}',
+  cancelScan: '取消扫描',
+  scanCancelled: '扫描已取消',
   noData: '暂无数据',
   confirmDelete: '确认删除',
   operationFailed: '操作失败',
@@ -57,5 +61,45 @@ export default {
     title: '页面去浪了',
     desc: '你访问的页面不存在，或者已经搬走了。',
     backHome: '返回首页',
+  },
+  empty: {
+    devices: {
+      title: '暂无设备',
+      description: '点击右上角「扫描网络」发现局域网设备',
+      action: '扫描网络',
+    },
+    cameras: {
+      title: '暂无摄像头',
+      description: '添加 ONVIF 摄像头开始管理',
+      action: '添加摄像头',
+    },
+    recordings: {
+      title: '暂无录像',
+      description: '录制完成后将在此显示',
+    },
+    members: {
+      title: '暂无家庭成员',
+      description: '添加家庭成员开启到家推送',
+      action: '添加成员',
+    },
+    topology: {
+      title: '暂无拓扑数据',
+      description: '点击「扫描网络」发现局域网设备',
+      action: '扫描网络',
+    },
+    dlna: {
+      title: '未发现 DLNA 设备',
+      description: '点击「搜索 DLNA 设备」开始扫描',
+      action: '搜索设备',
+    },
+    schedules: {
+      title: '暂无录制计划',
+      description: '创建你的第一个录制计划吧',
+      action: '新建计划',
+    },
+    selection: {
+      title: '请在左侧选择一项',
+      description: '从左侧列表中选择设备以开始',
+    },
   },
 }
