@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { login, register, changePassword } from '@/api/auth'
+import {
+  login, register, changePassword, forgotPassword, resetPassword, verifyEmail,
+} from '@/api/auth'
 
 const mockPost = vi.hoisted(() => vi.fn())
+const mockGet = vi.hoisted(() => vi.fn())
 
 vi.mock('axios', () => ({
   default: {
     create: vi.fn(() => ({
       post: mockPost,
-      get: vi.fn(),
+      get: mockGet,
       interceptors: {
         request: { use: vi.fn() },
         response: { use: vi.fn() },
@@ -54,5 +57,32 @@ describe('auth API', () => {
       current_password: 'OldPass123!',
       new_password: 'NewPass456!',
     })
+  })
+
+  it('forgotPassword sends POST /auth/forgot-password with email', async () => {
+    mockPost.mockResolvedValue({})
+
+    await forgotPassword('user@example.com')
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/forgot-password', { email: 'user@example.com' })
+  })
+
+  it('resetPassword sends POST /auth/reset-password with token and new_password', async () => {
+    mockPost.mockResolvedValue({})
+
+    await resetPassword('abc-token', 'NewPass456!')
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/reset-password', {
+      token: 'abc-token',
+      new_password: 'NewPass456!',
+    })
+  })
+
+  it('verifyEmail sends GET /auth/verify-email with token query param', async () => {
+    mockGet.mockResolvedValue({})
+
+    await verifyEmail('abc-token')
+
+    expect(mockGet).toHaveBeenCalledWith('/auth/verify-email', { params: { token: 'abc-token' } })
   })
 })

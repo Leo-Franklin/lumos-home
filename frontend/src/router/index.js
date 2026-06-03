@@ -6,6 +6,7 @@ import MainLayout from '@/layout/MainLayout.vue'
 const routes = [
   { path: '/login', component: LoginView, meta: { public: true } },
   { path: '/register', component: RegisterView, meta: { public: true } },
+  { path: '/reset-password', component: () => import('@/views/ResetPasswordView.vue'), meta: { public: true } },
   {
     path: '/',
     component: MainLayout,

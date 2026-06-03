@@ -6,12 +6,15 @@ import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
 import { useApiError } from '@/composables/useApiError'
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog.vue'
 
 const { t, locale } = useI18n()
 const localeStore = useLocaleStore()
 const auth = useAuthStore()
 const router = useRouter()
 const handleError = useApiError()
+
+const forgotDialogOpen = ref(false)
 
 const langOptions = [
   { label: t('login.langChinese'), value: 'zh-CN' },
@@ -122,17 +125,28 @@ async function handleLogin() {
         >
           {{ $t('login.submit') }}
         </el-button>
-        <el-button
-          text
-          size="small"
-          style="width: 100%; margin-top: 16px"
-          :disabled="loading"
-          @click="router.push('/register')"
-        >
-          {{ $t('login.goToRegister') }}
-        </el-button>
+        <div class="login-links">
+          <el-button
+            text
+            size="small"
+            :disabled="loading"
+            @click="forgotDialogOpen = true"
+          >
+            {{ $t('login.forgotPassword') }}
+          </el-button>
+          <el-button
+            text
+            size="small"
+            :disabled="loading"
+            @click="router.push('/register')"
+          >
+            {{ $t('login.goToRegister') }}
+          </el-button>
+        </div>
       </el-form>
     </div>
+
+    <ForgotPasswordDialog v-model="forgotDialogOpen" />
   </div>
 </template>
 
@@ -222,5 +236,15 @@ async function handleLogin() {
   font-size: 12px;
   color: var(--color-text-muted);
   letter-spacing: 0.01em;
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 8px;
+}
+.login-links :deep(.el-button) {
+  flex: 1;
 }
 </style>

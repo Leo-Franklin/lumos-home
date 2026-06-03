@@ -1,6 +1,8 @@
 // src/locales/en/common.js
 export default {
   save: 'Save',
+  submit: 'Submit',
+  back: 'Back',
   cancel: 'Cancel',
   delete: 'Delete',
   edit: 'Edit',

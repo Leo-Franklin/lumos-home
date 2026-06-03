@@ -1,6 +1,8 @@
 // src/locales/zh-CN/common.js
 export default {
   save: '保存',
+  submit: '提交',
+  back: '返回',
   cancel: '取消',
   delete: '删除',
   edit: '编辑',
