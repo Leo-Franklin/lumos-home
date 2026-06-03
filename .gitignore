@@ -1,0 +1,68 @@
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+backend/.venv/
+backend/data/*.db
+backend/data/*.log
+backend/build/
+backend/dist/
+backend/wheels/
+*.egg-info/
+backend/backend.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.egg
+
+# --- Node (frontend) ---
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+.vite/
+coverage/
+
+# --- Vite build output (synced from frontend to backend for packaging) ---
+backend/frontend/
+
+# --- Installer build output ---
+installer/output/
+installer/*.exe
+
+# --- Editor / IDE ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.swp
+*.swo
+
+# --- OS ---
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Claude Code / MCP ---
+.codegraph/
+.worktrees/
+.superpowers/
+
+# --- Environment / secrets ---
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.test
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Docker ---
+*.tar

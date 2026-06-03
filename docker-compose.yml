@@ -1,0 +1,26 @@
+services:
+  lumos-home:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /volume1/Backup/cameras:/nas/cameras
+      - /tmp/lumos-home-recordings:/tmp/recordings
+      - ./backend/data:/app/data
+    env_file:
+      - backend/.env
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
