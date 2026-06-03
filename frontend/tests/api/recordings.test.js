@@ -5,8 +5,6 @@ import {
   deleteRecording,
   streamUrl,
   downloadUrl,
-  requestRecordingHls,
-  recordingHlsUrl,
   getRecordingStats,
   openRecordingFolder,
 } from '@/api/recordings'
@@ -61,28 +59,15 @@ describe('recordings API', () => {
     expect(mockDelete).toHaveBeenCalledWith('/recordings/1')
   })
 
-  it('streamUrl returns stream URL', () => {
+  it('streamUrl returns stream URL with token', () => {
+    localStorage.setItem('token', 'test-token')
     const url = streamUrl(1)
-    expect(url).toBe('/api/v1/recordings/1/stream')
+    expect(url).toBe('/api/v1/recordings/1/stream?token=test-token')
   })
 
   it('downloadUrl returns download URL', () => {
     const url = downloadUrl(1)
     expect(url).toBe('/api/v1/recordings/1/download')
-  })
-
-  it('requestRecordingHls sends GET /recordings/:id/hls/index.m3u8', async () => {
-    mockGet.mockResolvedValue({})
-
-    await requestRecordingHls(1)
-
-    expect(mockGet).toHaveBeenCalledWith('/recordings/1/hls/index.m3u8')
-  })
-
-  it('recordingHlsUrl returns HLS URL with token', () => {
-    localStorage.setItem('token', 'test-token')
-    const url = recordingHlsUrl(1)
-    expect(url).toBe('/api/v1/recordings/1/hls/index.m3u8?token=test-token')
   })
 
   it('getRecordingStats sends GET /recordings/stats with params', async () => {

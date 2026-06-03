@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import {
   listRecordings, deleteRecording, streamUrl, downloadUrl,
-  requestRecordingHls, recordingHlsUrl, getRecordingStats,
+  getRecordingStats,
   openRecordingFolder,
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
@@ -41,10 +41,6 @@ watch(() => [filter.value.camera_mac, filter.value.date], () => {
   fetchRecordings()
 })
 
-onUnmounted(() => {
-  if (hlsPollTimer) clearInterval(hlsPollTimer)
-})
-
 async function fetchRecordings() {
   loading.value = true
   try {
@@ -59,59 +55,15 @@ async function fetchRecordings() {
   }
 }
 
-// ── Playback (B4: HLS) ────────────────────────────────────────
+// ── Playback (direct MP4 range stream) ───────────────────────
 const playDialog = ref(false)
 const playUrl = ref('')
 const playMode = ref('recorded')
-const hlsConvertingId = ref(null)
-let hlsPollTimer = null
 
-async function playRecording(rec) {
-  try {
-    const res = await requestRecordingHls(rec.id)
-    if (res.status === 200) {
-      playUrl.value = recordingHlsUrl(rec.id)
-      playMode.value = 'hls'
-      playDialog.value = true
-    }
-  } catch (e) {
-    if (e.response?.status === 202) {
-      ElMessage.info(t('recordings.transcoding'))
-      hlsConvertingId.value = rec.id
-      pollHlsReady(rec)
-    } else {
-      // fallback: direct stream
-      const token = localStorage.getItem('token')
-      playUrl.value = streamUrl(rec.id) + `?token=${token}`
-      playMode.value = 'recorded'
-      playDialog.value = true
-    }
-  }
-}
-
-function pollHlsReady(rec) {
-  if (hlsPollTimer) clearInterval(hlsPollTimer)
-  hlsPollTimer = setInterval(async () => {
-    try {
-      const res = await requestRecordingHls(rec.id)
-      if (res.status === 200) {
-        clearInterval(hlsPollTimer)
-        hlsPollTimer = null
-        hlsConvertingId.value = null
-        ElMessage.success(t('recordings.transcodeComplete'))
-        playUrl.value = recordingHlsUrl(rec.id)
-        playMode.value = 'hls'
-        playDialog.value = true
-      }
-    } catch (e) {
-      if (e.response?.status !== 202) {
-        clearInterval(hlsPollTimer)
-        hlsPollTimer = null
-        hlsConvertingId.value = null
-        handleError(e, 'recordings.transcodeFailed')
-      }
-    }
-  }, 3000)
+function playRecording(rec) {
+  playUrl.value = streamUrl(rec.id)
+  playMode.value = 'recorded'
+  playDialog.value = true
 }
 
 function closePlay() {
@@ -304,7 +256,6 @@ function cameraLabel(mac) {
                 :icon="VideoPlay"
                 :aria-label="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
-                :loading="hlsConvertingId === row.id"
                 @click="playRecording(row)"
               />
             </el-tooltip>
