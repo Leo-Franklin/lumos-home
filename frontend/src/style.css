@@ -1,0 +1,692 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Primary - Refined Purple */
+  --color-primary:        #6366F1;
+  --color-primary-hover:  #4F46E5;
+  --color-primary-subtle: rgba(99, 102, 241, 0.12);
+  --color-primary-border: rgba(99, 102, 241, 0.30);
+
+  /* Dark Canvas - Enhanced Depth */
+  --color-bg:              #0F0F12;
+  --color-surface:         #18181C;
+  --color-surface-raised:  #222228;
+  --color-surface-overlay: #2A2A32;
+  --color-border:          #32323C;
+  --color-border-subtle:   #28282E;
+
+  /* Text - Improved Contrast */
+  --color-text-primary:   #F4F4F6;
+  --color-text-secondary: #A0A0AB;
+  --color-text-muted:     #6B6B76;
+  --color-text-inverse:   #FFFFFF;
+
+  /* Semantic Colors */
+  --color-online:   #10B981;
+  --color-offline:  #6B7280;
+  --color-error:    #EF4444;
+  --color-warning:  #F59E0B;
+  --color-success:  #10B981;
+  --color-scanning: #F59E0B;
+
+  /* Device Type Colors */
+  --color-type-camera:        #6366F1;
+  --color-type-computer:       #10B981;
+  --color-type-phone:          #F59E0B;
+  --color-type-iot:            #F97316;
+  --color-type-unknown:        #6B7280;
+  --color-type-router:         #06B6D4;
+  --color-type-tablet:         #D946EF;
+  --color-type-tv:             #8B5CF6;
+  --color-type-printer:        #14B8A6;
+  --color-type-smart-speaker:  #84CC16;
+  --color-type-game-console:   #EF4444;
+  --color-type-nas:            #3B82F6;
+  --color-type-wearable:       #EC4899;
+
+  /* Activity Feed Colors */
+  --color-cat-device:   #3B82F6;
+  --color-cat-camera:  #10B981;
+  --color-cat-member:   #6366F1;
+  --color-cat-system:   #6B7280;
+
+  /* Accent Colors */
+  --color-accent-members:      #6366F1;
+  --color-accent-cameras:      #10B981;
+  --color-accent-devices:      #3B82F6;
+  --color-accent-recordings:   #F59E0B;
+  --color-accent-unknown:      #6B7280;
+  --color-accent-unknown-warn: #F59E0B;
+
+  /* Border Radius */
+  --radius-xs:   3px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.5);
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.7);
+  --shadow-focus: 0 0 0 2px rgba(99, 102, 241, 0.4);
+
+  /* Motion */
+  --duration-fast:   100ms;
+  --duration-base:   200ms;
+  --duration-slow:   300ms;
+  --duration-slower: 400ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-snap:    cubic-bezier(0.16, 1, 0.3, 1);
+  --easing-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* Layout */
+  --sidebar-width:           220px;
+  --sidebar-width-collapsed: 48px;
+  --header-height:           56px;
+  --content-max-width:       1400px;
+
+  /* Typography */
+  --font-display: "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --font-tabular: "Outfit", monospace;
+
+  /* Element Plus Overrides */
+  --el-color-primary:              var(--color-primary);
+  --el-color-primary-light-3:     rgba(99, 102, 241, 0.7);
+  --el-color-primary-light-5:      rgba(99, 102, 241, 0.5);
+  --el-color-primary-light-7:      rgba(99, 102, 241, 0.3);
+  --el-color-primary-light-8:      rgba(99, 102, 241, 0.2);
+  --el-color-primary-light-9:      rgba(99, 102, 241, 0.1);
+  --el-color-primary-dark-2:       var(--color-primary-hover);
+
+  --el-bg-color:                  var(--color-surface);
+  --el-bg-color-page:             var(--color-bg);
+  --el-bg-color-overlay:          var(--color-surface-overlay);
+
+  --el-text-color-primary:        var(--color-text-primary);
+  --el-text-color-regular:         var(--color-text-secondary);
+  --el-text-color-secondary:      var(--color-text-muted);
+  --el-text-color-disabled:       var(--color-text-muted);
+  --el-text-color-placeholder:    var(--color-text-muted);
+
+  --el-border-color:              var(--color-border);
+  --el-border-color-light:        var(--color-border);
+  --el-border-color-lighter:      var(--color-border-subtle);
+  --el-border-color-extra-light:   var(--color-border-subtle);
+  --el-border-color-dark:         var(--color-border);
+  --el-border-color-darker:       var(--color-border);
+
+  --el-fill-color:                var(--color-surface-raised);
+  --el-fill-color-light:          var(--color-surface-raised);
+  --el-fill-color-lighter:        var(--color-surface);
+  --el-fill-color-extra-light:     var(--color-surface);
+  --el-fill-color-dark:           var(--color-surface-overlay);
+  --el-fill-color-darker:         var(--color-surface-overlay);
+  --el-fill-color-blank:          var(--color-surface);
+
+  --el-box-shadow:                var(--shadow-md);
+  --el-box-shadow-light:          var(--shadow-sm);
+  --el-box-shadow-lighter:        var(--shadow-sm);
+  --el-box-shadow-dark:           var(--shadow-lg);
+
+  --el-mask-color:                rgba(0, 0, 0, 0.6);
+  --el-overlay-color:             rgba(0, 0, 0, 0.6);
+
+  --el-border-radius-base:         var(--radius-md);
+  --el-border-radius-small:        var(--radius-xs);
+  --el-border-radius-round:        var(--radius-full);
+  --el-border-radius-circle:       var(--radius-full);
+
+  --el-font-size-base:            14px;
+  --el-font-size-small:           12px;
+  --el-font-size-extra-small:     11px;
+
+  --el-transition-duration:        var(--duration-base);
+  --el-transition-duration-fast:   var(--duration-fast);
+
+  --el-component-size:            32px;
+  --el-component-size-small:      24px;
+  --el-component-size-large:      40px;
+
+  --el-disabled-bg-color:          var(--color-surface);
+  --el-disabled-text-color:        var(--color-text-muted);
+  --el-disabled-border-color:      var(--color-border-subtle);
+}
+
+html, body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Global focus-visible (a11y) ─────────── */
+/* Applies to any focusable element that doesn't already provide
+   its own visible focus indicator. Element Plus inputs/buttons
+   keep their existing focus ring (--shadow-focus). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Decorative/non-interactive elements must never take focus. */
+[aria-hidden="true"]:focus,
+[aria-hidden="true"]:focus-visible {
+  outline: none;
+}
+
+/* Element Plus inputs already have a styled focus ring; suppress
+   the global one to avoid the doubled outline. */
+.el-input__wrapper:focus-visible,
+.el-textarea__inner:focus-visible,
+.el-select__wrapper:focus-visible,
+.el-button:focus-visible,
+.el-pagination button:focus-visible {
+  outline: none;
+}
+
+.tabular-nums,
+.stat-value {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ── Page structure ──────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ── Page transition ─────────────────────── */
+.page-enter-active {
+  transition: opacity var(--duration-base) var(--easing-standard),
+              transform var(--duration-base) var(--easing-snap);
+}
+.page-leave-active {
+  transition: opacity var(--duration-fast) var(--easing-standard);
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+}
+
+/* ── Tabular numbers (stat values) ──────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ── Stagger animation for lists ─────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── WebSocket pulse - more visible ──────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+/* ── Recording indicator pulse ────────────── */
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Glass card utility ───────────────────── */
+.glass-card {
+  background: rgba(24, 24, 28, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-xl);
+}
+
+/* ── Glow border utility ──────────────────── */
+.glow-border {
+  position: relative;
+}
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--color-primary), transparent 50%);
+  opacity: 0.4;
+  z-index: -1;
+  transition: opacity var(--duration-base) var(--easing-standard);
+}
+.glow-border:hover::before {
+  opacity: 0.6;
+}
+
+/* ── El Menu ─────────────────────────────── */
+
+/* ── El Table ────────────────────────────── */
+.el-table {
+  --el-table-bg-color: var(--color-surface);
+  --el-table-tr-bg-color: var(--color-surface);
+  --el-table-header-bg-color: var(--color-surface-raised);
+  --el-table-row-hover-bg-color: var(--color-surface-raised);
+  --el-table-current-row-bg-color: var(--color-primary-subtle);
+  --el-table-border-color: var(--color-border);
+  --el-table-header-text-color: var(--color-text-secondary);
+  --el-table-text-color: var(--color-text-primary);
+  --el-table-fixed-box-shadow: var(--shadow-md);
+  font-family: var(--font-sans);
+}
+.el-table th.el-table__cell {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ── El Dialog ───────────────────────────── */
+.el-dialog {
+  background-color: var(--color-surface-overlay) !important;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg);
+}
+.el-dialog__header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+  margin: 0;
+  /* P2-10: header 在 body 长内容滚动时保持可见 */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--color-surface-overlay);
+}
+.el-dialog__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.el-dialog__body {
+  padding: 20px 24px;
+  color: var(--color-text-primary);
+  /* P2-10: 长 dialog 滚动只在 body 区域发生，header/footer 保持固定 */
+  max-height: calc(85vh - 140px); /* ≈ header(57) + footer(57) + 边距 */
+  overflow-y: auto;
+}
+.el-dialog__footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--color-border);
+  /* P2-10: footer 也保持底部固定 */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background-color: var(--color-surface-overlay);
+}
+.el-overlay {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ── El Input ────────────────────────────── */
+.el-input__wrapper {
+  background-color: var(--color-surface-raised) !important;
+  box-shadow: 0 0 0 1px var(--color-border) inset !important;
+  border-radius: var(--radius-sm);
+}
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-border) inset !important;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--color-primary) inset, var(--shadow-focus) !important;
+}
+.el-input__inner {
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+.el-textarea__inner {
+  background-color: var(--color-surface-raised) !important;
+  box-shadow: 0 0 0 1px var(--color-border) inset !important;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+}
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--color-primary) inset, var(--shadow-focus) !important;
+}
+
+/* ── El Select ───────────────────────────── */
+.el-select-dropdown {
+  background-color: var(--color-surface-overlay) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: var(--radius-md) !important;
+}
+.el-select-dropdown__item {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover {
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-text-primary) !important;
+}
+.el-select-dropdown__item.selected {
+  color: var(--color-primary) !important;
+  background-color: var(--color-primary-subtle) !important;
+}
+
+/* ── El Button ───────────────────────────── */
+.el-button {
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  height: 32px;
+  padding: 0 12px;
+  transition: background-color var(--duration-fast) ease-out,
+              border-color var(--duration-fast) ease-out,
+              color var(--duration-fast) ease-out;
+}
+.el-button--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+}
+.el-button--default {
+  background-color: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+.el-button--default:hover {
+  background-color: var(--color-surface-overlay);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+.el-button--danger {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+.el-button--danger:hover {
+  background-color: rgba(240, 82, 82, 0.1) !important;
+  border-color: rgba(240, 82, 82, 0.25) !important;
+  color: var(--color-error) !important;
+}
+.el-button--small {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* ── El Dropdown ─────────────────────────── */
+.el-dropdown-menu {
+  background-color: var(--color-surface-overlay) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 4px !important;
+}
+.el-dropdown-menu__item {
+  color: var(--color-text-secondary) !important;
+  font-size: 13px;
+  border-radius: var(--radius-xs);
+}
+.el-dropdown-menu__item:hover {
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* ── El Pagination ───────────────────────── */
+.el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--color-text-secondary);
+  --el-pagination-button-color: var(--color-text-secondary);
+  --el-pagination-hover-color: var(--color-primary);
+  --el-pagination-button-bg-color: var(--color-surface-raised);
+  --el-pagination-button-disabled-color: var(--color-text-muted);
+  --el-pagination-button-disabled-bg-color: var(--color-surface);
+}
+.el-pagination .el-pager li.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
+}
+
+/* ── El Descriptions ─────────────────────── */
+.el-descriptions {
+  --el-descriptions-item-bordered-label-background: var(--color-surface-raised);
+}
+.el-descriptions__body .el-descriptions__table {
+  background-color: var(--color-surface);
+}
+.el-descriptions__label {
+  color: var(--color-text-secondary) !important;
+  background-color: var(--color-surface-raised) !important;
+}
+.el-descriptions__content {
+  color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
+}
+
+/* ── El Switch ───────────────────────────── */
+.el-switch {
+  --el-switch-on-color: var(--color-primary);
+  --el-switch-off-color: var(--color-surface-overlay);
+}
+
+/* ── El Tag ──────────────────────────────── */
+.el-tag {
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ── El Form ─────────────────────────────── */
+.el-form-item__label {
+  color: var(--color-text-secondary) !important;
+  font-size: 13px;
+}
+
+/* ── El Alert ────────────────────────────── */
+.el-alert {
+  background-color: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+}
+
+/* ── El Message ──────────────────────────── */
+.el-message {
+  background-color: var(--color-surface-overlay);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-md);
+}
+.el-message .el-message__content {
+  color: var(--color-text-primary);
+}
+/* P2-10: 撤销按钮样式 */
+.el-message-undo-btn {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 12px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  margin-left: 12px;
+  font-family: inherit;
+  transition: background-color var(--duration-fast) ease,
+              color var(--duration-fast) ease;
+}
+.el-message-undo-btn:hover {
+  background-color: var(--color-primary-subtle);
+  color: var(--color-primary-hover);
+}
+
+/* ── El MessageBox ───────────────────────── */
+.el-message-box {
+  background-color: var(--color-surface-overlay) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.el-message-box__title {
+  color: var(--color-text-primary) !important;
+}
+.el-message-box__content {
+  color: var(--color-text-secondary) !important;
+}
+
+/* ── El Skeleton ─────────────────────────── */
+.el-skeleton__item {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 25%,
+    var(--color-surface-overlay) 37%,
+    var(--color-surface-raised) 63%
+  ) !important;
+}
+
+/* Shared skeleton utility classes — re-use the el-skeleton gradient.
+   Used by views that need a non-el-skeleton wrapper (device list rows,
+   stats tile placeholders, table cells). */
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-raised) 25%,
+    var(--color-surface-overlay) 37%,
+    var(--color-surface-raised) 63%
+  );
+  background-size: 400% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Convenience shapes */
+.skeleton-row-52 { height: 52px; border-radius: 0; }
+.skeleton-tile-88 { height: 88px; border-radius: var(--radius-md); }
+
+/* ── El Date Picker ──────────────────────── */
+.el-date-editor .el-input__wrapper {
+  background-color: var(--color-surface-raised) !important;
+}
+.el-picker-panel {
+  background-color: var(--color-surface-overlay) !important;
+  border-color: var(--color-border) !important;
+}
+.el-picker-panel__body {
+  background-color: var(--color-surface-overlay) !important;
+}
+.el-date-table td.current:not(.disabled) .el-date-table-cell__text {
+  background-color: var(--color-primary) !important;
+}
+
+/* ── Scrollbar ───────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  transition: background var(--duration-fast) ease-out;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* ── El Loading ──────────────────────────── */
+.el-loading-mask {
+  background-color: rgba(22, 22, 24, 0.7) !important;
+}
+.el-loading-spinner .path {
+  stroke: var(--color-primary) !important;
+}
+
+.chart-tooltip {
+  background: var(--color-surface, #18181C);
+  border: 1px solid var(--color-border, #32323C);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-text-primary, #F4F4F6);
+  line-height: 1.6;
+  max-width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}

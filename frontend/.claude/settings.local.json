@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/gpt-image-2\")",
+      "Bash(mkdir -p \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/kb-retriever\")",
+      "Bash(mkdir -p \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/web-design-engineer\")",
+      "Bash(cp \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/gpt-image-2.md\" \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/gpt-image-2/SKILL.md\")",
+      "Bash(cp \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/rag-skill.md\" \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/kb-retriever/SKILL.md\")",
+      "Bash(cp \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/web-design-engineer.md\" \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/web-design-engineer/SKILL.md\")",
+      "Bash(rm \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/gpt-image-2.md\")",
+      "Bash(rm \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/rag-skill.md\")",
+      "Bash(rm \"D:/Project/Demo/smart_home/smart-home-frontend/.claude/skills/web-design-engineer.md\")"
+    ]
+  }
+}
