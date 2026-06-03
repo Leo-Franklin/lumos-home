@@ -44,8 +44,8 @@ async function saveEdit() {
     ElMessage.success(t('devices.saveSuccess'))
     editDialog.value = false
     devicesStore.fetchDevices()
-  } catch {
-    ElMessage.error(t('devices.saveFailed'))
+  } catch (e) {
+    handleError(e, 'devices.saveFailed')
   }
 }
 

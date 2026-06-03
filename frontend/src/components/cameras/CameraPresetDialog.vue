@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Edit, Delete, Star, StarFilled } from '@element-plus/icons-vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -76,7 +77,11 @@ const title = computed(() =>
           </el-table-column>
         </el-table>
       </div>
-      <el-empty v-else :description="t('cameras.noPresets')" :image-size="60" />
+      <EmptyState
+        v-else
+        :title="t('cameras.noPresets')"
+        size="small"
+      />
 
       <!-- Add/Edit form -->
       <el-divider />

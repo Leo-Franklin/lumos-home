@@ -13,6 +13,9 @@ export default {
   // CameraView
   title: 'Camera Management',
   addCamera: 'Add Camera',
+  presetLoadFailed: 'Failed to load presets',
+  presetSaveFailed: 'Failed to save preset',
+  presetSetDefaultFailed: 'Failed to set default preset',
   editCamera: 'Edit Camera',
   deviceMac: 'Device MAC',
   onvifHost: 'ONVIF Address',

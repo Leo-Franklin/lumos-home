@@ -5,9 +5,11 @@ import { castURL, castFile, playDevice, pauseDevice, stopDevice } from '@/api/dl
 import { ElMessage } from 'element-plus'
 import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link, Monitor } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useApiError } from '@/composables/useApiError'
 import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
+const handleError = useApiError()
 const dlna = useDLNAStore()
 
 const castMode = ref('url')
@@ -67,7 +69,7 @@ async function handleCast() {
     }
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.castFailed'))
+    handleError(e, 'dlna.castFailed')
   } finally {
     castLoading.value = false
   }
@@ -81,7 +83,7 @@ async function handlePlay() {
     ElMessage.success(t('dlna.played'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }
@@ -95,7 +97,7 @@ async function handlePause() {
     ElMessage.success(t('dlna.paused'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }
@@ -109,7 +111,7 @@ async function handleStop() {
     ElMessage.success(t('dlna.stopped'))
     await dlna.refreshStatus()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('dlna.operationFailed'))
+    handleError(e, 'dlna.operationFailed')
   } finally {
     playLoading.value = false
   }

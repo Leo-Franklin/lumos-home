@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import EmptyState from '@/components/EmptyState.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -61,7 +62,11 @@ function togglePreset(id) {
           </el-card>
         </div>
       </template>
-      <el-empty v-else :description="t('cameras.noPresetsAvailable')" :image-size="50" />
+      <EmptyState
+        v-else
+        :title="t('cameras.noPresetsAvailable')"
+        size="small"
+      />
 
       <el-divider content-position="left">{{ t('cameras.parameterOverrides') }}</el-divider>
       <el-form label-width="140px">

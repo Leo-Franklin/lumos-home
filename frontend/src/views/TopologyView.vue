@@ -6,31 +6,38 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Histogram } from '@element-plus/icons-vue'
 import { useDevicesStore } from '@/stores/devices'
 import { useI18n } from 'vue-i18n'
+import { useApiError } from '@/composables/useApiError'
 import EmptyState from '@/components/EmptyState.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const handleError = useApiError()
 const devicesStore = useDevicesStore()
 
 // ── Type config ──────────────────────────────────────────
 // Colors reference --color-type-* tokens (see src/style.css and chartColors.js).
 // d3 attr() accepts CSS var() strings; backgrounds use color-mix() to derive alpha tints.
+// Labels are derived from t('common.deviceTypes.*') at render time via typeLabel().
 const TYPE_CONFIG = {
-  phone:         { color: 'var(--color-type-phone)',         label: '手机',    icon: '📱' },
-  computer:      { color: 'var(--color-type-computer)',      label: '电脑',    icon: '💻' },
-  camera:        { color: 'var(--color-type-camera)',        label: '摄像头',  icon: '📷' },
-  iot:           { color: 'var(--color-type-iot)',           label: 'IoT',     icon: '🔌' },
-  router:        { color: 'var(--color-type-router)',        label: '路由器',  icon: '📡' },
-  tablet:        { color: 'var(--color-type-tablet)',        label: '平板',    icon: '📋' },
-  tv:            { color: 'var(--color-type-tv)',            label: '电视',    icon: '📺' },
-  printer:       { color: 'var(--color-type-printer)',       label: '打印机',  icon: '🖨️' },
-  smart_speaker: { color: 'var(--color-type-smart-speaker)', label: '智能音箱', icon: '🔊' },
-  game_console:  { color: 'var(--color-type-game-console)',  label: '游戏机',  icon: '🎮' },
-  nas:           { color: 'var(--color-type-nas)',           label: 'NAS',     icon: '🗄️' },
-  wearable:      { color: 'var(--color-type-wearable)',      label: '可穿戴',  icon: '⌚' },
-  unknown:       { color: 'var(--color-type-unknown)',       label: '未知',    icon: '⬡'  },
+  phone:         { color: 'var(--color-type-phone)',         icon: '📱' },
+  computer:      { color: 'var(--color-type-computer)',      icon: '💻' },
+  camera:        { color: 'var(--color-type-camera)',        icon: '📷' },
+  iot:           { color: 'var(--color-type-iot)',           icon: '🔌' },
+  router:        { color: 'var(--color-type-router)',        icon: '📡' },
+  tablet:        { color: 'var(--color-type-tablet)',        icon: '📋' },
+  tv:            { color: 'var(--color-type-tv)',            icon: '📺' },
+  printer:       { color: 'var(--color-type-printer)',       icon: '🖨️' },
+  smart_speaker: { color: 'var(--color-type-smart-speaker)', icon: '🔊' },
+  game_console:  { color: 'var(--color-type-game-console)',  icon: '🎮' },
+  nas:           { color: 'var(--color-type-nas)',           icon: '🗄️' },
+  wearable:      { color: 'var(--color-type-wearable)',      icon: '⌚' },
+  unknown:       { color: 'var(--color-type-unknown)',       icon: '⬡'  },
 }
 
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown
+
+function typeLabel(type) {
+  return t(`common.deviceTypes.${type || 'unknown'}`)
+}
 
 // ── State ────────────────────────────────────────────────
 const svgEl      = ref(null)
@@ -60,8 +67,8 @@ async function loadTopology() {
     nodes.value = data.nodes
     await nextTick()
     renderGraph()
-  } catch {
-    ElMessage.error(t('topology.loadFailed'))
+  } catch (e) {
+    handleError(e, 'topology.loadFailed')
   } finally {
     loading.value = false
   }
@@ -239,7 +246,7 @@ function renderGraph() {
       .attr('fill', cfg.color)
       .attr('opacity', 0.65)
       .attr('pointer-events', 'none')
-      .text(`${t(`common.deviceTypes.${type}`).toUpperCase()} · ${group.length}`)
+      .text(`${typeLabel(type).toUpperCase()} · ${group.length}`)
   })
 
   // ── Device nodes ──
@@ -313,7 +320,8 @@ function latencyColor(ms) {
 }
 
 function formatTime(v) {
-  return v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '—'
+  if (!v) return '—'
+  return new Date(v).toLocaleString(locale.value, { hour12: false })
 }
 
 function avatarInitial(name) {
@@ -424,7 +432,7 @@ onMounted(loadTopology)
               class="type-badge"
               :style="{ background: `color-mix(in srgb, ${typeOf(selected).color} 12%, transparent)`, color: typeOf(selected).color }"
             >
-              {{ typeOf(selected).icon }} {{ $t(`common.deviceTypes.${selected.device_type || 'unknown'}`) }}
+              {{ typeOf(selected).icon }} {{ typeLabel(selected.device_type) }}
             </span>
             <button class="close-btn" :aria-label="$t('common.close')" @click="selected = null">✕</button>
           </div>

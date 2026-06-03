@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useApiError } from '@/composables/useApiError'
 import {
   createCamera,
   updateCamera,
@@ -28,6 +29,7 @@ import {
  */
 export function useCameraActions() {
   const { t } = useI18n()
+  const handleError = useApiError()
 
   // ── Add / Edit form state ──────────────────────────────────────
   const formDialog = ref({ open: false, mode: 'add' }) // 'add' | 'edit'
@@ -79,7 +81,7 @@ export function useCameraActions() {
       formDialog.value.open = false
       return true
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || t('cameras.addFailed'))
+      handleError(e, 'cameras.addFailed')
       return false
     } finally {
       formSubmitting.value = false
@@ -97,7 +99,7 @@ export function useCameraActions() {
       formDialog.value.open = false
       return true
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || t('cameras.saveFailed'))
+      handleError(e, 'cameras.saveFailed')
       return false
     } finally {
       formSubmitting.value = false
@@ -128,11 +130,7 @@ export function useCameraActions() {
       const { data } = await probeCamera(cam.device_mac)
       probeResult.value = data
     } catch (e) {
-      ElMessage.error(
-        t('cameras.onvifProbeFailed', {
-          detail: e.response?.data?.error?.message || e.message,
-        }),
-      )
+      handleError(e, 'cameras.onvifProbeFailed')
       probeDialog.value = false
     } finally {
       probeLoading.value = false
@@ -182,7 +180,7 @@ export function useCameraActions() {
       snapshotUrl.value = URL.createObjectURL(data)
       snapshotDialog.value = true
     } catch (e) {
-      ElMessage.error(t('cameras.snapshotFailed'))
+      handleError(e, 'cameras.snapshotFailed')
     } finally {
       snapshotLoading.value = false
     }
@@ -222,7 +220,7 @@ export function useCameraActions() {
       hlsSrc.value = hlsLiveUrl(cam.device_mac)
       hlsDialog.value = true
     } catch (e) {
-      ElMessage.error(t('cameras.hlsStartFailed'))
+      handleError(e, 'cameras.hlsStartFailed')
     } finally {
       hlsStarting.value = false
     }
@@ -247,9 +245,7 @@ export function useCameraActions() {
         ElMessage.success(t('cameras.recordStarted'))
       }
     } catch (e) {
-      ElMessage.error(
-        e.response?.data?.detail || e.response?.data?.error?.message || t('common.operationFailed'),
-      )
+      handleError(e, 'common.operationFailed')
     }
   }
 
@@ -282,7 +278,7 @@ export function useCameraActions() {
       const { data } = await listPresets(cam.device_mac)
       presetList.value = data
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || 'Failed to load presets')
+      handleError(e, 'cameras.presetLoadFailed')
     } finally {
       presetLoading.value = false
     }
@@ -325,7 +321,7 @@ export function useCameraActions() {
       presetList.value = data
       startPresetAdd()
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || 'Failed to save preset')
+      handleError(e, 'cameras.presetSaveFailed')
     } finally {
       presetSaving.value = false
     }
@@ -344,7 +340,7 @@ export function useCameraActions() {
       presetList.value = data
       ElMessage.success(t('cameras.presetDeleted'))
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || t('common.operationFailed'))
+      handleError(e, 'common.operationFailed')
     }
   }
 
@@ -356,7 +352,7 @@ export function useCameraActions() {
       presetList.value = data
       ElMessage.success(t('cameras.defaultPresetSet'))
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || 'Failed to set default preset')
+      handleError(e, 'cameras.presetSetDefaultFailed')
     }
   }
 
@@ -404,7 +400,7 @@ export function useCameraActions() {
       recordDialog.value = false
       return true
     } catch (e) {
-      ElMessage.error(e.response?.data?.detail || t('cameras.recordStartFailed'))
+      handleError(e, 'cameras.recordStartFailed')
       return false
     } finally {
       recordSaving.value = false

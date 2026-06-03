@@ -9,8 +9,10 @@ import CronSelector from '@/components/CronSelector.vue'
 import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useCamerasStore } from '@/stores/cameras'
+import { useApiError } from '@/composables/useApiError'
 
 const { t } = useI18n()
+const handleError = useApiError()
 const camerasStore = useCamerasStore()
 
 const schedules = ref([])
@@ -106,7 +108,7 @@ async function handleSubmit() {
     dialog.value = false
     fetch()
   } catch (e) {
-    ElMessage.error(e.response?.data?.error?.message || t('common.operationFailed'))
+    handleError(e, 'common.operationFailed')
   } finally {
     submitting.value = false
   }

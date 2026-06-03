@@ -6,8 +6,10 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
+import { useApiError } from '@/composables/useApiError'
 
 const { t, locale } = useI18n()
+const handleError = useApiError()
 const localeStore = useLocaleStore()
 
 const langOptions = [
@@ -62,7 +64,7 @@ async function handleRegister() {
     ElMessage.success(t('login.registerSuccess'))
     router.push('/login')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('login.registerFailed'))
+    handleError(e, 'login.registerFailed')
   } finally {
     loading.value = false
   }

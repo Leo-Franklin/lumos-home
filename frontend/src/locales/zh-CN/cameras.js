@@ -13,6 +13,9 @@ export default {
   // CameraView
   title: '摄像头管理',
   addCamera: '添加摄像头',
+  presetLoadFailed: '加载预设失败',
+  presetSaveFailed: '保存预设失败',
+  presetSetDefaultFailed: '设置默认预设失败',
   editCamera: '编辑摄像头',
   deviceMac: '设备 MAC',
   onvifHost: 'ONVIF 地址',
