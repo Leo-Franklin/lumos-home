@@ -1,0 +1,3 @@
+from app.domain.models.device_online_log import DeviceOnlineLog
+
+__all__ = ['DeviceOnlineLog']

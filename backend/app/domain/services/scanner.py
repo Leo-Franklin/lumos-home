@@ -1,0 +1,908 @@
+import asyncio
+import ipaddress
+import re
+import socket
+import struct
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from loguru import logger
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.domain.models.camera import Camera
+from app.domain.models.device import Device
+
+# Dedicated executor for blocking I/O (hostname resolution + ping).
+# 128 workers = 64 semaphore × 2 concurrent blocking ops per device, no queuing.
+_IO_EXECUTOR = ThreadPoolExecutor(max_workers=128, thread_name_prefix='scanner_io')
+
+try:
+    from scapy.all import ARP, Ether, srp  # type: ignore[attr-defined]
+
+    _SCAPY_AVAILABLE = True
+except ImportError:
+    ARP = Ether = srp = None  # type: ignore[assignment]
+    _SCAPY_AVAILABLE = False
+
+try:
+    from mac_vendor_lookup import AsyncMacLookup
+
+    _MAC_LOOKUP_AVAILABLE = True
+except ImportError:
+    AsyncMacLookup = None
+    _MAC_LOOKUP_AVAILABLE = False
+
+
+def _detect_prefix_length(local_ip: str) -> int:
+    """Detect the real prefix length for the interface that holds local_ip."""
+    # Method 1: scapy routing table (already a dependency, most reliable)
+    if _SCAPY_AVAILABLE:
+        try:
+            from scapy.all import conf
+
+            # routes: (net_int, mask_int, gw, iface, src_ip, metric)
+            for entry in conf.route.routes:
+                net_int, mask_int, _gw, _iface, src, _metric = entry
+                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000, 0x0):
+                    netmask_str = socket.inet_ntoa(struct.pack('>I', mask_int))
+                    return ipaddress.IPv4Network(f'0.0.0.0/{netmask_str}').prefixlen
+        except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+            logger.debug(f'scapy 路由表前缀解析失败 {local_ip}: {e}')
+
+    # Method 2: platform commands
+    try:
+        if sys.platform == 'win32':
+            raw = subprocess.check_output(['ipconfig'], timeout=5)
+            out = raw.decode('gbk', errors='replace')
+            lines = out.splitlines()
+            for i, line in enumerate(lines):
+                if local_ip in line:
+                    # Subnet mask appears near the IP line
+                    for near in lines[max(0, i - 3) : i + 4]:
+                        m = re.search(r'\b(255\.\d+\.\d+\.\d+)\b', near)
+                        if m:
+                            return ipaddress.IPv4Network(f'0.0.0.0/{m.group(1)}').prefixlen
+        else:
+            out = subprocess.check_output(['ip', 'addr'], text=True, timeout=5)
+            for line in out.splitlines():
+                m = re.search(rf'\b{re.escape(local_ip)}/(\d+)\b', line)
+                if m:
+                    return int(m.group(1))
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.debug(f'平台命令解析前缀长度失败 {local_ip}: {e}')
+
+    return 24  # safe fallback
+
+
+def detect_local_network() -> str:
+    """Use the default-route interface IP and its actual subnet mask to derive the network."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(('8.8.8.8', 80))
+            local_ip = s.getsockname()[0]
+        prefix_len = _detect_prefix_length(local_ip)
+        network = ipaddress.ip_network(f'{local_ip}/{prefix_len}', strict=False)
+        logger.info(f'自动检测网段: {network} (本机 IP: {local_ip}, 掩码 /{prefix_len})')
+        return str(network)
+    except OSError as e:
+        logger.warning(f'网段自动检测失败，回退到 192.168.1.0/24: {e}')
+        return '192.168.1.0/24'
+
+
+class Scanner:
+    # ---------------------------------------------------------------------------
+    # Device-type detection keyword constants
+    # ---------------------------------------------------------------------------
+
+    # Port-based detection
+    _CAMERA_PORTS: frozenset[int] = frozenset({554, 2020, 8000})
+    _PRINTER_PORTS: frozenset[int] = frozenset({631, 9100, 515})
+
+    # Hostname-based detection keywords
+    _PHONE_HOSTNAME_KW: tuple[str, ...] = (
+        'iphone',
+        'ipad',
+        'android',
+        'galaxy',
+        'redmi',
+        'pixel',
+    )
+    _COMPUTER_HOSTNAME_KW: tuple[str, ...] = (
+        'macbook',
+        'imac',
+        'desktop',
+        'laptop',
+        'pc-',
+        'workstation',
+    )
+    _PRINTER_HOSTNAME_KW: tuple[str, ...] = (
+        'printer',
+        'canon',
+        'epson',
+        'brother',
+    )
+    _TV_HOSTNAME_KW: tuple[str, ...] = (
+        '-tv',
+        'smarttv',
+        'lgwebos',
+        'tizen',
+        'roku',
+        'fire-tv',
+        'appletv',
+        'apple-tv',
+    )
+    _SMART_SPEAKER_HOSTNAME_KW: tuple[str, ...] = (
+        'echo',
+        'home-mini',
+        'nest-',
+        'homepod',
+        'xiaoai',
+    )
+    _GAME_CONSOLE_HOSTNAME_KW: tuple[str, ...] = (
+        'switch',
+        'playstation',
+        'xbox',
+        'ps5',
+        'ps4',
+    )
+    _TABLET_HOSTNAME_KW: tuple[str, ...] = (
+        'ipad',
+        'tab-',
+        'tablet',
+        'galaxy-tab',
+    )
+    _CAMERA_HOSTNAME_KW: tuple[str, ...] = (
+        'cam',
+        'ipc',
+        'nvr',
+        'dvr',
+    )
+
+    # Vendor-based detection keywords
+    _ROUTER_VENDOR_KW: tuple[str, ...] = (
+        'tp-link',
+        'tplink',
+        'tp link',
+        'netgear',
+        'd-link',
+        'dlink',
+        'cisco',
+        'linksys',
+        'ubiquiti',
+        'mikrotik',
+        'zyxel',
+        'tenda',
+        'ruijie',
+        'h3c',
+        'huawei technologies',
+        'aruba',
+        'juniper',
+        'netcore',
+        'mercury',
+        'fast(迅捷)',
+        'fast ',
+        'comfast',
+        'wavlink',
+        'eero',
+    )
+    _NAS_VENDOR_KW: tuple[str, ...] = ('synology', 'qnap', 'buffalo')
+    _PHONE_VENDOR_KW: tuple[str, ...] = (
+        'apple',
+        'samsung',
+        'xiaomi',
+        'huawei',
+        'honor',
+        'oppo',
+        'vivo',
+        'oneplus',
+        'realme',
+        'motorola',
+        'nokia',
+        'sony mobile',
+        'google',
+        'zte',
+        'meizu',
+        'transsion',
+        'tecno',
+        'infinix',
+        'nothing',
+        'fairphone',
+    )
+    _COMPUTER_VENDOR_KW: tuple[str, ...] = (
+        'intel',
+        'realtek',
+        'dell',
+        'lenovo',
+        'hewlett',
+        'hp inc',
+        'acer',
+        'msi',
+        'gigabyte',
+        'asustek',
+        'microsoft',
+        'razer',
+        'framework',
+        'system76',
+        'mini pc',
+        'vmware',
+        'parallels',
+        'virtualbox',
+    )
+    _TV_VENDOR_KW: tuple[str, ...] = (
+        'lg electronics',
+        'tcl',
+        'hisense',
+        'skyworth',
+        'changhong',
+        'konka',
+        'haier',
+        'sharp',
+        'philips',
+        'panasonic',
+        'roku',
+        'amazon technologies',
+        'chromecast',
+        'vizio',
+        'toshiba',
+        'funai',
+    )
+    _SMART_SPEAKER_VENDOR_KW: tuple[str, ...] = (
+        'sonos',
+        'harman',
+        'bose',
+        'bang & olufsen',
+        'amazon.com',
+        'google llc',
+        'apple inc',
+        'baidu',
+        'alibaba',
+    )
+    _PRINTER_VENDOR_KW: tuple[str, ...] = (
+        'canon',
+        'epson',
+        'brother',
+        'ricoh',
+        'xerox',
+        'kyocera',
+        'lexmark',
+        'konica',
+        'sharp manufacturing',
+    )
+    _CAMERA_VENDOR_KW: tuple[str, ...] = (
+        'hikvision',
+        'dahua',
+        'axis',
+        'reolink',
+        'amcrest',
+        'wyze',
+        'ring',
+        'arlo',
+        'eufy',
+        'imou',
+        'uniview',
+        'tiandy',
+        'kedacom',
+        'sunell',
+        'yushi',
+    )
+    _IOT_VENDOR_KW: tuple[str, ...] = (
+        'espressif',
+        'tuya',
+        'shenzhen',
+        'hangzhou',
+        'yeelight',
+        'aqara',
+        'broadlink',
+        'orvibo',
+        'sonoff',
+        'tasmota',
+        'switchbot',
+        'ikea of sweden',
+        'signify',
+        'philips hue',
+        'lifx',
+        'wemo',
+        'meross',
+        'gosund',
+        'zigbee',
+        'smartthings',
+        'nest',
+        'ecobee',
+        'honeywell',
+        'midea',
+        'gree',
+        'aux',
+        'roborock',
+        'dreame',
+        'ecovacs',
+        'irobot',
+        'tineco',
+    )
+    _GAME_CONSOLE_VENDOR_KW: tuple[str, ...] = (
+        'nintendo',
+        'sony interactive',
+        'microsoft xbox',
+        'valve',
+        'steam',
+    )
+    _WEARABLE_VENDOR_KW: tuple[str, ...] = (
+        'fitbit',
+        'garmin',
+        'amazfit',
+        'zepp',
+        'whoop',
+    )
+
+    def __init__(self, network: str):
+        self.network = detect_local_network() if network.strip().lower() == 'auto' else network
+        self._mac_lookup = AsyncMacLookup() if AsyncMacLookup is not None else None
+
+    async def arp_scan(self) -> list[dict]:
+        loop = asyncio.get_running_loop()
+        seen: dict[str, dict] = {}  # mac -> entry
+
+        logger.info(f'开始网络扫描: {self.network}')
+
+        if _SCAPY_AVAILABLE:
+            # Primary path: ARP broadcast — O(3s) regardless of subnet size, no subprocess spam
+            try:
+                for d in await loop.run_in_executor(None, self._arp_scan_sync):
+                    seen[d['mac']] = d
+                logger.info(f'Scapy ARP broadcast 发现 {len(seen)} 台设备')
+            except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+                logger.warning(f'Scapy ARP 失败，回退 ping sweep: {e}')
+
+        if not seen:
+            # Fallback: ping sweep to populate ARP cache, then read it
+            await loop.run_in_executor(None, self._ping_sweep_sync)
+
+        # Always supplement from OS ARP cache (catches hosts that replied to ping but not ARP broadcast)
+        for d in await loop.run_in_executor(None, self._arp_table_scan_sync):
+            seen.setdefault(d['mac'], d)
+        logger.debug(f'ARP 缓存补充后共 {len(seen)} 台设备')
+
+        # Local machine never appears in its own ARP table — add it explicitly
+        local_entry = await loop.run_in_executor(None, self._get_local_machine_entry)
+        if local_entry:
+            seen.setdefault(local_entry['mac'], local_entry)
+
+        net = ipaddress.ip_network(self.network, strict=False)
+        result = [d for d in seen.values() if ipaddress.ip_address(d['ip']) in net]
+        logger.info(f'网络扫描完成，发现 {len(result)} 台设备')
+        return result
+
+    def _arp_scan_sync(self) -> list[dict]:
+        if Ether is None or ARP is None or srp is None:
+            raise RuntimeError('scapy 不可用，无法执行 ARP broadcast 扫描')
+        pkt = Ether(dst='ff:ff:ff:ff:ff:ff') / ARP(pdst=self.network)
+        answered, _ = srp(pkt, timeout=2, verbose=0)
+        return [{'ip': rcv.psrc, 'mac': rcv.hwsrc.upper()} for _, rcv in answered]
+
+    def _ping_sweep_sync(self) -> None:
+        """Ping all subnet hosts to populate the OS ARP cache. Batched for large subnets."""
+        net = ipaddress.ip_network(self.network, strict=False)
+        hosts = list(net.hosts())
+        # Safety cap: skip subnets larger than /21 (>2046 hosts)
+        if len(hosts) > 2046:
+            logger.warning(f'网段 {net} 超过 2046 个主机，跳过 ping sweep')
+            return
+        if sys.platform == 'win32':
+            ping_args = lambda ip: ['ping', '-n', '1', '-w', '500', str(ip)]
+        else:
+            ping_args = lambda ip: ['ping', '-c', '1', '-W', '1', str(ip)]
+
+        # Batch into groups of 128 to avoid overwhelming the OS with too many processes
+        batch_size = 128
+        for i in range(0, len(hosts), batch_size):
+            batch = hosts[i : i + batch_size]
+            procs = [
+                subprocess.Popen(
+                    ping_args(ip), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                for ip in batch
+            ]
+            for p in procs:
+                p.wait()
+
+    def _arp_table_scan_sync(self) -> list[dict]:
+        """Parse the OS ARP cache via `arp -a`."""
+        try:
+            out = subprocess.check_output(['arp', '-a'], text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f'arp -a 失败: {e}')
+            return []
+        results: list[dict] = []
+        # Windows: "  192.168.5.1    2c-6d-c1-9c-e3-7a    动态"
+        # Linux:   "? (192.168.5.1) at 2c:6d:c1:9c:e3:7a [ether] on eth0"
+        for line in out.splitlines():
+            ip_match = re.search(r'(\d{1,3}(?:\.\d{1,3}){3})', line)
+            mac_match = re.search(
+                r'([0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2})',
+                line,
+            )
+            if not ip_match or not mac_match:
+                continue
+            mac = mac_match.group(1).replace('-', ':').upper()
+            if mac in ('FF:FF:FF:FF:FF:FF',) or mac.startswith('01:'):
+                continue
+            results.append({'ip': ip_match.group(1), 'mac': mac})
+        return results
+
+    def _get_local_machine_entry(self) -> dict | None:
+        """Return this machine's own IP+MAC — it never appears in its own ARP table."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(('8.8.8.8', 80))
+                local_ip = s.getsockname()[0]
+            mac = self._get_local_mac(local_ip)
+            if mac:
+                return {'ip': local_ip, 'mac': mac, 'is_local': True}
+        except Exception as e:  # noqa: BLE001 - mix of socket IO + scapy third-party
+            logger.debug(f'获取本机 IP/MAC 失败: {e}')
+        return None
+
+    def _get_local_mac(self, local_ip: str) -> str | None:
+        """Get the MAC of the interface that holds local_ip."""
+        if _SCAPY_AVAILABLE:
+            try:
+                from scapy.all import conf, get_if_hwaddr
+
+                for iface_name, iface in conf.ifaces.items():
+                    if getattr(iface, 'ip', None) == local_ip:
+                        mac = get_if_hwaddr(iface_name)
+                        if mac and mac != '00:00:00:00:00:00':
+                            return mac.upper()
+            except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+                logger.debug(f'scapy 接口 MAC 查询失败 {local_ip}: {e}')
+
+        try:
+            if sys.platform == 'win32':
+                # ipconfig /all pairs IP and MAC in the same interface block
+                raw = subprocess.check_output(['ipconfig', '/all'], timeout=5)
+                out = raw.decode('gbk', errors='replace')
+                blocks = re.split(r'\n(?=\S)', out)  # split on non-indented lines
+                for block in blocks:
+                    if local_ip in block:
+                        m = re.search(
+                            r'([0-9A-Fa-f]{2}[-][0-9A-Fa-f]{2}[-][0-9A-Fa-f]{2}[-][0-9A-Fa-f]{2}[-][0-9A-Fa-f]{2}[-][0-9A-Fa-f]{2})',
+                            block,
+                        )
+                        if m:
+                            return m.group(1).replace('-', ':').upper()
+            else:
+                out = subprocess.check_output(['ip', 'link'], text=True, timeout=5)
+                # Pair link/ether entries with interface names, then match via 'ip addr'
+                addr_out = subprocess.check_output(['ip', 'addr'], text=True, timeout=5)
+                iface_match = re.search(rf'(\w+).*\n.*{re.escape(local_ip)}', addr_out)
+                if iface_match:
+                    matched_iface = iface_match.group(1)
+                    mac_match = re.search(
+                        rf'{re.escape(matched_iface)}.*\n.*link/ether\s+([0-9a-f:]+)', out
+                    )
+                    if mac_match:
+                        return mac_match.group(1).upper()
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.debug(f'命令解析本机 MAC 失败 {local_ip}: {e}')
+        return None
+
+    async def resolve_hostname(self, ip: str) -> str | None:
+        return await asyncio.get_running_loop().run_in_executor(
+            _IO_EXECUTOR, self._resolve_hostname_sync, ip
+        )
+
+    def _resolve_hostname_sync(self, ip: str) -> str | None:
+        try:
+            old_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(1.0)
+            try:
+                hostname, _, _ = socket.gethostbyaddr(ip)
+                return hostname
+            finally:
+                socket.setdefaulttimeout(old_timeout)
+        except OSError:
+            return None
+
+    async def measure_latency(self, ip: str) -> float | None:
+        return await asyncio.get_running_loop().run_in_executor(
+            _IO_EXECUTOR, self._measure_latency_sync, ip
+        )
+
+    def _measure_latency_sync(self, ip: str) -> float | None:
+        try:
+            if sys.platform == 'win32':
+                cmd = ['ping', '-n', '1', '-w', '300', str(ip)]
+                pattern = r'(?:平均|Average)\s*[=<]\s*(\d+)\s*ms'
+            else:
+                cmd = ['ping', '-c', '1', '-W', '1', str(ip)]
+                pattern = r'time=(\d+\.?\d*) ms'
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
+            m = re.search(pattern, result.stdout, re.IGNORECASE)
+            if m:
+                return float(m.group(1))
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.debug(f'ping 延迟测量失败 {ip}: {e}')
+        return None
+
+    async def lookup_vendor(self, mac: str) -> str:
+        if self._mac_lookup is None:
+            return 'Unknown'
+        try:
+            return await self._mac_lookup.lookup(mac)
+        except Exception:  # noqa: BLE001 - mac_vendor_lookup third-party boundary
+            return 'Unknown'
+
+    # Camera-relevant ports: RTSP(554), ONVIF-standard(2020), Hikvision/Dahua HTTP(80,8080),
+    # Dahua ONVIF alt(8000), HTTPS(443/8443)
+    _PROBE_PORTS = [554, 2020, 8000, 80, 8080, 443, 8443]
+
+    async def probe_ports_async(self, ip: str, timeout: float = 0.8) -> list[int]:
+        """Fast async socket-based port probe. No subprocess overhead."""
+
+        async def _check(port: int) -> int | None:
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, port), timeout=timeout
+                )
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except OSError as e:
+                    logger.debug(f'asyncio writer 关闭异常 {ip}:{port}: {e}')
+                return port
+            except OSError:
+                return None
+
+        results = await asyncio.gather(*[_check(p) for p in self._PROBE_PORTS])
+        return [p for p in results if p is not None]
+
+    async def probe_ports(self, ip: str) -> list[int]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._probe_ports_sync, ip)
+
+    def _probe_ports_sync(self, ip: str) -> list[int]:
+        try:
+            import nmap
+
+            nm = nmap.PortScanner()
+            nm.scan(ip, '80,443,554,2020,8000,8080,8443', arguments='-T4 --open')
+            ports: list[int] = []
+            if ip in nm.all_hosts():
+                for proto in nm[ip].all_protocols():
+                    ports.extend(nm[ip][proto].keys())
+            return ports
+        except Exception as e:  # noqa: BLE001 - nmap third-party boundary
+            logger.debug(f'nmap 探测失败 {ip}: {e}')
+            return []
+
+    @staticmethod
+    def _detect_by_ports(open_ports: list[int]) -> str | None:
+        """Detect device type by open ports. Returns None if no match."""
+        ports = frozenset(open_ports)
+        if ports & Scanner._CAMERA_PORTS:
+            return 'camera'
+        if ports & Scanner._PRINTER_PORTS:
+            return 'printer'
+        return None
+
+    @staticmethod
+    def _detect_by_hostname(hostname: str | None) -> str | None:
+        """Detect device type by hostname keywords. Returns None if no match."""
+        if not hostname:
+            return None
+        h = hostname.lower()
+        if any(kw in h for kw in Scanner._PHONE_HOSTNAME_KW):
+            return 'phone'
+        if any(kw in h for kw in Scanner._COMPUTER_HOSTNAME_KW):
+            return 'computer'
+        if any(kw in h for kw in Scanner._PRINTER_HOSTNAME_KW):
+            return 'printer'
+        if any(kw in h for kw in Scanner._TV_HOSTNAME_KW):
+            return 'tv'
+        if any(kw in h for kw in Scanner._SMART_SPEAKER_HOSTNAME_KW):
+            return 'smart_speaker'
+        if any(kw in h for kw in Scanner._GAME_CONSOLE_HOSTNAME_KW):
+            return 'game_console'
+        if any(kw in h for kw in Scanner._TABLET_HOSTNAME_KW):
+            return 'tablet'
+        if any(kw in h for kw in Scanner._CAMERA_HOSTNAME_KW):
+            return 'camera'
+        return None
+
+    @staticmethod
+    def _detect_by_vendor(vendor: str, hostname: str | None = None) -> str | None:
+        """Detect device type by vendor OUI name. Returns None if no match."""
+        v = vendor.lower()
+        h = (hostname or '').lower()
+
+        # NAS (before router, since some NAS vendors appear in router list)
+        if any(kw in v for kw in Scanner._NAS_VENDOR_KW):
+            return 'nas'
+        # Router / Network equipment
+        if any(kw in v for kw in Scanner._ROUTER_VENDOR_KW):
+            return 'router'
+        # Phones / Tablets
+        if any(kw in v for kw in Scanner._PHONE_VENDOR_KW):
+            return 'phone'
+        # Computers
+        if any(kw in v for kw in Scanner._COMPUTER_VENDOR_KW):
+            return 'computer'
+        # Smart TVs / Streaming
+        if any(kw in v for kw in Scanner._TV_VENDOR_KW):
+            return 'tv'
+        # Smart speakers / Voice assistants (ambiguous vendors need hostname disambiguation)
+        if any(kw in v for kw in Scanner._SMART_SPEAKER_VENDOR_KW):
+            if any(kw in h for kw in ('echo', 'home', 'nest', 'homepod', 'xiaoai', 'tmall')):
+                return 'smart_speaker'
+            if 'apple' in v:
+                return 'phone'
+            return 'smart_speaker'
+        # Printers / Scanners
+        if any(kw in v for kw in Scanner._PRINTER_VENDOR_KW):
+            return 'printer'
+        # Cameras / Security — detect only by port or hostname.
+        # NOT by vendor OUI: many non-camera devices (routers, NVRs, workstations)
+        # share OUI prefixes with camera vendors, causing false 'camera' classifications.
+        # Actual cameras must be added manually via the camera management API.
+        # IoT / Smart home
+        if any(kw in v for kw in Scanner._IOT_VENDOR_KW):
+            return 'iot'
+        # Game consoles
+        if any(kw in v for kw in Scanner._GAME_CONSOLE_VENDOR_KW):
+            return 'game_console'
+        # Wearables
+        if any(kw in v for kw in Scanner._WEARABLE_VENDOR_KW):
+            return 'wearable'
+
+        return None
+
+    @staticmethod
+    def guess_device_type(vendor: str, open_ports: list[int], hostname: str | None = None) -> str:
+        """Infer device type from vendor OUI name, open ports, and hostname.
+
+        Detection priority: ports > hostname > vendor.
+        """
+        if (result := Scanner._detect_by_ports(open_ports)) is not None:
+            return result
+        if (result := Scanner._detect_by_hostname(hostname)) is not None:
+            return result
+        if (result := Scanner._detect_by_vendor(vendor, hostname)) is not None:
+            return result
+        return 'unknown'
+
+
+# ---------------------------------------------------------------------------
+# Standalone scan helpers (originally in app/routers/devices.py)
+# ---------------------------------------------------------------------------
+
+
+async def _enrich_device(scanner: Scanner, d: dict) -> dict:
+    """Concurrently resolve vendor/hostname/latency/open_ports for one device."""
+    if d.get('is_local'):
+        vendor, hostname, latency = await asyncio.gather(
+            scanner.lookup_vendor(d['mac']),
+            scanner.resolve_hostname(d['ip']),
+            scanner.measure_latency(d['ip']),
+        )
+        return {
+            'mac': d['mac'],
+            'ip': d['ip'],
+            'vendor': vendor or 'Unknown',
+            'hostname': hostname,
+            'latency': latency,
+            'device_type': 'computer',
+        }
+    vendor, hostname, latency, open_ports = await asyncio.gather(
+        scanner.lookup_vendor(d['mac']),
+        scanner.resolve_hostname(d['ip']),
+        scanner.measure_latency(d['ip']),
+        scanner.probe_ports_async(d['ip']),
+    )
+    return {
+        'mac': d['mac'],
+        'ip': d['ip'],
+        'vendor': vendor or 'Unknown',
+        'hostname': hostname,
+        'latency': latency,
+        'device_type': scanner.guess_device_type(vendor or '', open_ports, hostname),
+    }
+
+
+def _find_unknown_devices(
+    enriched: list[dict],
+    original_last_seen: dict[str, 'datetime | None'],
+    bound_macs: set[str],
+    now: datetime,
+    staleness_hours: int = 24,
+) -> list[dict]:
+    """Return devices not bound to any member that are new or stale (not seen recently)."""
+    result = []
+    for data in enriched:
+        mac = data['mac']
+        if mac in bound_macs:
+            continue
+        is_new = mac not in original_last_seen
+        last_seen = original_last_seen.get(mac)
+        is_stale = (
+            not is_new
+            and last_seen is not None
+            and (now - last_seen).total_seconds() > staleness_hours * 3600
+        )
+        if is_new or is_stale:
+            result.append(data)
+    return result
+
+
+async def _log_scan_result(
+    db: 'AsyncSession',
+    enriched: list[dict],
+    bucket_hour: 'datetime',
+) -> None:
+    """Upsert per-device presence into DeviceOnlineLog for the given hour bucket."""
+    from sqlalchemy import select
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    from app.domain.models.device_online_log import DeviceOnlineLog
+
+    online_macs = {d['mac'] for d in enriched}
+    all_result = await db.execute(select(Device.mac, Device.device_type))
+    all_devices = all_result.all()
+    if not all_devices:
+        return
+
+    rows = [
+        {
+            'mac': d.mac,
+            'bucket_hour': bucket_hour,
+            'device_type': d.device_type or 'unknown',
+            'online_count': 1 if d.mac in online_macs else 0,
+            'scan_count': 1,
+        }
+        for d in all_devices
+    ]
+    stmt = sqlite_insert(DeviceOnlineLog).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['mac', 'bucket_hour'],
+        set_={
+            'online_count': DeviceOnlineLog.online_count + stmt.excluded.online_count,
+            'scan_count': DeviceOnlineLog.scan_count + stmt.excluded.scan_count,
+        },
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+
+async def _run_scan(network_range: str):
+    """Run device scan: arp scan → enrich → upsert → mark offline → analytics."""
+    from datetime import datetime
+
+    from sqlalchemy import select
+
+    from app.database import AsyncSessionLocal
+    from app.domain.models.member import MemberDevice
+    from app.domain.services.ws_manager import ws_manager
+
+    loop = asyncio.get_running_loop()
+    scanner = await loop.run_in_executor(None, Scanner, network_range)
+    await ws_manager.broadcast('scan_started', {})
+    try:
+        devices = await scanner.arp_scan()
+        results = {'found': len(devices), 'new': 0, 'offline': 0}
+
+        sem = asyncio.Semaphore(64)
+
+        async def enrich_with_sem(d: dict) -> dict:
+            async with sem:
+                return await _enrich_device(scanner, d)
+
+        enriched = await asyncio.gather(*[enrich_with_sem(d) for d in devices])
+
+        async with AsyncSessionLocal() as db:
+            macs = [d['mac'] for d in enriched]
+            # Fetch all devices that have an associated Camera record.
+            # These are managed by the camera API and should NOT be upserted here.
+            camera_macs_result = await db.execute(select(Camera.device_mac))
+            camera_macs: set[str] = {row[0] for row in camera_macs_result.all()}
+            # For scan purposes, treat devices with a Camera as "known" — do not overwrite
+            # their device_type or other fields; only update online status.
+            existing_rows = (
+                (await db.execute(select(Device).where(Device.mac.in_(macs)))).scalars().all()
+            )
+            existing_map = {d.mac: d for d in existing_rows}
+            original_last_seen: dict[str, datetime | None] = {
+                mac: dev.last_seen for mac, dev in existing_map.items()
+            }
+
+            now = datetime.now()  # noqa: DTZ005 - Device.last_seen is DateTime (naive)
+            for data in enriched:
+                mac = data['mac']
+                # Skip devices that are managed as Cameras — only update is_online/last_seen
+                if mac in camera_macs:
+                    existing = existing_map.get(mac)
+                    if existing:
+                        existing.is_online = True
+                        existing.last_seen = now
+                        existing.ip = data['ip']
+                    continue
+                existing = existing_map.get(mac)
+                if existing:
+                    existing.ip = data['ip']
+                    existing.vendor = data['vendor']
+                    existing.hostname = data['hostname']
+                    existing.response_time_ms = data['latency']
+                    existing.is_online = True
+                    existing.last_seen = now
+                    new_type = data['device_type']
+                    # Only update device_type for non-camera devices.
+                    # Cameras must be added via the camera management API, never auto-detected.
+                    # Skip device_type update if the device has a corresponding Camera record
+                    # (camera_macs); leave its type unchanged so it doesn't become 'camera'
+                    # from passive scanning. Devices in camera_macs should have device_type
+                    # set only by explicit camera registration, not by scan detection.
+                    if mac not in camera_macs and new_type != 'camera':
+                        if existing.device_type in ('unknown', None) or new_type != 'unknown':
+                            existing.device_type = new_type
+                else:
+                    results['new'] += 1
+                    # Never auto-classify a new device as 'camera' — cameras must
+                    # be added explicitly via the camera management API.  Port
+                    # detection (554/2020/8000) can produce false positives for
+                    # NVRs, routers, and other devices that expose RTSP/ONVIF ports.
+                    device_type = data['device_type']
+                    if device_type == 'camera':
+                        device_type = 'unknown'
+                    db.add(
+                        Device(
+                            mac=mac,
+                            ip=data['ip'],
+                            vendor=data['vendor'],
+                            hostname=data['hostname'],
+                            response_time_ms=data['latency'],
+                            device_type=device_type,
+                            is_online=True,
+                            last_seen=now,
+                        )
+                    )
+            await db.commit()
+
+            if macs:
+                offline_result = await db.execute(
+                    select(Device).where(Device.is_online, Device.mac.notin_(macs))
+                )
+                offline_devices = offline_result.scalars().all()
+                for dev in offline_devices:
+                    dev.is_online = False
+                results['offline'] += len(offline_devices)
+                await db.commit()
+
+            try:
+                bound_result = await db.execute(select(MemberDevice.mac))
+                bound_macs = {row[0] for row in bound_result.all()}
+                unknowns = _find_unknown_devices(enriched, original_last_seen, bound_macs, now)
+                for u in unknowns:
+                    await ws_manager.broadcast(
+                        'unknown_device_detected',
+                        {
+                            'mac': u['mac'],
+                            'ip': u['ip'],
+                            'vendor': u.get('vendor'),
+                            'hostname': u.get('hostname'),
+                            'first_seen': now.isoformat(),
+                        },
+                    )
+            except Exception as e:  # noqa: BLE001 - mixes SQLAlchemy + websockets, both can throw
+                logger.debug(f'写入未知设备广播失败: {e}')
+
+            try:
+                bucket_hour = now.replace(minute=0, second=0, microsecond=0)
+                await _log_scan_result(db, enriched, bucket_hour)
+            except Exception as e:  # noqa: BLE001 - mixes SQLAlchemy + sqlite upsert paths
+                logger.debug(f'写入扫描结果日志失败: {e}')
+
+        await ws_manager.broadcast('scan_completed', results)
+    except Exception as e:  # noqa: BLE001 - top-level catch-all for entire scan flow
+        await ws_manager.broadcast('scan_completed', {'error': str(e)})

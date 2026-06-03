@@ -1,0 +1,97 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "apscheduler>=3.10.0,<4.0.0",
+    "cryptography>=46.0.7",
+    "email-validator>=2.3.0",
+    "fastapi>=0.136.1",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "mac-vendor-lookup>=0.1.15",
+    "onvif-zeep>=0.2.12",
+    "bcrypt>=5.0.0",
+    "Pillow>=11.0.0",
+    "pydantic-settings>=2.14.0",
+    "python-dotenv>=1.2.2",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.26",
+    "python-nmap>=0.7.1",
+    "pystray>=0.19.0",
+    "scapy>=2.7.0",
+    "smbprotocol>=1.16.1",
+    "sqlalchemy[asyncio]>=2.0.49",
+    "uvicorn[standard]>=0.46.0",
+    "defusedxml>=0.7.1",
+]
+
+[project.scripts]
+dev = "app.main:_dev"
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.11.0",
+    "mypy>=1.15.0",
+    "pytest-cov>=7.1.0",
+    "pre-commit>=4.6.0",
+    "pytest-watch>=4.2.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+# Enabled incrementally — items listed in `select` are the active gate.
+# When adding a new rule family, fix existing violations in the same commit.
+select = [
+    "E", "F", "I", "COM", "FIX", "UP", "C4", "T10", "ISC",
+    "BLE",      # blind-except — must log or use specific type
+    "DTZ",      # datetime tz — naive datetime requires explicit noqa with reason
+    "S110",     # try-except-pass without log — see test_no_silent_except.py
+    "S314",     # untrusted XML parsing — use defusedxml
+    "RUF006",   # asyncio.create_task without reference — see _bg.spawn_bg
+    "ASYNC240", # blocking pathlib in async — wrap with asyncio.to_thread
+]
+ignore = ["E501", "COM812", "ISC001", "F403", "F841", "E402", "B904", "B008", "B023", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use deterministic naive datetimes, blocking IO in async,
+# and broad except for mock fallbacks — these rules are app/-only.
+"tests/**" = [
+    "DTZ001",   # datetime() without tzinfo — naive constants are idiomatic in tests
+    "DTZ005",   # datetime.now() without tz — same
+    "DTZ006",   # datetime.fromtimestamp() — same
+    "BLE001",   # broad except — common in test mocks/fallbacks
+    "ASYNC230", # blocking open() in async — fine for test fixtures
+    "ASYNC240", # blocking pathlib in async — fine for test fixtures
+    "S101",     # assert — that's the entire point of pytest
+    "S110",     # except: pass — common in test cleanup
+    "S105",     # hardcoded password — test fixtures use literal credentials
+    "S106",     # hardcoded password func arg — same
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+show_error_codes = true

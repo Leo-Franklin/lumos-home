@@ -1,0 +1,129 @@
+from collections.abc import AsyncGenerator
+
+from loguru import logger
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# Lazy import to avoid triggering settings validation at import time
+# (settings validation requires real .env values which aren't available during test collection)
+_engine = None
+_AsyncSessionLocal = None
+
+
+class _LazySessionMaker:
+    """Lazy proxy for AsyncSessionLocal — defers settings access until first use."""
+
+    def __call__(self):
+        return _get_session_maker()()
+
+    def begin(self, **kwargs):
+        return _get_session_maker().begin(**kwargs)
+
+    @property
+    def engine(self):
+        return _get_engine()
+
+
+# Backwards-compatible API entry point (matches original AsyncSessionLocal interface)
+AsyncSessionLocal = _LazySessionMaker()
+
+
+def _get_engine():
+    global _engine
+    if _engine is None:
+        from app.config import get_settings
+
+        settings = get_settings()
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        _engine = create_async_engine(
+            settings.database_url,
+            echo=settings.debug,
+            connect_args={'check_same_thread': False},
+        )
+    return _engine
+
+
+def _get_session_maker():
+    global _AsyncSessionLocal
+    if _AsyncSessionLocal is None:
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        _AsyncSessionLocal = async_sessionmaker(_get_engine(), expire_on_commit=False)
+    return _AsyncSessionLocal
+
+
+async def init_db() -> None:
+    # Import all models so create_all picks them up
+
+    async with _get_engine().begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        # Idempotent column migrations — wrapped individually so one failure doesn't block others
+        for stmt in (
+            'ALTER TABLE cameras ADD COLUMN rtsp_url TEXT',
+            'ALTER TABLE devices ADD COLUMN hostname TEXT',
+            'ALTER TABLE devices ADD COLUMN open_ports TEXT',
+            'ALTER TABLE devices ADD COLUMN response_time_ms REAL',
+            "ALTER TABLE members ADD COLUMN auto_record_cameras JSON DEFAULT '[]'",
+            'ALTER TABLE cameras ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT 1',
+            'ALTER TABLE cameras ADD COLUMN last_probe_at DATETIME',
+            'ALTER TABLE cameras ADD COLUMN auto_cast_dlna VARCHAR(256)',
+            "ALTER TABLE cameras ADD COLUMN recording_presets JSON DEFAULT '[]'",
+            'ALTER TABLE cameras ADD COLUMN default_preset_id VARCHAR(36)',
+            'ALTER TABLE schedules ADD COLUMN preset_id VARCHAR(36)',
+            'ALTER TABLE schedules ADD COLUMN overrides TEXT',
+            'ALTER TABLE users ADD COLUMN github_id VARCHAR(64)',
+            'ALTER TABLE users ADD COLUMN github_username VARCHAR(128)',
+            'ALTER TABLE recordings ADD COLUMN recording_id INTEGER',
+            'ALTER TABLE recordings ADD COLUMN segment_index INTEGER',
+            'CREATE INDEX IF NOT EXISTS ix_recordings_recording_id ON recordings(recording_id)',
+            'CREATE INDEX IF NOT EXISTS ix_recordings_segment_index ON recordings(segment_index)',
+        ):
+            try:
+                await conn.execute(text(stmt))
+            except Exception as e:  # noqa: BLE001 — DDL idempotency: any sqlite "already exists" or transient error
+                # DDL idempotency: column/index already exists is the common case
+                logger.debug(f'init_db DDL 跳过: {stmt!r} ({e})')
+
+    # Backward compatibility: if users table is empty after migration,
+    # create a superuser from ADMIN_USERNAME/ADMIN_PASSWORD env vars
+    await _migrate_admin_user()
+
+
+async def _migrate_admin_user() -> None:
+    """Create superuser from env vars if users table is empty."""
+    from sqlalchemy import select
+
+    from app.auth import hash_password
+    from app.models.user import User
+
+    async with _get_session_maker()() as session:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+
+        if len(users) > 0:
+            return  # Users exist, no migration needed
+
+        from app.config import get_settings
+
+        settings = get_settings()
+
+        admin_user = User(
+            email=settings.admin_username,
+            password_hash=hash_password(settings.admin_password),
+            is_active=True,
+            is_superuser=True,
+        )
+        session.add(admin_user)
+        await session.commit()
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with _get_session_maker()() as session:
+        yield session
