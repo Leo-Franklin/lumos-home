@@ -176,8 +176,8 @@ async function handleDelete(row) {
         <template #default="{ row }">
           <ActionButtonGroup
             :actions="[
-              { icon: Edit, tooltip: $t('common.edit'), onClick: () => openEdit(row) },
-              { icon: Delete, tooltip: $t('common.delete'), danger: true, onClick: () => handleDelete(row) },
+              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEdit(row) },
+              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDelete(row) },
             ]"
           />
         </template>
@@ -253,8 +253,8 @@ async function handleDelete(row) {
           <el-form-item class="override-toggle">
             <el-button text type="primary" @click="showOverrides = !showOverrides">
               {{ showOverrides ? $t('schedule.hideOverrides') : $t('schedule.showOverrides') }}
-              <span class="toggle-arrow" :class="{ open: showOverrides }">
-                <svg viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="toggle-arrow" :class="{ open: showOverrides }" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
             </el-button>
           </el-form-item>

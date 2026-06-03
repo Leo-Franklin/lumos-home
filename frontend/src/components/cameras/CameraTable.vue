@@ -42,7 +42,13 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
       <template #default="{ row }">
         <div class="action-group">
           <el-tooltip :content="$t('cameras.edit')" :show-after="400">
-            <el-button class="action-btn" size="small" :icon="Edit" @click="emit('edit', row)" />
+            <el-button
+              class="action-btn"
+              size="small"
+              :icon="Edit"
+              :aria-label="$t('cameras.edit')"
+              @click="emit('edit', row)"
+            />
           </el-tooltip>
           <el-tooltip
             :content="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')"
@@ -53,43 +59,52 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
               :class="row.is_recording ? 'action-btn--recording' : 'action-btn--record'"
               size="small"
               :icon="row.is_recording ? VideoPause : VideoCameraFilled"
+              :aria-label="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')"
               @click="emit('record', row)"
             />
           </el-tooltip>
           <el-dropdown trigger="click" @command="(cmd) => emit('preview', cmd, row)">
-            <el-button class="action-btn action-btn--primary" size="small">
+            <el-button
+              class="action-btn action-btn--primary"
+              size="small"
+              :aria-label="$t('cameras.livePreview')"
+            >
               <VideoPlay />
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="live">
-                  <el-icon><VideoPlay /></el-icon>{{ $t('cameras.livePreview') }}
+                  <el-icon aria-hidden="true"><VideoPlay /></el-icon>{{ $t('cameras.livePreview') }}
                 </el-dropdown-item>
                 <el-dropdown-item command="snapshot">
-                  <el-icon><Camera /></el-icon>{{ $t('cameras.snapshot') }}
+                  <el-icon aria-hidden="true"><Camera /></el-icon>{{ $t('cameras.snapshot') }}
                 </el-dropdown-item>
                 <el-dropdown-item command="hls">
-                  <el-icon><VideoCamera /></el-icon>{{ $t('cameras.hlsLive') }}
+                  <el-icon aria-hidden="true"><VideoCamera /></el-icon>{{ $t('cameras.hlsLive') }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
           <el-dropdown trigger="click" @command="(cmd) => emit('more', cmd, row)">
-            <el-button class="action-btn" size="small">
-              <el-icon><MoreFilled /></el-icon>
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            <el-button
+              class="action-btn"
+              size="small"
+              :aria-label="$t('cameras.managePresets')"
+            >
+              <el-icon aria-hidden="true"><MoreFilled /></el-icon>
+              <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="probe">
-                  <el-icon><Search /></el-icon>{{ $t('cameras.onvifProbe') }}
+                  <el-icon aria-hidden="true"><Search /></el-icon>{{ $t('cameras.onvifProbe') }}
                 </el-dropdown-item>
                 <el-dropdown-item command="presets">
-                  <el-icon><Setting /></el-icon>{{ $t('cameras.managePresets') }}
+                  <el-icon aria-hidden="true"><Setting /></el-icon>{{ $t('cameras.managePresets') }}
                 </el-dropdown-item>
                 <el-dropdown-item command="delete" divided>
-                  <el-icon><Delete /></el-icon>
+                  <el-icon aria-hidden="true"><Delete /></el-icon>
                   <span class="text-danger">{{ $t('cameras.delete') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>

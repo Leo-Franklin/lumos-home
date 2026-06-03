@@ -3,7 +3,7 @@ defineProps({
   actions: {
     type: Array,
     required: true,
-    // shape: [{ icon, tooltip, type, danger, disabled, placement, onClick }]
+    // shape: [{ icon, tooltip, ariaLabel, type, danger, disabled, placement, onClick }]
     // type ∈ undefined | 'primary' | 'record' | 'recording' (mirrors prior CSS modifiers)
   },
   size: { type: String, default: 'small' },
@@ -30,6 +30,7 @@ defineProps({
         }"
         :size="size"
         :icon="action.icon"
+        :aria-label="action.ariaLabel || action.tooltip || ''"
         :disabled="action.disabled"
         @click="action.onClick && action.onClick()"
       />

@@ -10,11 +10,14 @@ import { Refresh, Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
+import { useApiError } from '@/composables/useApiError'
+import { scheduleUndo } from '@/composables/useUndo'
 
 const { t } = useI18n()
 const route = useRoute()
 const devicesStore = useDevicesStore()
 const searchInput = ref('')
+const handleError = useApiError()
 
 function onAllClick() {
   searchInput.value = ''
@@ -48,10 +51,22 @@ async function saveEdit() {
 
 // ── 删除 ──────────────────────────────────────────────
 async function handleDelete(row) {
-  await ElMessageBox.confirm(t('devices.deleteConfirm', { name: row.alias || row.mac }), t('common.confirmDelete'), { type: 'warning' })
-  await deleteDevice(row.mac)
-  ElMessage.success(t('devices.deleted'))
-  devicesStore.fetchDevices()
+  // P2-10: 撤销模式（5s 内可恢复）
+  const originalIndex = devicesStore.items.findIndex((d) => d.mac === row.mac)
+  if (originalIndex === -1) return
+  // 1. 立即从 store 中隐藏
+  devicesStore.items.splice(originalIndex, 1)
+  if (devicesStore.total > 0) devicesStore.total -= 1
+  // 2. 弹出 5s 撤销 toast
+  scheduleUndo({
+    label: t('devices.deleted'),
+    performDelete: () => deleteDevice(row.mac),
+    onUndo: () => {
+      devicesStore.items.splice(originalIndex, 0, row)
+      devicesStore.total += 1
+    },
+    onError: (e) => handleError(e, 'devices.saveFailed'),
+  })
 }
 
 // ── 详情 ──────────────────────────────────────────────
@@ -216,7 +231,12 @@ onMounted(() => {
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
       <div class="detail-header">
-        <span class="detail-status-dot" :class="detailDevice.is_online ? 'online' : 'offline'" />
+        <span
+          class="detail-status-dot"
+          :class="detailDevice.is_online ? 'online' : 'offline'"
+          role="status"
+          :aria-label="detailDevice.is_online ? $t('common.online') : $t('common.offline')"
+        />
         <span class="detail-title">{{ detailDevice.alias || detailDevice.hostname || $t('devices.unnamedDevice') }}</span>
         <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
           {{ detailDevice.is_online ? $t('common.online') : $t('common.offline') }}

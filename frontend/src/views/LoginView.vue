@@ -2,15 +2,16 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
 import { User, Lock, ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
+import { useApiError } from '@/composables/useApiError'
 
 const { t, locale } = useI18n()
 const localeStore = useLocaleStore()
 const auth = useAuthStore()
 const router = useRouter()
+const handleError = useApiError()
 
 const langOptions = [
   { label: t('login.langChinese'), value: 'zh-CN' },
@@ -48,7 +49,7 @@ async function handleLogin() {
     await auth.login(form.value.email, form.value.password)
     router.push('/devices')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || t('login.loginFailed'))
+    handleError(e, 'login.loginFailed')
   } finally {
     loading.value = false
   }

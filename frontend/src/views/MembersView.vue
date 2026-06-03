@@ -283,11 +283,11 @@ function formatLogTime(iso) {
         <template #default="{ row }">
           <ActionButtonGroup
             :actions="[
-              { icon: Link, tooltip: $t('members.bindDevice'), onClick: () => openDevices(row) },
-              { icon: Document, tooltip: $t('members.logs'), onClick: () => openLogs(row) },
-              { icon: DataAnalysis, tooltip: $t('members.stats'), onClick: () => openStats(row) },
-              { icon: Edit, tooltip: $t('common.edit'), onClick: () => openEditMember(row) },
-              { icon: Delete, tooltip: $t('common.delete'), danger: true, onClick: () => handleDeleteMember(row) },
+              { icon: Link, tooltip: $t('members.bindDevice'), ariaLabel: $t('members.bindDevice'), onClick: () => openDevices(row) },
+              { icon: Document, tooltip: $t('members.logs'), ariaLabel: $t('members.logs'), onClick: () => openLogs(row) },
+              { icon: DataAnalysis, tooltip: $t('members.stats'), ariaLabel: $t('members.stats'), onClick: () => openStats(row) },
+              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEditMember(row) },
+              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDeleteMember(row) },
             ]"
           />
         </template>
@@ -365,7 +365,7 @@ function formatLogTime(iso) {
           <template #default="{ row }">
             <ActionButtonGroup
               :actions="[
-                { icon: Delete, tooltip: $t('members.unbind'), danger: true, onClick: () => handleUnbind(row.mac) },
+                { icon: Delete, tooltip: $t('members.unbind'), ariaLabel: $t('members.unbind'), danger: true, onClick: () => handleUnbind(row.mac) },
               ]"
             />
           </template>

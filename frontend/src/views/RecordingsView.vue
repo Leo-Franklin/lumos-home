@@ -14,6 +14,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useI18n } from 'vue-i18n'
 import { useFormatDuration } from '@/composables/useFormatDuration'
 import { useApiError } from '@/composables/useApiError'
+import { scheduleUndo } from '@/composables/useUndo'
 
 const { t } = useI18n()
 const { formatDurationLong } = useFormatDuration()
@@ -132,16 +133,22 @@ async function openFolder(row) {
 }
 
 async function handleDelete(rec) {
-  try {
-    await ElMessageBox.confirm(t('recordings.deleteConfirm'), t('common.confirmDelete'), { type: 'warning' })
-  } catch { return }
-  try {
-    await deleteRecording(rec.id)
-    ElMessage.success(t('recordings.deleted'))
-    fetchRecordings()
-  } catch (err) {
-    handleError(err, 'recordings.deleteFailed')
-  }
+  // P2-10: 撤销模式
+  // 1. 立即从列表中隐藏
+  const originalIndex = recordings.value.findIndex((r) => r.id === rec.id)
+  if (originalIndex === -1) return
+  recordings.value.splice(originalIndex, 1)
+  total.value = Math.max(0, total.value - 1)
+  // 2. 弹出 5s 撤销 toast，5s 后才真正发请求
+  scheduleUndo({
+    label: t('recordings.deleted'),
+    performDelete: () => deleteRecording(rec.id),
+    onUndo: () => {
+      recordings.value.splice(originalIndex, 0, rec)
+      total.value += 1
+    },
+    onError: (e) => handleError(e, 'recordings.deleteFailed'),
+  })
 }
 
 function downloadRecording(rec) {
@@ -262,6 +269,7 @@ function cameraLabel(mac) {
                 class="action-btn"
                 size="small"
                 :icon="FolderOpened"
+                :aria-label="row.storage_type === 'local' ? $t('recordings.openLocalFolder') : $t('recordings.openNasFolder')"
                 @click="openFolder(row)"
               />
             </el-tooltip>
@@ -294,6 +302,7 @@ function cameraLabel(mac) {
                 class="action-btn action-btn--play"
                 size="small"
                 :icon="VideoPlay"
+                :aria-label="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
                 :loading="hlsConvertingId === row.id"
                 @click="playRecording(row)"
@@ -306,6 +315,7 @@ function cameraLabel(mac) {
                 class="action-btn"
                 size="small"
                 :icon="Download"
+                :aria-label="$t('recordings.download')"
                 :disabled="row.status === 'recording' || row.status === 'failed'"
                 @click="downloadRecording(row)"
               />
@@ -317,6 +327,7 @@ function cameraLabel(mac) {
                 class="action-btn action-btn--danger"
                 size="small"
                 :icon="Delete"
+                :aria-label="$t('common.delete')"
                 @click="handleDelete(row)"
               />
             </el-tooltip>

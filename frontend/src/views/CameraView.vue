@@ -1,5 +1,7 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { useCamerasStore } from '@/stores/cameras'
 import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
@@ -12,6 +14,7 @@ import CameraProbeDialog from '@/components/cameras/CameraProbeDialog.vue'
 import CameraPresetDialog from '@/components/cameras/CameraPresetDialog.vue'
 import CameraRecordDialog from '@/components/cameras/CameraRecordDialog.vue'
 
+const { t } = useI18n()
 const camerasStore = useCamerasStore()
 const devicesStore = useDevicesStore()
 const dlnaStore = useDLNAStore()
@@ -68,12 +71,30 @@ async function handleStartRecord() {
   if (ok) await refreshAfterMutation()
 }
 
-onMounted(async () => {
-  await Promise.all([
+// P2-10: Esc 键优先取消当前打开的 dialog（替代全屏捕获，仅 CameraView 范围）
+function handleKeydown(e) {
+  if (e.key !== 'Escape') return
+  // 优先取消最后打开的 dialog
+  if (recordDialog.value) closeRecordDialog()
+  else if (presetDialog.value) closePresets()
+  else if (hlsDialog.value) closeHlsLive()
+  else if (liveDialog.value) closeLive()
+  else if (snapshotDialog.value) closeSnapshot()
+  else if (formDialog.value?.open) closeFormDialog()
+  else if (probeDialog.value) closeProbeDialog()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  Promise.all([
     camerasStore.fetchCameras(),
     devicesStore.fetchDevices(),
     dlnaStore.fetchDevices(),
   ])
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -95,7 +116,9 @@ onMounted(async () => {
       @more="handleMoreCommand"
     />
 
+    <!-- P2-10: 全部 5 个 dialog 改用 v-if lazy mount，不打开时不挂载，节省内存 -->
     <CameraFormDialog
+      v-if="formDialog.open"
       v-model="formDialog.open"
       :mode="formDialog.mode"
       :form="formData"
@@ -105,12 +128,14 @@ onMounted(async () => {
     />
 
     <CameraProbeDialog
+      v-if="probeDialog"
       v-model="probeDialog"
       :loading="probeLoading"
       :result="probeResult"
     />
 
     <el-dialog
+      v-if="liveDialog"
       v-model="liveDialog"
       :title="liveTitle"
       width="720px"
@@ -121,6 +146,7 @@ onMounted(async () => {
     </el-dialog>
 
     <el-dialog
+      v-if="snapshotDialog"
       v-model="snapshotDialog"
       :title="snapshotTitle"
       width="720px"
@@ -135,6 +161,7 @@ onMounted(async () => {
     </el-dialog>
 
     <el-dialog
+      v-if="hlsDialog"
       v-model="hlsDialog"
       :title="hlsTitle"
       width="720px"
@@ -145,6 +172,7 @@ onMounted(async () => {
     </el-dialog>
 
     <CameraPresetDialog
+      v-if="presetDialog"
       v-model="presetDialog"
       :camera="presetCam"
       :list="presetList"
@@ -161,6 +189,7 @@ onMounted(async () => {
     />
 
     <CameraRecordDialog
+      v-if="recordDialog"
       v-model="recordDialog"
       :camera="recordCam"
       :presets="recordPresets"

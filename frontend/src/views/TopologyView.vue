@@ -378,9 +378,9 @@ onMounted(loadTopology)
 
         <!-- Zoom controls -->
         <div class="zoom-controls">
-          <button class="zoom-btn" @click="zoomIn">+</button>
-          <button class="zoom-btn" @click="resetZoom" :title="$t('topology.resetView')">⊙</button>
-          <button class="zoom-btn" @click="zoomOut">−</button>
+          <button class="zoom-btn" :aria-label="$t('topology.zoomIn')" @click="zoomIn">+</button>
+          <button class="zoom-btn" :aria-label="$t('topology.resetView')" :title="$t('topology.resetView')" @click="resetZoom">⊙</button>
+          <button class="zoom-btn" :aria-label="$t('topology.zoomOut')" @click="zoomOut">−</button>
         </div>
 
         <!-- Legend (interactive filter) -->
@@ -426,7 +426,7 @@ onMounted(loadTopology)
             >
               {{ typeOf(selected).icon }} {{ $t(`common.deviceTypes.${selected.device_type || 'unknown'}`) }}
             </span>
-            <button class="close-btn" @click="selected = null">✕</button>
+            <button class="close-btn" :aria-label="$t('common.close')" @click="selected = null">✕</button>
           </div>
 
           <div class="panel-name">
@@ -434,7 +434,12 @@ onMounted(loadTopology)
           </div>
 
           <div class="panel-status-row">
-            <span class="status-dot" :class="selected.is_online ? 'online' : 'offline'" />
+            <span
+              class="status-dot"
+              :class="selected.is_online ? 'online' : 'offline'"
+              role="status"
+              :aria-label="selected.is_online ? $t('topology.online') : $t('topology.offline')"
+            />
             <span class="status-text">{{ selected.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
             <span
               v-if="selected.is_online && selected.response_time_ms != null"

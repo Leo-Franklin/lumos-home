@@ -163,7 +163,7 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '0ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="9" cy="7" r="4"/>
               <path d="M3 21v-2a7 7 0 0 1 10-5.5"/>
               <circle cx="17" cy="8" r="3"/>
@@ -181,7 +181,7 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '40ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <path d="M2 8.5A2.5 2.5 0 0 1 4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7Z"/>
               <path d="m17 10 4.5-3v10L17 14"/>
             </svg>
@@ -202,7 +202,7 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '80ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <rect x="2" y="3" width="20" height="12" rx="2"/>
               <path d="M8 21h8"/>
               <path d="M12 15v6"/>
@@ -218,7 +218,7 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '120ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" opacity=".85"/>
             </svg>
@@ -234,7 +234,7 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '160ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <path d="M12 16v-4"/>
               <circle cx="12" cy="8" r=".5" fill="currentColor"/>

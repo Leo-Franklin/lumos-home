@@ -1,7 +1,6 @@
 <!-- src/views/AnalyticsView.vue -->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -17,9 +16,11 @@ import {
   getRecordingCalendar, getNewDevices, getDeviceStability, getTypeActivity,
 } from '@/api/analytics'
 import { getDeviceHeatmap } from '@/api/devices'
+import { useApiError } from '@/composables/useApiError'
 
 const { t } = useI18n()
 const router = useRouter()
+const handleError = useApiError()
 
 function navigateToDevice(mac) {
   router.push({ path: '/devices', query: { mac } })
@@ -38,7 +39,7 @@ async function fetchHeatmap() {
     if (hmTypes.value.length) params.device_type = hmTypes.value.join(',')
     const { data } = await getDeviceHeatmap(params)
     hmData.value = (data.cells ?? []).map((c) => ({ day: c.day, hour: c.hour, count: c.value, devices: [] }))
-  } catch { ElMessage.error(t('analytics.heatmapFailed')) }
+  } catch (e) { handleError(e, 'analytics.heatmapFailed') }
   finally { hmLoading.value = false }
 }
 
@@ -52,7 +53,7 @@ async function fetchTrend() {
   try {
     const { data } = await getOnlineTrend({ range: trendRange.value })
     trendData.value = (data.data || []).map((d) => ({ x: new Date(d.timestamp), y: d.count }))
-  } catch { ElMessage.error(t('analytics.trendFailed')) }
+  } catch (e) { handleError(e, 'analytics.trendFailed') }
   finally { trendLoading.value = false }
 }
 
@@ -69,7 +70,7 @@ async function fetchTypeStats() {
       value: d.count,
       color: DEVICE_TYPE_COLORS[d.type] || 'var(--color-type-unknown)',
     }))
-  } catch { ElMessage.error(t('analytics.typeStatsFailed')) }
+  } catch (e) { handleError(e, 'analytics.typeStatsFailed') }
   finally { typeLoading.value = false }
 }
 
@@ -88,7 +89,7 @@ async function fetchResponseTime() {
         valueLabel: `${Math.round(d.avg_ms)}ms`,
       }))
       .sort((a, b) => b.value - a.value) // slowest first — most actionable
-  } catch { ElMessage.error(t('analytics.responseTimeFailed')) }
+  } catch (e) { handleError(e, 'analytics.responseTimeFailed') }
   finally { rtLoading.value = false }
 }
 
@@ -101,7 +102,7 @@ async function fetchCalendar() {
   try {
     const { data } = await getRecordingCalendar({ range: '90d' })
     calData.value = data.data || []
-  } catch { ElMessage.error(t('analytics.calendarFailed')) }
+  } catch (e) { handleError(e, 'analytics.calendarFailed') }
   finally { calLoading.value = false }
 }
 
@@ -122,7 +123,7 @@ async function fetchNewDevices() {
       value: d.count,
       color: d.count > prev4Avg * 2 ? 'var(--color-warning)' : 'var(--color-primary)',
     }))
-  } catch { ElMessage.error(t('analytics.newDevicesFailed')) }
+  } catch (e) { handleError(e, 'analytics.newDevicesFailed') }
   finally { newDevLoading.value = false }
 }
 
@@ -149,7 +150,7 @@ async function fetchStability() {
         color:      stabilityColor(d.uptime_pct ?? 0),
       }))
       .sort((a, b) => a.value - b.value) // least stable first — most actionable
-  } catch { ElMessage.error(t('analytics.stabilityFailed')) }
+  } catch (e) { handleError(e, 'analytics.stabilityFailed') }
   finally { stabilityLoading.value = false }
 }
 
@@ -182,7 +183,7 @@ async function fetchTypeActivity() {
         TYPE_KEYS.map((k) => [k, +((d[k] ?? 0) / peaks[k] * 100).toFixed(1)])
       ),
     }))
-  } catch { ElMessage.error(t('analytics.typeActivityFailed')) }
+  } catch (e) { handleError(e, 'analytics.typeActivityFailed') }
   finally { activityLoading.value = false }
 }
 

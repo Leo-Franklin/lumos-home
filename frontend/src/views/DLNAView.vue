@@ -143,7 +143,7 @@ function handleFileRemove() {
           </el-button>
         </el-tooltip>
         <el-tooltip :content="$t('common.refresh')" :show-after="400">
-          <el-button :icon="Refresh" circle @click="dlna.fetchDevices()" />
+          <el-button :icon="Refresh" circle :aria-label="$t('common.refresh')" @click="dlna.fetchDevices()" />
         </el-tooltip>
       </div>
     </div>
@@ -171,14 +171,17 @@ function handleFileRemove() {
           />
         </div>
 
-        <div
+        <button
           v-for="device in dlna.devices"
           :key="device.id"
+          type="button"
           class="device-item"
           :class="{ selected: dlna.selectedDevice?.id === device.id }"
+          :aria-pressed="dlna.selectedDevice?.id === device.id"
+          :aria-label="`${device.friendly_name}${device.is_online ? ' (' + $t('common.online') + ')' : ' (' + $t('common.offline') + ')'}`"
           @click="dlna.selectDevice(device)"
         >
-          <div class="device-icon">
+          <div class="device-icon" aria-hidden="true">
             <el-icon :size="20"><Monitor /></el-icon>
           </div>
           <div class="device-info">
@@ -187,9 +190,14 @@ function handleFileRemove() {
             <div v-if="device.manufacturer" class="device-meta">{{ device.manufacturer }}</div>
           </div>
           <div class="device-status">
-            <span class="status-dot" :class="device.is_online ? 'online' : 'offline'" />
+            <span
+              class="status-dot"
+              :class="device.is_online ? 'online' : 'offline'"
+              role="status"
+              :aria-label="device.is_online ? $t('common.online') : $t('common.offline')"
+            />
           </div>
-        </div>
+        </button>
       </div>
 
       <!-- 右侧：控制面板 -->
@@ -226,6 +234,7 @@ function handleFileRemove() {
                     size="small"
                     circle
                     style="margin-left: 6px"
+                    :aria-label="$t('common.refresh')"
                     @click="dlna.refreshStatus()"
                   />
                 </el-tooltip>
@@ -293,6 +302,7 @@ function handleFileRemove() {
                 :icon="VideoPlay"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.play')"
                 @click="handlePlay"
               />
             </el-tooltip>
@@ -302,6 +312,7 @@ function handleFileRemove() {
                 :icon="VideoPause"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.pause')"
                 @click="handlePause"
               />
             </el-tooltip>
@@ -311,6 +322,7 @@ function handleFileRemove() {
                 :icon="SwitchButton"
                 :loading="playLoading"
                 size="large"
+                :aria-label="$t('dlna.stop')"
                 @click="handleStop"
               />
             </el-tooltip>
