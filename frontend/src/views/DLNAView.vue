@@ -3,8 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useDLNAStore } from '@/stores/dlna'
 import { castURL, castFile, playDevice, pauseDevice, stopDevice } from '@/api/dlna'
 import { ElMessage } from 'element-plus'
-import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link, Monitor } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
 const dlna = useDLNAStore()
@@ -161,9 +162,13 @@ function handleFileRemove() {
         </div>
 
         <div v-if="dlna.devices.length === 0 && !dlna.discovering && !dlna.loading" class="empty-tip">
-          <el-icon :size="32" style="color: var(--color-text-muted)"><Monitor /></el-icon>
-          <p>{{ $t('dlna.noDevices') }}</p>
-          <p class="sub">{{ $t('dlna.noDevicesHint') }}</p>
+          <EmptyState
+            compact
+            size="small"
+            icon="dlna"
+            :title="$t('common.empty.dlna.title')"
+            :description="$t('common.empty.dlna.description')"
+          />
         </div>
 
         <div
@@ -190,8 +195,11 @@ function handleFileRemove() {
       <!-- 右侧：控制面板 -->
       <div class="dlna-control-panel">
         <div v-if="!dlna.selectedDevice" class="no-selection">
-          <el-icon :size="48" style="color: var(--color-text-muted)"><VideoPlay /></el-icon>
-          <p>{{ $t('dlna.selectDevice') }}</p>
+          <EmptyState
+            icon="dlna"
+            :title="$t('common.empty.selection.title')"
+            :description="$t('common.empty.selection.description')"
+          />
         </div>
 
         <template v-else>
@@ -375,16 +383,8 @@ function handleFileRemove() {
 }
 
 .empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  padding: 8px;
 }
-.empty-tip p { margin: 8px 0 0; }
-.empty-tip .sub { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
 
 .device-item {
   display: flex;
@@ -452,13 +452,6 @@ function handleFileRemove() {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 80px 20px;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  gap: 12px;
 }
 
 .control-section {

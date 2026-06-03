@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Histogram } from '@element-plus/icons-vue'
 import { useDevicesStore } from '@/stores/devices'
 import { useI18n } from 'vue-i18n'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useI18n()
 const devicesStore = useDevicesStore()
@@ -404,8 +405,14 @@ onMounted(loadTopology)
         </div>
 
         <!-- Empty state -->
-        <div v-if="!loading && nodes.length === 0" class="empty-hint">
-          {{ $t('topology.noDevices') }}
+        <div v-if="!loading && nodes.length === 0" class="topology-empty">
+          <EmptyState
+            icon="topology"
+            :title="$t('common.empty.topology.title')"
+            :description="$t('common.empty.topology.description')"
+            :action-label="$t('common.empty.topology.action')"
+            @action="devicesStore.scan()"
+          />
         </div>
       </div>
 
@@ -636,16 +643,18 @@ onMounted(loadTopology)
   flex-shrink: 0;
 }
 
-/* Empty hint */
-.empty-hint {
+/* Empty state */
+.topo-page :deep(.topology-empty) {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.topo-page :deep(.topology-empty .empty-state) {
+  pointer-events: auto;
 }
 
 /* ── Detail panel ───────────────────────── */
