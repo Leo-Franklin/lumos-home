@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getDashboard } from '@/api/system'
 import { Refresh } from '@element-plus/icons-vue'
 import { useFormatDuration } from '@/composables/useFormatDuration'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import StatCard from '@/components/StatCard.vue'
 import ActivityFeed from '@/components/ActivityFeed.vue'
 
@@ -15,6 +16,9 @@ const notifications = useNotificationsStore()
 const data = ref(null)
 const loading = ref(false)
 const error = ref('')
+
+// Reuse the singleton connection initialised by MainLayout.
+const { connected, refreshTick, onEvent } = useConnectionStatus()
 
 const EVENT_CATEGORY = {
   device_online:           'device',
@@ -31,6 +35,21 @@ const EVENT_CATEGORY = {
   dlna_discover_completed: 'system',
   dlna_cast_started:       'system',
 }
+
+// Only these event types actually change the dashboard snapshot.
+const DASHBOARD_REFRESH_EVENTS = new Set([
+  'device_online',
+  'device_offline',
+  'unknown_device_detected',
+  'scan_completed',
+  'camera_online',
+  'camera_offline',
+  'recording_started',
+  'recording_completed',
+  'recording_failed',
+  'member_arrived',
+  'member_left',
+])
 
 function eventLabel(msg) {
   const d = msg.data || {}
@@ -60,6 +79,7 @@ const recentEvents = computed(() =>
 )
 
 let timer = null
+let _unsubEvents = null
 
 async function fetchDashboard() {
   loading.value = true
@@ -74,12 +94,52 @@ async function fetchDashboard() {
   }
 }
 
+function startPolling() {
+  if (timer) return
+  timer = setInterval(fetchDashboard, 30000)
+}
+
+function stopPolling() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+function isDashboardEvent(msg) {
+  if (!msg || typeof msg.event !== 'string') return false
+  return DASHBOARD_REFRESH_EVENTS.has(msg.event)
+}
+
 onMounted(() => {
   fetchDashboard()
-  timer = setInterval(fetchDashboard, 30000)
+  if (!connected.value) startPolling()
+  // Refetch whenever a relevant WS event arrives. The notifications store
+  // already handles the side-effect of updating other stores; we just need
+  // to refresh our snapshot. We do NOT listen to every event — only the ones
+  // that change the dashboard numbers.
+  _unsubEvents = onEvent((msg) => {
+    if (isDashboardEvent(msg)) fetchDashboard()
+  })
 })
 
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => {
+  stopPolling()
+  if (_unsubEvents) _unsubEvents()
+})
+
+// When WS is healthy, real-time events drive refetch; no need for 30s polling.
+// When WS is down, fall back to polling so the user still sees fresh data.
+watch(connected, (isConnected) => {
+  if (isConnected) {
+    stopPolling()
+  } else {
+    startPolling()
+  }
+})
+
+// User-triggered force refresh (e.g. clicking the banner refresh button).
+watch(refreshTick, () => { fetchDashboard() })
 </script>
 
 <template>

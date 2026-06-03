@@ -28,6 +28,7 @@ export default {
   event_scan_completed:          '网络扫描完成',
   event_dlna_discover:           'DLNA 设备发现完成',
   event_dlna_cast:               'DLNA 投屏已开始',
+  bulkEvents: '{count} 条新事件',
   zeroMinutes: '0 分钟',
   durationFormat: '{h} 小时 {m} 分钟',
   durationMinutesOnly: '{m} 分钟',

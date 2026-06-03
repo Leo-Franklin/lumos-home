@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
-import { useWebSocket } from '@/composables/useWebSocket'
+import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale'
@@ -16,7 +17,39 @@ const auth = useAuthStore()
 const notifications = useNotificationsStore()
 
 const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
-const { connected, reconnecting } = useWebSocket(wsUrl, { onMessage: notifications.handle })
+const { connected, reconnecting, isStale, staleSeconds, onEvent } = useConnectionStatus({
+  wsUrl,
+})
+
+// Forward every WS message into the notifications store. We use the explicit
+// onEvent subscription (rather than the legacy onMessage option) so multiple
+// consumers can share the same singleton connection.
+let _unsubEvents = null
+onMounted(() => {
+  _unsubEvents = onEvent(notifications.handle)
+})
+onUnmounted(() => {
+  if (_unsubEvents) _unsubEvents()
+})
+
+// Show a brief success toast when WS comes back from a stale state.
+let _wasStale = false
+watch([connected, isStale], ([isConnected, stale]) => {
+  if (isConnected && _wasStale) {
+    ElMessage({
+      message: t('layout.wsReconnected'),
+      type: 'success',
+      duration: 1500,
+    })
+  }
+  if (stale) _wasStale = true
+})
+
+const staleMessage = computed(() => {
+  if (!isStale.value) return ''
+  const base = t('layout.wsDisconnected')
+  return `${base}，${t('layout.wsStale', { seconds: staleSeconds.value })}`
+})
 
 function switchLang(lang) {
   localeStore.setLocale(lang)
@@ -233,6 +266,12 @@ watch(isTabletOrBelow, (v) => {
       </Teleport>
 
       <main class="app-content" :class="{ 'app-content--mobile': isMobile, 'app-content--tablet': isTabletOrBelow && !isMobile }">
+        <Transition name="stale-banner">
+          <div v-if="isStale" class="stale-banner" role="status" aria-live="polite">
+            <el-icon :size="16" class="stale-banner-icon"><WarningFilled /></el-icon>
+            <span class="stale-banner-text">{{ staleMessage }}</span>
+          </div>
+        </Transition>
         <div class="content-header">
           <el-breadcrumb separator="/">
             <el-breadcrumb-item to="/dashboard">{{ $t('layout.dashboard') }}</el-breadcrumb-item>
@@ -542,5 +581,40 @@ watch(isTabletOrBelow, (v) => {
 
 :deep(.el-breadcrumb__separator) {
   color: var(--color-text-muted);
+}
+
+/* ── Stale connection banner ───────────── */
+.stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: var(--space-4);
+  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 50%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.stale-banner-icon {
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.stale-banner-text {
+  flex: 1;
+}
+
+.stale-banner-enter-active,
+.stale-banner-leave-active {
+  transition: transform 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+              opacity 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.stale-banner-enter-from,
+.stale-banner-leave-to {
+  transform: translateY(-12px);
+  opacity: 0;
 }
 </style>
