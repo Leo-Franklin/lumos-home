@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import pytest
 
 import check_api_contract as cac
 
 
-FIX_ROOT = __file__.resolve().parent / "fixtures"
+FIX_ROOT = Path(__file__).resolve().parent / "fixtures"
 
 
 def _paths(group: str) -> tuple[str, str]:
