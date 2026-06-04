@@ -65,7 +65,6 @@ export default {
   deleted: 'Deleted',
   delete: 'Delete',
   deleteConfirm: 'Delete camera {host}?',
-  recordStarted: 'Record started',
   recordStopped: 'Record stopped',
   mainStream: 'Main Stream (mainStream)',
   subStream: 'Sub Stream (subStream)',

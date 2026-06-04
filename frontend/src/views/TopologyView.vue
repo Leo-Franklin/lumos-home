@@ -2,7 +2,6 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import * as d3 from 'd3'
 import api from '@/api/index'
-import { ElMessage } from 'element-plus'
 import { Refresh, Histogram } from '@element-plus/icons-vue'
 import { useDevicesStore } from '@/stores/devices'
 import { useI18n } from 'vue-i18n'

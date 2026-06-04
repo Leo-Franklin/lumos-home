@@ -23,7 +23,9 @@ export function useWebSocket(url, { onMessage, maxRetries = Infinity } = {}) {
       try {
         const msg = JSON.parse(e.data)
         onMessage?.(msg)
-      } catch {}
+      } catch {
+        // Ignore malformed payloads — the server is the source of truth.
+      }
     }
 
     ws.onclose = () => {

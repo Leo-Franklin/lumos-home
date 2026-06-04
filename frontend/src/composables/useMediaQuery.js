@@ -13,10 +13,6 @@ export function useMediaQuery(query) {
   let mql = null
   let handler = null
 
-  function update() {
-    if (mql) matches.value = mql.matches
-  }
-
   onMounted(() => {
     if (typeof window === 'undefined' || !window.matchMedia) {
       // SSR / no matchMedia: default to no match

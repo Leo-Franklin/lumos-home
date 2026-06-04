@@ -50,6 +50,7 @@ function _flush() {
   // Strip the __pending marker from any leftover rows.
   renderedItems.value = renderedItems.value.map((it) => {
     if (it && it.__pending) {
+      // eslint-disable-next-line no-unused-vars
       const { __pending, ...rest } = it
       return rest
     }

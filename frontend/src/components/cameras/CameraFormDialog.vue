@@ -5,21 +5,20 @@ import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
 
 const props = defineProps({
-  modelValue: { type: Boolean, required: true },
   mode: { type: String, default: 'add' }, // 'add' | 'edit'
-  form: { type: Object, required: true },
   submitting: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:modelValue', 'submit', 'cancel'])
+const emit = defineEmits(['submit', 'cancel'])
+
+// v-model for visibility + form. defineModel lets the child mutate inner
+// fields via v-model without tripping vue/no-mutating-props, while still
+// keeping the parent as the source of truth.
+const visible = defineModel({ type: Boolean, required: true })
+const form = defineModel('form', { type: Object, required: true })
 
 const { t } = useI18n()
 const devicesStore = useDevicesStore()
 const dlnaStore = useDLNAStore()
-
-const visible = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v),
-})
 
 const title = computed(() => (props.mode === 'add' ? t('cameras.addCamera') : t('cameras.editCamera')))
 const isAdd = computed(() => props.mode === 'add')

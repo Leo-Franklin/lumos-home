@@ -5,16 +5,13 @@ import { Edit, Delete, Star, StarFilled } from '@element-plus/icons-vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const props = defineProps({
-  modelValue: { type: Boolean, required: true },
   camera: { type: Object, default: null },
   list: { type: Array, required: true },
   loading: { type: Boolean, default: false },
   saving: { type: Boolean, default: false },
-  form: { type: Object, required: true },
   editing: { type: [Number, null], default: null },
 })
 const emit = defineEmits([
-  'update:modelValue',
   'add',
   'edit',
   'save',
@@ -22,12 +19,13 @@ const emit = defineEmits([
   'setDefault',
 ])
 
-const { t } = useI18n()
+// v-model bindings: visibility + form. defineModel keeps the parent as the
+// source of truth while letting the child mutate inner fields via v-model
+// without tripping vue/no-mutating-props.
+const visible = defineModel({ type: Boolean, required: true })
+const form = defineModel('form', { type: Object, required: true })
 
-const visible = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v),
-})
+const { t } = useI18n()
 
 const title = computed(() =>
   props.camera

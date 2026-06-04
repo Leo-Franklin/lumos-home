@@ -84,7 +84,7 @@ describe('useWebSocket', () => {
 
   it('should call onMessage with parsed JSON', async () => {
     mockLocalStorage.getItem.mockReturnValue('fake-token')
-    const { connected } = useWebSocket('wss://example.com/ws', { onMessage: mockOnMessage })
+    useWebSocket('wss://example.com/ws', { onMessage: mockOnMessage })
 
     mockWs.onopen()
     const testData = { type: 'test', value: 123 }
@@ -95,7 +95,7 @@ describe('useWebSocket', () => {
 
   it('should ignore malformed JSON in message', async () => {
     mockLocalStorage.getItem.mockReturnValue('fake-token')
-    const { connected } = useWebSocket('wss://example.com/ws', { onMessage: mockOnMessage })
+    useWebSocket('wss://example.com/ws', { onMessage: mockOnMessage })
 
     mockWs.onopen()
     mockWs.onmessage({ data: 'not valid json {' })
