@@ -22,7 +22,6 @@ from pathlib import Path
 @dataclass(frozen=True)
 class Model:
     name: str
-    fields: frozenset[str]
 
 
 def _to_camel(name: str) -> str:
@@ -51,19 +50,16 @@ def extract_models(schema_dir: str) -> set[Model]:
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
-            # Heuristic: a class with at least one AnnAssign whose target is a
-            # simple Name is a pydantic-like model. We do NOT try to verify
-            # it actually inherits BaseModel (that would require resolving
-            # imports) — false positives are tolerable; false negatives are not.
-            fields: set[str] = set()
-            for stmt in node.body:
-                if (
-                    isinstance(stmt, ast.AnnAssign)
-                    and isinstance(stmt.target, ast.Name)
-                ):
-                    fields.add(stmt.target.id)
-            if fields:
-                out.add(Model(name=node.name, fields=frozenset(fields)))
+            # Heuristic: a class with at least one AnnAssign is a pydantic-like
+            # model. We do NOT try to verify it actually inherits BaseModel (that
+            # would require resolving imports) — false positives are tolerable;
+            # false negatives are not.
+            has_typed_field = any(
+                isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+                for stmt in node.body
+            )
+            if has_typed_field:
+                out.add(Model(name=node.name))
     return out
 
 
@@ -71,6 +67,9 @@ _JS_IDENT = re.compile(r"export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)")
 _JS_CONST = re.compile(r"export\s+const\s+([A-Za-z_$][\w$]*)")
 _JS_LET = re.compile(r"export\s+let\s+([A-Za-z_$][\w$]*)")
 _JS_VAR = re.compile(r"export\s+var\s+([A-Za-z_$][\w$]*)")
+_JS_RENAMED = re.compile(
+    r"export\s*\{\s*[A-Za-z_$][\w$]*\s+as\s+([A-Za-z_$][\w$]*)\s*\}"
+)
 
 
 def extract_exports(api_dir: str) -> set[str]:
@@ -80,7 +79,7 @@ def extract_exports(api_dir: str) -> set[str]:
         return out
     for js in Path(api_dir).rglob("*.js"):
         text = js.read_text(encoding="utf-8")
-        for pat in (_JS_IDENT, _JS_CONST, _JS_LET, _JS_VAR):
+        for pat in (_JS_IDENT, _JS_CONST, _JS_LET, _JS_VAR, _JS_RENAMED):
             for m in pat.finditer(text):
                 out.add(_to_camel(m.group(1)))
     return out
@@ -88,6 +87,7 @@ def extract_exports(api_dir: str) -> set[str]:
 
 def run(schema_dir: str, api_dir: str, report_path: Path) -> int:
     """Compare models and exports, write a report, return exit code."""
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         models = extract_models(schema_dir)
     except SyntaxError as e:

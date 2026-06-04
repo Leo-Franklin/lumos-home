@@ -66,3 +66,6 @@ logs/
 
 # --- Docker ---
 *.tar
+
+# --- Contract check script output (see scripts/check_api_contract.py) ---
+contract-report.txt

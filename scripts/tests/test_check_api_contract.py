@@ -17,8 +17,8 @@ def _paths(group: str) -> tuple[str, str]:
 def test_extracts_pydantic_models_from_clean_fixture():
     schema_dir, _ = _paths("clean")
     models = cac.extract_models(schema_dir)
-    assert cac.Model("UserCreate", frozenset({"email", "password"})) in models
-    assert cac.Model("UserRead", frozenset({"id", "email", "is_active"})) in models
+    assert cac.Model("UserCreate") in models
+    assert cac.Model("UserRead") in models
 
 
 def test_extracts_frontend_exports_from_clean_fixture():
