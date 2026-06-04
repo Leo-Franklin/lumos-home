@@ -34,6 +34,13 @@ function openEdit(row) {
   editDialog.value = true
 }
 
+function closeDetailAndEdit() {
+  detailDialog.value = false
+  if (detailDevice.value) {
+    openEdit(detailDevice.value)
+  }
+}
+
 async function saveEdit() {
   try {
     await updateDevice(editForm.value.mac, {
@@ -315,15 +322,7 @@ onMounted(() => {
 
       <template #footer>
         <el-button @click="detailDialog = false">{{ $t('common.close') }}</el-button>
-        <el-button
-          type="primary"
-          <!-- prettier-ignore-attribute -->
-          @click="
-            detailDialog = false;
-            openEdit(detailDevice)
-          "
-          >{{ $t('common.edit') }}</el-button
-        >
+        <el-button type="primary" @click="closeDetailAndEdit">{{ $t('common.edit') }}</el-button>
       </template>
     </el-dialog>
   </div>

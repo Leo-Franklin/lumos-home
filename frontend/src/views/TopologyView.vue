@@ -84,6 +84,11 @@ function toggleType(type) {
   updateNodeOpacity()
 }
 
+function clearActiveTypes() {
+  activeTypes.value = []
+  updateNodeOpacity()
+}
+
 function updateNodeOpacity() {
   if (!svgEl.value) return
   const active = activeTypes.value
@@ -487,11 +492,7 @@ onMounted(loadTopology)
           <div
             v-if="activeTypes.length > 0"
             class="legend-item legend-clear"
-            <!-- prettier-ignore-attribute -->
-            @click="
-              activeTypes = [];
-              updateNodeOpacity()
-            "
+            @click="clearActiveTypes"
           >
             ✕ {{ $t('topology.clear') }}
           </div>
