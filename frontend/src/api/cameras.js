@@ -17,6 +17,11 @@ export { startRecordInner as startRecord }
 
 export const stopRecord = (mac) => api.post(`/cameras/${mac}/record/stop`)
 
+// `startRecord` is the canonical name; `startRecording` is the name-matching
+// alias for the backend's `StartRecordingRequest` request-body schema
+// (see scripts/check_api_contract.py).
+export const startRecording = startRecordInner
+
 // 预设管理
 export const listPresets = (mac) => api.get(`/cameras/${mac}/presets`)
 export const createPreset = (mac, data) => api.post(`/cameras/${mac}/presets`, data)

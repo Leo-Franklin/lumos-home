@@ -71,6 +71,16 @@ def test_missing_api_dir_does_not_crash(tmp_path):
     assert rc == 0
 
 
+def test_verb_noun_models_match_verb_first_exports(tmp_path):
+    """Schema names use noun-first (`CameraCreate`); API exports use verb-first
+    (`createCamera`). Both should be recognised as the same contract target —
+    see scripts/check_api_contract.py::_matches.
+    """
+    schema_dir, api_dir = _paths("verb_noun")
+    rc = cac.run(schema_dir, api_dir, report_path=tmp_path / "report.txt")
+    assert rc == 0, (tmp_path / "report.txt").read_text()
+
+
 def test_main_writes_report_to_default_path(tmp_path, monkeypatch):
     """Spec §4.3: CI invokes `python scripts/check_api_contract.py` with no args.
 

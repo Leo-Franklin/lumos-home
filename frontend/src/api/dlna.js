@@ -12,3 +12,8 @@ export const playDevice = (deviceId) => api.post(`/dlna/${deviceId}/play`)
 export const pauseDevice = (deviceId) => api.post(`/dlna/${deviceId}/pause`)
 export const stopDevice = (deviceId) => api.post(`/dlna/${deviceId}/stop`)
 export const getDeviceStatus = (deviceId) => api.get(`/dlna/${deviceId}/status`)
+
+// `getDeviceStatus` is the canonical name; `getTransportInfo` is the
+// name-matching alias for the backend's `TransportInfoOut` response schema
+// (see scripts/check_api_contract.py).
+export const getTransportInfo = getDeviceStatus

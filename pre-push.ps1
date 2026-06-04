@@ -34,46 +34,46 @@ Write-Host "---- Backend ----" -ForegroundColor Magenta
 Push-Location backend
 try {
     # 0. 自动修复 (先 lint fix + format,确保最后一次操作是干净的格式化)
-    Write-Host "`n[0/7 auto-fix (ruff)]" -ForegroundColor Cyan
+    Write-Host "`n[0/9 auto-fix (ruff)]" -ForegroundColor Cyan
     uv run ruff check --fix app/ tests/
     uv run ruff format app/ tests/
     Write-Host "[OK] auto-fix" -ForegroundColor Green
 
     # 1. ruff check (匹配 ci.yml backend job: uv run ruff check app/ tests/)
-    Write-Host "`n[1/7 ruff check]" -ForegroundColor Cyan
+    Write-Host "`n[1/9 ruff check]" -ForegroundColor Cyan
     uv run ruff check app/ tests/
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "1/7 ruff check"
+        $script:failures += "1/9 ruff check"
         Write-Host "[FAIL] ruff check (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] ruff check" -ForegroundColor Green
     }
 
     # 2. ruff format check (匹配 ci.yml: uv run ruff format --check app/ tests/)
-    Write-Host "`n[2/7 ruff format]" -ForegroundColor Cyan
+    Write-Host "`n[2/9 ruff format]" -ForegroundColor Cyan
     uv run ruff format --check app/ tests/
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "2/7 ruff format"
+        $script:failures += "2/9 ruff format"
         Write-Host "[FAIL] ruff format (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] ruff format" -ForegroundColor Green
     }
 
     # 3. mypy (匹配 ci.yml: uv run mypy app/)
-    Write-Host "`n[3/7 mypy]" -ForegroundColor Cyan
+    Write-Host "`n[3/9 mypy]" -ForegroundColor Cyan
     uv run mypy app/
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "3/7 mypy"
+        $script:failures += "3/9 mypy"
         Write-Host "[FAIL] mypy (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] mypy" -ForegroundColor Green
     }
 
     # 4. pytest (匹配 ci.yml: uv run pytest tests/)
-    Write-Host "`n[4/7 pytest]" -ForegroundColor Cyan
+    Write-Host "`n[4/9 pytest]" -ForegroundColor Cyan
     uv run pytest tests/ -q
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "4/7 pytest"
+        $script:failures += "4/9 pytest"
         Write-Host "[FAIL] pytest (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] pytest" -ForegroundColor Green
@@ -90,33 +90,73 @@ Push-Location frontend
 try {
     # 5. pnpm lint (匹配 ci.yml: pnpm lint = eslint . + prettier --check .)
     # Windows PowerShell 下 prettier 会出 172 个 false positive,见头部说明
-    Write-Host "`n[5/7 pnpm lint] (WARN only on Windows; CI is the real gate)" -ForegroundColor Cyan
+    Write-Host "`n[5/9 pnpm lint] (WARN only on Windows; CI is the real gate)" -ForegroundColor Cyan
     pnpm lint
     if ($LASTEXITCODE -ne 0) {
-        $script:warnings += "5/7 pnpm lint"
+        $script:warnings += "5/9 pnpm lint"
         Write-Host "[WARN] pnpm lint failed locally (likely Windows prettier false positive); CI is the real gate" -ForegroundColor Yellow
     } else {
         Write-Host "[OK] pnpm lint" -ForegroundColor Green
     }
 
     # 6. pnpm test (匹配 ci.yml: pnpm test)
-    Write-Host "`n[6/7 pnpm test]" -ForegroundColor Cyan
+    Write-Host "`n[6/9 pnpm test]" -ForegroundColor Cyan
     pnpm test
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "6/7 pnpm test"
+        $script:failures += "6/9 pnpm test"
         Write-Host "[FAIL] pnpm test (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] pnpm test" -ForegroundColor Green
     }
 
     # 7. pnpm build (匹配 ci.yml: pnpm build)
-    Write-Host "`n[7/7 pnpm build]" -ForegroundColor Cyan
+    Write-Host "`n[7/9 pnpm build]" -ForegroundColor Cyan
     pnpm build
     if ($LASTEXITCODE -ne 0) {
-        $script:failures += "7/7 pnpm build"
+        $script:failures += "7/9 pnpm build"
         Write-Host "[FAIL] pnpm build (exit=$LASTEXITCODE)" -ForegroundColor Red
     } else {
         Write-Host "[OK] pnpm build" -ForegroundColor Green
+    }
+} finally {
+    Pop-Location
+}
+
+# ── API contract (matches CI `contract` job) ──────────────────
+# Frontend section just left us at the repo root, which is exactly the
+# working directory CI uses (no `working-directory:` on that job). The
+# script is pure stdlib — no venv needed — and writes a human-readable
+# report to ./contract-report.txt (gitignored, see .gitignore line 71-72).
+Write-Host ""
+Write-Host "---- API Contract ----" -ForegroundColor Magenta
+
+# 8. Contract check (匹配 ci.yml: python scripts/check_api_contract.py)
+Write-Host "`n[8/9 contract check]" -ForegroundColor Cyan
+python scripts/check_api_contract.py
+if ($LASTEXITCODE -ne 0) {
+    $script:failures += "8/9 contract check"
+    Write-Host "[FAIL] contract check (exit=$LASTEXITCODE)" -ForegroundColor Red
+    if (Test-Path "contract-report.txt") {
+        Write-Host ""
+        Write-Host "--- contract-report.txt ---" -ForegroundColor Yellow
+        Get-Content "contract-report.txt" | Write-Host
+    }
+} else {
+    Write-Host "[OK] contract check" -ForegroundColor Green
+}
+
+# 9. Contract check unit tests (CI 不跑,本地做内部回归用:保护 _tokens/_matches
+# 这类内部 helper,任何改 scripts/check_api_contract.py 的人本地立即看到破坏)
+# pytest 装在 backend 的 venv 里 (uv sync --dev),借用它的环境跑。
+Write-Host "`n[9/9 contract check unit tests]" -ForegroundColor Cyan
+Push-Location backend
+try {
+    uv run python -m pytest ../scripts/tests/ -v --tb=short
+    if ($LASTEXITCODE -ne 0) {
+        $script:failures += "9/9 contract check unit tests"
+        Write-Host "[FAIL] contract check unit tests (exit=$LASTEXITCODE)" -ForegroundColor Red
+    } else {
+        Write-Host "[OK] contract check unit tests" -ForegroundColor Green
     }
 } finally {
     Pop-Location

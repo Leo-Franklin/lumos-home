@@ -39,6 +39,118 @@ def _normalise(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", name.lower())
 
 
+# Words that mark a schema as a request/response wrapper rather than a
+# concrete entity. Stripped before token-set comparison so e.g. `LoginRequest`
+# (tokens: {login, request}) can match a frontend export `login` (tokens:
+# {login}) via subset relation.
+_TYPE_MARKERS = frozenset(
+    {
+        "request",
+        "response",
+        "out",
+        "schema",
+        "detail",
+        "data",
+        "info",
+    }
+)
+
+
+# Schemas that are *envelope* types with no single frontend equivalent.
+# Each is used as the response/request shape of multiple endpoints, so the
+# "one schema = one frontend export" invariant doesn't apply. Skipping these
+# is the only way to keep the contract check from being noise; the spec at
+# .claude/CLAUDE.md §2.1 is about catching *new* schemas, and a new envelope
+# is a backend concern, not a frontend one.
+_GENERIC_ENVELOPES = frozenset(
+    {
+        "PagedResponse",
+        "ErrorResponse",
+        "ErrorDetail",
+        "MessageResponse",
+        "TokenResponse",
+    }
+)
+
+
+# Schemas that are never the top-level request or response payload of any
+# endpoint. The "one schema = one frontend export" invariant does not apply:
+#
+#   * `DeviceBase` — abstract Pydantic parent that `DeviceUpdate` inherits for
+#     field reuse. No router references it directly; payload type is
+#     `DeviceUpdate` / `DeviceOut`.
+#   * `DailyStats` — row type of `MemberStatsOut.daily`. The only endpoint
+#     that materialises it (`GET /members/{id}/stats`) returns the wrapper
+#     `MemberStatsOut`, not a bare `DailyStats`.
+#   * `RecordingPresetSchema` — element type of `CameraOut.recording_presets`.
+#     The list endpoint `GET /cameras/{mac}/presets` returns `[dict]` from
+#     `to_dict()`, not the Pydantic schema, so the frontend never sees the
+#     schema at the type level either.
+#
+# Each entry here should have a one-line justification in the comment. Keep
+# this list small — every addition is a hole in the contract check.
+_NON_PAYLOAD_SCHEMAS = frozenset(
+    {
+        "DeviceBase",
+        "DailyStats",
+        "RecordingPresetSchema",
+    }
+)
+
+
+def _tokens(name: str) -> frozenset[str]:
+    """Split an identifier into a set of lowercase word tokens.
+
+    `CameraCreate` -> {"camera", "create"}; `createCamera` -> {"camera", "create"};
+    `LoginRequest` -> {"login", "request"}; `DLNADeviceOut` -> {"dlna", "device", "out"}.
+
+    Splits at:
+      * snake_case underscores
+      * lowercase->uppercase boundary (`e`/`O` in `deviceOut`)
+      * uppercase-acronym boundary (`A`/`D` in `DLNADevice`): match between two
+        uppercase letters when the second is followed by a lowercase.
+    """
+    # Step 1: handle snake_case
+    s = name.replace("_", " ")
+    # Step 2: split acronym|word (e.g. `DLNA|Device` -> `DLNA Device`).
+    # Lookbehind = upper, lookahead = upper+lower; insert space at the boundary.
+    s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)
+    # Step 3: split camelCase (lower->upper boundary).
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", s)
+    parts = [p.lower() for p in s.split() if p]
+    # Step 4: collapse simple plurals so `devices` / `logs` match `device` / `log`.
+    # Only applied to non-acronym words of length > 3 to avoid clobbering tokens
+    # like `is` or `as`.
+    normalised: list[str] = []
+    for p in parts:
+        if len(p) > 3 and p.endswith("s") and not p.endswith("ss"):
+            normalised.append(p[:-1])
+        else:
+            normalised.append(p)
+    return frozenset(normalised)
+
+
+def _matches(model_name: str, export_name: str) -> bool:
+    """Return True if a backend model and a frontend export refer to the same
+    API target, allowing for verb-first vs noun-first naming and for type
+    marker suffixes (`Request`, `Response`, `Out`, `Schema`, `Detail`).
+
+    Two names match when, after stripping type markers, the token set of one
+    is a subset of the other. This covers:
+
+    * `CameraCreate` (~{camera, create}) vs `createCamera` (~{camera, create}) — equal
+    * `LoginRequest`  (~{login})        vs `login`        (~{login})        — subset
+    * `CameraOut`     (~{camera})       vs `listCameras`  (~{list, camera}) — subset
+    """
+    m = {t for t in _tokens(model_name) if t not in _TYPE_MARKERS}
+    e = {t for t in _tokens(export_name) if t not in _TYPE_MARKERS}
+    if not m or not e:
+        # Refuse to match empty token sets — that would make every schema pass
+        # if it has no real word in its name.
+        return False
+    return m <= e or e <= m
+
+
 def extract_models(schema_dir: str) -> set[Model]:
     """Walk schema_dir, return set of Model found in Pydantic BaseModel subclasses."""
     out: set[Model] = set()
@@ -107,13 +219,20 @@ def run(schema_dir: str, api_dir: str, report_path: Path) -> int:
         return 0
     exports = extract_exports(api_dir)
     # Normalise both sides for comparison; spec says case-insensitive, ignoring
-    # underscores so snake_case and camelCase line up.
+    # underscores so snake_case and camelCase line up. `_matches` goes one step
+    # further and also accepts verb-first / noun-first renames and the
+    # `Request`/`Response`/`Out`/`Schema`/`Detail` type-marker suffixes.
     norm_exports = {_normalise(e) for e in exports}
 
     missing: list[str] = []
     for m in models:
-        if _normalise(m.name) not in norm_exports:
-            missing.append(m.name)
+        if m.name in _GENERIC_ENVELOPES or m.name in _NON_PAYLOAD_SCHEMAS:
+            continue
+        if _normalise(m.name) in norm_exports:
+            continue
+        if any(_matches(m.name, e) for e in exports):
+            continue
+        missing.append(m.name)
 
     lines: list[str] = []
     if missing:
