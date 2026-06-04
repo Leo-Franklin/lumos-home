@@ -71,11 +71,11 @@ export function useFormDirty(formRef, options = {}) {
       return true
     }
     try {
-      await ElMessageBox.confirm(
-        '当前表单有未保存的修改，确定关闭？',
-        '放弃修改',
-        { type: 'warning', confirmButtonText: '放弃修改', cancelButtonText: '继续编辑' },
-      )
+      await ElMessageBox.confirm('当前表单有未保存的修改，确定关闭？', '放弃修改', {
+        type: 'warning',
+        confirmButtonText: '放弃修改',
+        cancelButtonText: '继续编辑',
+      })
     } catch {
       return false
     }

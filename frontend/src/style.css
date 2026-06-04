@@ -8,171 +8,172 @@
 
 :root {
   /* Primary - Refined Purple */
-  --color-primary:        #6366F1;
-  --color-primary-hover:  #4F46E5;
+  --color-primary: #6366f1;
+  --color-primary-hover: #4f46e5;
   --color-primary-subtle: rgba(99, 102, 241, 0.12);
-  --color-primary-border: rgba(99, 102, 241, 0.30);
+  --color-primary-border: rgba(99, 102, 241, 0.3);
 
   /* Dark Canvas - Enhanced Depth */
-  --color-bg:              #0F0F12;
-  --color-surface:         #18181C;
-  --color-surface-raised:  #222228;
-  --color-surface-overlay: #2A2A32;
-  --color-border:          #32323C;
-  --color-border-subtle:   #28282E;
+  --color-bg: #0f0f12;
+  --color-surface: #18181c;
+  --color-surface-raised: #222228;
+  --color-surface-overlay: #2a2a32;
+  --color-border: #32323c;
+  --color-border-subtle: #28282e;
 
   /* Text - Improved Contrast */
-  --color-text-primary:   #F4F4F6;
-  --color-text-secondary: #A0A0AB;
-  --color-text-muted:     #6B6B76;
-  --color-text-inverse:   #FFFFFF;
+  --color-text-primary: #f4f4f6;
+  --color-text-secondary: #a0a0ab;
+  --color-text-muted: #6b6b76;
+  --color-text-inverse: #ffffff;
 
   /* Semantic Colors */
-  --color-online:   #10B981;
-  --color-offline:  #6B7280;
-  --color-error:    #EF4444;
-  --color-warning:  #F59E0B;
-  --color-success:  #10B981;
-  --color-scanning: #F59E0B;
+  --color-online: #10b981;
+  --color-offline: #6b7280;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #10b981;
+  --color-scanning: #f59e0b;
 
   /* Device Type Colors */
-  --color-type-camera:        #6366F1;
-  --color-type-computer:       #10B981;
-  --color-type-phone:          #F59E0B;
-  --color-type-iot:            #F97316;
-  --color-type-unknown:        #6B7280;
-  --color-type-router:         #06B6D4;
-  --color-type-tablet:         #D946EF;
-  --color-type-tv:             #8B5CF6;
-  --color-type-printer:        #14B8A6;
-  --color-type-smart-speaker:  #84CC16;
-  --color-type-game-console:   #EF4444;
-  --color-type-nas:            #3B82F6;
-  --color-type-wearable:       #EC4899;
+  --color-type-camera: #6366f1;
+  --color-type-computer: #10b981;
+  --color-type-phone: #f59e0b;
+  --color-type-iot: #f97316;
+  --color-type-unknown: #6b7280;
+  --color-type-router: #06b6d4;
+  --color-type-tablet: #d946ef;
+  --color-type-tv: #8b5cf6;
+  --color-type-printer: #14b8a6;
+  --color-type-smart-speaker: #84cc16;
+  --color-type-game-console: #ef4444;
+  --color-type-nas: #3b82f6;
+  --color-type-wearable: #ec4899;
 
   /* Activity Feed Colors */
-  --color-cat-device:   #3B82F6;
-  --color-cat-camera:  #10B981;
-  --color-cat-member:   #6366F1;
-  --color-cat-system:   #6B7280;
+  --color-cat-device: #3b82f6;
+  --color-cat-camera: #10b981;
+  --color-cat-member: #6366f1;
+  --color-cat-system: #6b7280;
 
   /* Accent Colors */
-  --color-accent-members:      #6366F1;
-  --color-accent-cameras:      #10B981;
-  --color-accent-devices:      #3B82F6;
-  --color-accent-recordings:   #F59E0B;
-  --color-accent-unknown:      #6B7280;
-  --color-accent-unknown-warn: #F59E0B;
+  --color-accent-members: #6366f1;
+  --color-accent-cameras: #10b981;
+  --color-accent-devices: #3b82f6;
+  --color-accent-recordings: #f59e0b;
+  --color-accent-unknown: #6b7280;
+  --color-accent-unknown-warn: #f59e0b;
 
   /* Border Radius */
-  --radius-xs:   3px;
-  --radius-sm:   4px;
-  --radius-md:   6px;
-  --radius-lg:   8px;
-  --radius-xl:   12px;
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.5);
-  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.6);
-  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
   --shadow-focus: 0 0 0 2px rgba(99, 102, 241, 0.4);
 
   /* Motion */
-  --duration-fast:   100ms;
-  --duration-base:   200ms;
-  --duration-slow:   300ms;
+  --duration-fast: 100ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
   --duration-slower: 400ms;
   --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --easing-snap:    cubic-bezier(0.16, 1, 0.3, 1);
-  --easing-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --easing-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Spacing */
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  20px;
-  --space-6:  24px;
-  --space-8:  32px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
   --space-10: 40px;
 
   /* Layout */
-  --sidebar-width:           220px;
+  --sidebar-width: 220px;
   --sidebar-width-collapsed: 48px;
-  --header-height:           56px;
-  --content-max-width:       1400px;
+  --header-height: 56px;
+  --content-max-width: 1400px;
 
   /* Typography */
-  --font-display: "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
-  --font-tabular: "Outfit", monospace;
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --font-tabular: 'Outfit', monospace;
 
   /* Element Plus Overrides */
-  --el-color-primary:              var(--color-primary);
-  --el-color-primary-light-3:     rgba(99, 102, 241, 0.7);
-  --el-color-primary-light-5:      rgba(99, 102, 241, 0.5);
-  --el-color-primary-light-7:      rgba(99, 102, 241, 0.3);
-  --el-color-primary-light-8:      rgba(99, 102, 241, 0.2);
-  --el-color-primary-light-9:      rgba(99, 102, 241, 0.1);
-  --el-color-primary-dark-2:       var(--color-primary-hover);
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: rgba(99, 102, 241, 0.7);
+  --el-color-primary-light-5: rgba(99, 102, 241, 0.5);
+  --el-color-primary-light-7: rgba(99, 102, 241, 0.3);
+  --el-color-primary-light-8: rgba(99, 102, 241, 0.2);
+  --el-color-primary-light-9: rgba(99, 102, 241, 0.1);
+  --el-color-primary-dark-2: var(--color-primary-hover);
 
-  --el-bg-color:                  var(--color-surface);
-  --el-bg-color-page:             var(--color-bg);
-  --el-bg-color-overlay:          var(--color-surface-overlay);
+  --el-bg-color: var(--color-surface);
+  --el-bg-color-page: var(--color-bg);
+  --el-bg-color-overlay: var(--color-surface-overlay);
 
-  --el-text-color-primary:        var(--color-text-primary);
-  --el-text-color-regular:         var(--color-text-secondary);
-  --el-text-color-secondary:      var(--color-text-muted);
-  --el-text-color-disabled:       var(--color-text-muted);
-  --el-text-color-placeholder:    var(--color-text-muted);
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-secondary);
+  --el-text-color-secondary: var(--color-text-muted);
+  --el-text-color-disabled: var(--color-text-muted);
+  --el-text-color-placeholder: var(--color-text-muted);
 
-  --el-border-color:              var(--color-border);
-  --el-border-color-light:        var(--color-border);
-  --el-border-color-lighter:      var(--color-border-subtle);
-  --el-border-color-extra-light:   var(--color-border-subtle);
-  --el-border-color-dark:         var(--color-border);
-  --el-border-color-darker:       var(--color-border);
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border);
+  --el-border-color-lighter: var(--color-border-subtle);
+  --el-border-color-extra-light: var(--color-border-subtle);
+  --el-border-color-dark: var(--color-border);
+  --el-border-color-darker: var(--color-border);
 
-  --el-fill-color:                var(--color-surface-raised);
-  --el-fill-color-light:          var(--color-surface-raised);
-  --el-fill-color-lighter:        var(--color-surface);
-  --el-fill-color-extra-light:     var(--color-surface);
-  --el-fill-color-dark:           var(--color-surface-overlay);
-  --el-fill-color-darker:         var(--color-surface-overlay);
-  --el-fill-color-blank:          var(--color-surface);
+  --el-fill-color: var(--color-surface-raised);
+  --el-fill-color-light: var(--color-surface-raised);
+  --el-fill-color-lighter: var(--color-surface);
+  --el-fill-color-extra-light: var(--color-surface);
+  --el-fill-color-dark: var(--color-surface-overlay);
+  --el-fill-color-darker: var(--color-surface-overlay);
+  --el-fill-color-blank: var(--color-surface);
 
-  --el-box-shadow:                var(--shadow-md);
-  --el-box-shadow-light:          var(--shadow-sm);
-  --el-box-shadow-lighter:        var(--shadow-sm);
-  --el-box-shadow-dark:           var(--shadow-lg);
+  --el-box-shadow: var(--shadow-md);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-lg);
 
-  --el-mask-color:                rgba(0, 0, 0, 0.6);
-  --el-overlay-color:             rgba(0, 0, 0, 0.6);
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+  --el-overlay-color: rgba(0, 0, 0, 0.6);
 
-  --el-border-radius-base:         var(--radius-md);
-  --el-border-radius-small:        var(--radius-xs);
-  --el-border-radius-round:        var(--radius-full);
-  --el-border-radius-circle:       var(--radius-full);
+  --el-border-radius-base: var(--radius-md);
+  --el-border-radius-small: var(--radius-xs);
+  --el-border-radius-round: var(--radius-full);
+  --el-border-radius-circle: var(--radius-full);
 
-  --el-font-size-base:            14px;
-  --el-font-size-small:           12px;
-  --el-font-size-extra-small:     11px;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 12px;
+  --el-font-size-extra-small: 11px;
 
-  --el-transition-duration:        var(--duration-base);
-  --el-transition-duration-fast:   var(--duration-fast);
+  --el-transition-duration: var(--duration-base);
+  --el-transition-duration-fast: var(--duration-fast);
 
-  --el-component-size:            32px;
-  --el-component-size-small:      24px;
-  --el-component-size-large:      40px;
+  --el-component-size: 32px;
+  --el-component-size-small: 24px;
+  --el-component-size-large: 40px;
 
-  --el-disabled-bg-color:          var(--color-surface);
-  --el-disabled-text-color:        var(--color-text-muted);
-  --el-disabled-border-color:      var(--color-border-subtle);
+  --el-disabled-bg-color: var(--color-surface);
+  --el-disabled-text-color: var(--color-text-muted);
+  --el-disabled-border-color: var(--color-border-subtle);
 }
 
-html, body {
+html,
+body {
   font-family: var(--font-sans);
   background: var(--color-bg);
   color: var(--color-text-primary);
@@ -193,8 +194,8 @@ html, body {
 }
 
 /* Decorative/non-interactive elements must never take focus. */
-[aria-hidden="true"]:focus,
-[aria-hidden="true"]:focus-visible {
+[aria-hidden='true']:focus,
+[aria-hidden='true']:focus-visible {
   outline: none;
 }
 
@@ -246,8 +247,9 @@ html, body {
 
 /* ── Page transition ─────────────────────── */
 .page-enter-active {
-  transition: opacity var(--duration-base) var(--easing-standard),
-              transform var(--duration-base) var(--easing-snap);
+  transition:
+    opacity var(--duration-base) var(--easing-standard),
+    transform var(--duration-base) var(--easing-snap);
 }
 .page-leave-active {
   transition: opacity var(--duration-fast) var(--easing-standard);
@@ -279,20 +281,34 @@ html, body {
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ── WebSocket pulse - more visible ──────── */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
-  50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
 }
 
 /* ── Recording indicator pulse ────────────── */
 @keyframes recording-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ── Glass card utility ───────────────────── */
@@ -395,7 +411,9 @@ html, body {
   box-shadow: 0 0 0 1px var(--color-border) inset !important;
 }
 .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--color-primary) inset, var(--shadow-focus) !important;
+  box-shadow:
+    0 0 0 1px var(--color-primary) inset,
+    var(--shadow-focus) !important;
 }
 .el-input__inner {
   color: var(--color-text-primary);
@@ -409,7 +427,9 @@ html, body {
   border-radius: var(--radius-sm);
 }
 .el-textarea__inner:focus {
-  box-shadow: 0 0 0 1px var(--color-primary) inset, var(--shadow-focus) !important;
+  box-shadow:
+    0 0 0 1px var(--color-primary) inset,
+    var(--shadow-focus) !important;
 }
 
 /* ── El Select ───────────────────────────── */
@@ -440,9 +460,10 @@ html, body {
   font-size: 13px;
   height: 32px;
   padding: 0 12px;
-  transition: background-color var(--duration-fast) ease-out,
-              border-color var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background-color var(--duration-fast) ease-out,
+    border-color var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
 .el-button--primary {
   background-color: var(--color-primary);
@@ -576,8 +597,9 @@ html, body {
   cursor: pointer;
   margin-left: 12px;
   font-family: inherit;
-  transition: background-color var(--duration-fast) ease,
-              color var(--duration-fast) ease;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
 }
 .el-message-undo-btn:hover {
   background-color: var(--color-primary-subtle);
@@ -624,13 +646,23 @@ html, body {
 }
 
 @keyframes skeleton-shimmer {
-  0%   { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Convenience shapes */
-.skeleton-row-52 { height: 52px; border-radius: 0; }
-.skeleton-tile-88 { height: 88px; border-radius: var(--radius-md); }
+.skeleton-row-52 {
+  height: 52px;
+  border-radius: 0;
+}
+.skeleton-tile-88 {
+  height: 88px;
+  border-radius: var(--radius-md);
+}
 
 /* ── El Date Picker ──────────────────────── */
 .el-date-editor .el-input__wrapper {
@@ -680,12 +712,12 @@ html, body {
 }
 
 .chart-tooltip {
-  background: var(--color-surface, #18181C);
-  border: 1px solid var(--color-border, #32323C);
+  background: var(--color-surface, #18181c);
+  border: 1px solid var(--color-border, #32323c);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--color-text-primary, #F4F4F6);
+  color: var(--color-text-primary, #f4f4f6);
   line-height: 1.6;
   max-width: 220px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);

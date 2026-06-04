@@ -2,3 +2,15 @@ node_modules
 dist
 coverage
 pnpm-lock.yaml
+
+# Project root artifacts that don't ship with the app
+README.md
+README_en.md
+DESIGN.md
+LICENSE
+
+# Skills/agents/docs are reference material, not source
+.agents
+.claude
+.superpowers
+docs

@@ -62,9 +62,8 @@ export const useDevicesStore = defineStore('devices', () => {
       search.value = ''
     } else {
       const idx = filterTypes.value.indexOf(type)
-      filterTypes.value = idx === -1
-        ? [...filterTypes.value, type]
-        : filterTypes.value.filter((t) => t !== type)
+      filterTypes.value =
+        idx === -1 ? [...filterTypes.value, type] : filterTypes.value.filter((t) => t !== type)
     }
     page.value = 1
     fetchDevices()
@@ -130,10 +129,24 @@ export const useDevicesStore = defineStore('devices', () => {
   }
 
   return {
-    items, total, page, pageSize, loading, scanning,
-    scanningProgress, scanningStage,
-    filterTypes, search,
-    fetchDevices, changePage, changePageSize, toggleFilter,
-    setSearch, clearSearch, scan, cancelScan, onScanCompleted,
+    items,
+    total,
+    page,
+    pageSize,
+    loading,
+    scanning,
+    scanningProgress,
+    scanningStage,
+    filterTypes,
+    search,
+    fetchDevices,
+    changePage,
+    changePageSize,
+    toggleFilter,
+    setSearch,
+    clearSearch,
+    scan,
+    cancelScan,
+    onScanCompleted,
   }
 })

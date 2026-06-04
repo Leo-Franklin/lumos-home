@@ -9,10 +9,11 @@ import { useI18n } from 'vue-i18n'
 export function useApiError() {
   const { t } = useI18n()
   return function handleError(e, fallbackKey = 'common.operationFailed') {
-    const detail = e?.response?.data?.detail
-              || e?.response?.data?.error?.message
-              || e?.response?.data?.message
-              || e?.message
+    const detail =
+      e?.response?.data?.detail ||
+      e?.response?.data?.error?.message ||
+      e?.response?.data?.message ||
+      e?.message
     const message = detail || t(fallbackKey)
     ElMessage({ message, type: 'error', showClose: true, duration: 4000 })
     return message
@@ -28,8 +29,9 @@ export function withRetry(fn, opts = {}) {
     let lastErr
     let d = delay
     for (let i = 0; i <= retries; i++) {
-      try { return await fn(...args) }
-      catch (e) {
+      try {
+        return await fn(...args)
+      } catch (e) {
         lastErr = e
         if (i === retries) break
         await new Promise((r) => setTimeout(r, d))

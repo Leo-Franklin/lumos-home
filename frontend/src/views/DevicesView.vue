@@ -34,6 +34,13 @@ function openEdit(row) {
   editDialog.value = true
 }
 
+function closeDetailAndEdit() {
+  detailDialog.value = false
+  if (detailDevice.value) {
+    openEdit(detailDevice.value)
+  }
+}
+
 async function saveEdit() {
   try {
     await updateDevice(editForm.value.mac, {
@@ -88,11 +95,20 @@ const detailTypeLabel = computed(() => {
   return type ? t(`common.deviceTypes.${type}`) : '—'
 })
 
-
 // ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = [
-  'camera', 'computer', 'phone', 'iot',
-  'router', 'tablet', 'tv', 'printer', 'smart_speaker', 'game_console', 'nas', 'wearable',
+  'camera',
+  'computer',
+  'phone',
+  'iot',
+  'router',
+  'tablet',
+  'tv',
+  'printer',
+  'smart_speaker',
+  'game_console',
+  'nas',
+  'wearable',
   'unknown',
 ]
 
@@ -119,7 +135,12 @@ onMounted(() => {
       <div>
         <h2 class="page-title">{{ $t('devices.title') }}</h2>
         <span class="page-sub">
-          {{ $t('devices.onlineCount', { online: devicesStore.items.filter((d) => d.is_online).length, total: devicesStore.total }) }}
+          {{
+            $t('devices.onlineCount', {
+              online: devicesStore.items.filter((d) => d.is_online).length,
+              total: devicesStore.total,
+            })
+          }}
         </span>
       </div>
       <div class="header-actions">
@@ -214,7 +235,12 @@ onMounted(() => {
         </el-form-item>
         <el-form-item :label="$t('devices.deviceType')">
           <el-select v-model="editForm.device_type" style="width: 100%">
-            <el-option v-for="t in deviceTypeOptions" :key="t" :label="$t(`common.deviceTypes.${t}`)" :value="t" />
+            <el-option
+              v-for="t in deviceTypeOptions"
+              :key="t"
+              :label="$t(`common.deviceTypes.${t}`)"
+              :value="t"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('devices.notes')">
@@ -227,9 +253,13 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailDialog" :title="$t('devices.detailTitle')" width="500px" v-if="detailDevice">
+    <el-dialog
+      v-model="detailDialog"
+      :title="$t('devices.detailTitle')"
+      width="500px"
+      v-if="detailDevice"
+    >
       <div class="detail-header">
         <span
           class="detail-status-dot"
@@ -237,8 +267,14 @@ onMounted(() => {
           role="status"
           :aria-label="detailDevice.is_online ? $t('common.online') : $t('common.offline')"
         />
-        <span class="detail-title">{{ detailDevice.alias || detailDevice.hostname || $t('devices.unnamedDevice') }}</span>
-        <el-tag :type="detailDevice.is_online ? 'success' : 'info'" size="small" style="margin-left: 8px">
+        <span class="detail-title">{{
+          detailDevice.alias || detailDevice.hostname || $t('devices.unnamedDevice')
+        }}</span>
+        <el-tag
+          :type="detailDevice.is_online ? 'success' : 'info'"
+          size="small"
+          style="margin-left: 8px"
+        >
           {{ detailDevice.is_online ? $t('common.online') : $t('common.offline') }}
         </el-tag>
       </div>
@@ -246,19 +282,36 @@ onMounted(() => {
       <div class="detail-section">
         <div class="detail-section-title">{{ $t('devices.basicInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.deviceType') }}</span><span class="detail-value">{{ detailTypeLabel }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.mac') }}</span><span class="detail-value mono">{{ detailDevice.mac }}</span></div>
-          <div class="detail-row"><span class="detail-label">IP</span><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.vendor') }}</span><span class="detail-value">{{ detailDevice.vendor || '—' }}</span></div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.deviceType') }}</span
+            ><span class="detail-value">{{ detailTypeLabel }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.mac') }}</span
+            ><span class="detail-value mono">{{ detailDevice.mac }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">IP</span
+            ><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.vendor') }}</span
+            ><span class="detail-value">{{ detailDevice.vendor || '—' }}</span>
+          </div>
         </div>
       </div>
-
 
       <div class="detail-section">
         <div class="detail-section-title">{{ $t('devices.recordInfo') }}</div>
         <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.firstSeen') }}</span><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span></div>
-          <div class="detail-row"><span class="detail-label">{{ $t('devices.lastSeen') }}</span><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span></div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.firstSeen') }}</span
+            ><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.lastSeen') }}</span
+            ><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span>
+          </div>
         </div>
       </div>
 
@@ -269,7 +322,7 @@ onMounted(() => {
 
       <template #footer>
         <el-button @click="detailDialog = false">{{ $t('common.close') }}</el-button>
-        <el-button type="primary" @click="detailDialog = false; openEdit(detailDevice)">{{ $t('common.edit') }}</el-button>
+        <el-button type="primary" @click="closeDetailAndEdit">{{ $t('common.edit') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -339,8 +392,13 @@ onMounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.detail-status-dot.online  { background: var(--color-online); box-shadow: 0 0 6px rgba(16,185,129,.5); }
-.detail-status-dot.offline { background: var(--color-offline); }
+.detail-status-dot.online {
+  background: var(--color-online);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+.detail-status-dot.offline {
+  background: var(--color-offline);
+}
 .detail-title {
   font-size: 16px;
   font-weight: 600;

@@ -413,7 +413,13 @@ async def test_end_to_end_recording_with_preset(test_env, unique_mac):
                     return '/tmp/test_output.mp4'
 
             mock_recorder.stop_recording = AsyncMock(return_value=FakeStopResult())
-            mock_recorder.active = {mac: MagicMock(recording_id=resp.json()['recording_id'])}
+            # Both attributes must be set: production code reads
+            # `task.session_recording_id or task.recording_id` (see
+            # app/api/cameras.py:263), and MagicMock is truthy by default
+            # so a missing `session_recording_id` would defeat the
+            # `or` fallback and pass a MagicMock straight into SQL.
+            _rid = resp.json()['recording_id']
+            mock_recorder.active = {mac: MagicMock(recording_id=_rid, session_recording_id=_rid)}
 
             resp = await ac.post(f'/api/v1/cameras/{mac}/record/stop', headers=headers)
             assert resp.status_code == 202

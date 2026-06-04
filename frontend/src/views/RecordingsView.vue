@@ -1,12 +1,22 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import {
-  listRecordings, deleteRecording, streamUrl, downloadUrl,
+  listRecordings,
+  deleteRecording,
+  streamUrl,
+  downloadUrl,
   getRecordingStats,
   openRecordingFolder,
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
-import { VideoCameraFilled, Clock, FolderOpened, VideoPlay, Download, Delete } from '@element-plus/icons-vue'
+import {
+  VideoCameraFilled,
+  Clock,
+  FolderOpened,
+  VideoPlay,
+  Download,
+  Delete,
+} from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useNotificationsStore } from '@/stores/notifications'
@@ -33,12 +43,20 @@ onMounted(async () => {
   fetchRecordings()
 })
 
-watch(() => notifications.lastRecordingEvent, () => { fetchRecordings() })
+watch(
+  () => notifications.lastRecordingEvent,
+  () => {
+    fetchRecordings()
+  },
+)
 
-watch(() => [filter.value.camera_mac, filter.value.date], () => {
-  filter.value.page = 1
-  fetchRecordings()
-})
+watch(
+  () => [filter.value.camera_mac, filter.value.date],
+  () => {
+    filter.value.page = 1
+    fetchRecordings()
+  },
+)
 
 async function fetchRecordings() {
   loading.value = true
@@ -140,19 +158,27 @@ function formatSize(bytes) {
   if (!bytes) return '-'
   if (bytes < 1024) return t('charts.size.bytes', { n: bytes })
   if (bytes < 1024 * 1024) return t('charts.size.kb', { n: (bytes / 1024).toFixed(1) })
-  if (bytes < 1024 * 1024 * 1024) return t('charts.size.mb', { n: (bytes / 1024 / 1024).toFixed(1) })
-  if (bytes < 1024 * 1024 * 1024 * 1024) return t('charts.size.gb', { n: (bytes / 1024 / 1024 / 1024).toFixed(1) })
+  if (bytes < 1024 * 1024 * 1024)
+    return t('charts.size.mb', { n: (bytes / 1024 / 1024).toFixed(1) })
+  if (bytes < 1024 * 1024 * 1024 * 1024)
+    return t('charts.size.gb', { n: (bytes / 1024 / 1024 / 1024).toFixed(1) })
   return t('charts.size.tb', { n: (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) })
 }
 function formatDuration(s) {
   if (!s) return '-'
-  const m = Math.floor(s / 60), sec = s % 60
+  const m = Math.floor(s / 60),
+    sec = s % 60
   return t('charts.duration.short', { m, s: String(sec).padStart(2, '0') })
 }
 function statusType(s) {
   return { completed: 'success', recording: 'warning', failed: 'danger', synced: 'info' }[s] || ''
 }
-const statusLabels = { completed: 'recordings.statusCompleted', recording: 'recordings.statusRecording', failed: 'recordings.statusFailed', synced: 'recordings.statusSynced' }
+const statusLabels = {
+  completed: 'recordings.statusCompleted',
+  recording: 'recordings.statusRecording',
+  failed: 'recordings.statusFailed',
+  synced: 'recordings.statusSynced',
+}
 function statusLabel(s) {
   return t(statusLabels[s] || s)
 }
@@ -210,12 +236,23 @@ function statusLabel(s) {
         <template #default="{ row }">
           <div class="file-cell">
             <span class="file-name" :title="row.file_name">{{ row.file_name }}</span>
-            <el-tooltip :content="row.storage_type === 'local' ? $t('recordings.openLocalFolder') : $t('recordings.openNasFolder')" :show-after="400">
+            <el-tooltip
+              :content="
+                row.storage_type === 'local'
+                  ? $t('recordings.openLocalFolder')
+                  : $t('recordings.openNasFolder')
+              "
+              :show-after="400"
+            >
               <el-button
                 class="action-btn"
                 size="small"
                 :icon="FolderOpened"
-                :aria-label="row.storage_type === 'local' ? $t('recordings.openLocalFolder') : $t('recordings.openNasFolder')"
+                :aria-label="
+                  row.storage_type === 'local'
+                    ? $t('recordings.openLocalFolder')
+                    : $t('recordings.openNasFolder')
+                "
                 @click="openFolder(row)"
               />
             </el-tooltip>
@@ -241,14 +278,26 @@ function statusLabel(s) {
           <div class="action-group">
             <!-- Play - Primary action -->
             <el-tooltip
-              :content="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
+              :content="
+                row.status === 'recording'
+                  ? t('recordings.recordingActive')
+                  : row.status === 'failed'
+                    ? t('recordings.recordingFailed')
+                    : t('recordings.play')
+              "
               :show-after="400"
             >
               <el-button
                 class="action-btn action-btn--play"
                 size="small"
                 :icon="VideoPlay"
-                :aria-label="row.status === 'recording' ? t('recordings.recordingActive') : row.status === 'failed' ? t('recordings.recordingFailed') : t('recordings.play')"
+                :aria-label="
+                  row.status === 'recording'
+                    ? t('recordings.recordingActive')
+                    : row.status === 'failed'
+                      ? t('recordings.recordingFailed')
+                      : t('recordings.play')
+                "
                 :disabled="row.status === 'recording' || row.status === 'failed'"
                 @click="playRecording(row)"
               />
@@ -291,18 +340,31 @@ function statusLabel(s) {
     />
 
     <!-- 播放弹窗 -->
-    <el-dialog v-model="playDialog" :title="$t('recordings.playback')" width="720px" destroy-on-close @close="closePlay">
+    <el-dialog
+      v-model="playDialog"
+      :title="$t('recordings.playback')"
+      width="720px"
+      destroy-on-close
+      @close="closePlay"
+    >
       <CameraPlayer :src="playUrl" :mode="playMode" />
     </el-dialog>
 
     <!-- 统计弹窗 -->
-    <el-dialog v-model="statsDialog" :title="$t('recordings.statsTitle')" width="600px" destroy-on-close>
+    <el-dialog
+      v-model="statsDialog"
+      :title="$t('recordings.statsTitle')"
+      width="600px"
+      destroy-on-close
+    >
       <div class="stats-header">
         <el-radio-group v-model="statsFilter.range" @change="fetchStats">
           <el-radio-button value="7d">{{ $t('recordings.statsRange7d') }}</el-radio-button>
           <el-radio-button value="30d">{{ $t('recordings.statsRange30d') }}</el-radio-button>
         </el-radio-group>
-        <span class="stats-period-hint">{{ statsFilter.range === '7d' ? $t('recordings.statsHint7d') : $t('recordings.statsHint30d') }}</span>
+        <span class="stats-period-hint">{{
+          statsFilter.range === '7d' ? $t('recordings.statsHint7d') : $t('recordings.statsHint30d')
+        }}</span>
       </div>
 
       <div v-if="statsLoading" class="stats-skeleton">
@@ -419,8 +481,14 @@ function statusLabel(s) {
 }
 
 @keyframes stats-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* tile */
@@ -434,8 +502,9 @@ function statusLabel(s) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  transition: border-color var(--duration-base) ease,
-              background var(--duration-base) ease;
+  transition:
+    border-color var(--duration-base) ease,
+    background var(--duration-base) ease;
 }
 
 .stat-tile::after {
@@ -448,9 +517,15 @@ function statusLabel(s) {
   border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
-.stat-tile--count::after   { background: var(--color-primary); }
-.stat-tile--duration::after { background: var(--color-online); }
-.stat-tile--size::after    { background: var(--color-warning); }
+.stat-tile--count::after {
+  background: var(--color-primary);
+}
+.stat-tile--duration::after {
+  background: var(--color-online);
+}
+.stat-tile--size::after {
+  background: var(--color-warning);
+}
 
 .stat-tile:hover {
   border-color: var(--color-border-subtle);
@@ -468,17 +543,29 @@ function statusLabel(s) {
   justify-content: center;
 }
 
-.stat-tile--count   .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-tile--duration .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-tile--size    .stat-icon-wrap { background: var(--color-primary-subtle); }
+.stat-tile--count .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-tile--duration .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-tile--size .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
 
 .stat-icon {
   font-size: 18px;
 }
 
-.stat-tile--count   .stat-icon { color: var(--color-primary); }
-.stat-tile--duration .stat-icon { color: var(--color-online); }
-.stat-tile--size    .stat-icon { color: var(--color-warning); }
+.stat-tile--count .stat-icon {
+  color: var(--color-primary);
+}
+.stat-tile--duration .stat-icon {
+  color: var(--color-online);
+}
+.stat-tile--size .stat-icon {
+  color: var(--color-warning);
+}
 
 /* text */
 .stat-body {
@@ -519,9 +606,15 @@ function statusLabel(s) {
   pointer-events: none;
 }
 
-.stat-glow--count    { background: var(--color-primary); }
-.stat-glow--duration { background: var(--color-online); }
-.stat-glow--size     { background: var(--color-warning); }
+.stat-glow--count {
+  background: var(--color-primary);
+}
+.stat-glow--duration {
+  background: var(--color-online);
+}
+.stat-glow--size {
+  background: var(--color-warning);
+}
 
 /* empty hint */
 .stats-empty {
@@ -587,10 +680,10 @@ function statusLabel(s) {
   padding: 3px;
   border-radius: 5px;
   font-size: 15px;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
-
 
 .action-btn--danger {
   --el-button-hover-bg-color: rgba(239, 68, 68, 0.1);

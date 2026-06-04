@@ -12,27 +12,34 @@ const emit = defineEmits(['update:modelValue'])
 const customTime = ref('02:00')
 const customDays = ref([1, 2, 3, 4, 5, 6, 0])
 
-watch(() => props.modelValue, (val) => {
-  if (!val) return
-  const parts = val.trim().split(/\s+/)
-  if (parts.length !== 5) return
-  const [m, h, , , dow] = parts
-  if (!/^\d+$/.test(m) || !/^\d+$/.test(h)) return
-  customTime.value = `${String(Number(h)).padStart(2, '0')}:${String(Number(m)).padStart(2, '0')}`
-  if (dow === '*') {
-    customDays.value = [0, 1, 2, 3, 4, 5, 6]
-  } else {
-    customDays.value = dow.split(',').map(Number).filter((n) => !isNaN(n))
-  }
-}, { immediate: true })
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (!val) return
+    const parts = val.trim().split(/\s+/)
+    if (parts.length !== 5) return
+    const [m, h, , , dow] = parts
+    if (!/^\d+$/.test(m) || !/^\d+$/.test(h)) return
+    customTime.value = `${String(Number(h)).padStart(2, '0')}:${String(Number(m)).padStart(2, '0')}`
+    if (dow === '*') {
+      customDays.value = [0, 1, 2, 3, 4, 5, 6]
+    } else {
+      customDays.value = dow
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n))
+    }
+  },
+  { immediate: true },
+)
 
 const PRESETS = [
-  { labelKey: 'schedule.presetDaily2am',   cron: '0 2 * * *' },
+  { labelKey: 'schedule.presetDaily2am', cron: '0 2 * * *' },
   { labelKey: 'schedule.presetWeekday8am', cron: '0 8 * * 1-5' },
-  { labelKey: 'schedule.presetDaily10pm',  cron: '0 22 * * *' },
+  { labelKey: 'schedule.presetDaily10pm', cron: '0 22 * * *' },
   { labelKey: 'schedule.presetEvery30min', cron: '*/30 * * * *' },
   { labelKey: 'schedule.presetWeekendMidnight', cron: '0 0 * * 6,0' },
-  { labelKey: 'schedule.presetHourly',     cron: '0 * * * *' },
+  { labelKey: 'schedule.presetHourly', cron: '0 * * * *' },
 ]
 
 const activeTab = ref(PRESETS.some((p) => p.cron === props.modelValue) ? 'preset' : 'advanced')
@@ -48,8 +55,8 @@ const DAYS = [
 ]
 
 const TABS = [
-  { key: 'preset',   labelKey: 'schedule.tabPreset' },
-  { key: 'custom',   labelKey: 'schedule.tabCustom' },
+  { key: 'preset', labelKey: 'schedule.tabPreset' },
+  { key: 'custom', labelKey: 'schedule.tabCustom' },
   { key: 'advanced', labelKey: 'schedule.tabAdvanced' },
 ]
 
@@ -58,17 +65,15 @@ function buildCustomCron() {
   const [hStr, mStr] = customTime.value.split(':')
   const h = parseInt(hStr, 10)
   const m = parseInt(mStr, 10)
-  if (customDays.value.length === 0 || customDays.value.length === 7)
-    return `${m} ${h} * * *`
+  if (customDays.value.length === 0 || customDays.value.length === 7) return `${m} ${h} * * *`
   const sorted = [...customDays.value].sort((a, b) => a - b)
   return `${m} ${h} * * ${sorted.join(',')}`
 }
 
 function toggleDay(val) {
   const idx = customDays.value.indexOf(val)
-  customDays.value = idx === -1
-    ? [...customDays.value, val]
-    : customDays.value.filter((d) => d !== val)
+  customDays.value =
+    idx === -1 ? [...customDays.value, val] : customDays.value.filter((d) => d !== val)
   if (activeTab.value === 'custom') emit('update:modelValue', buildCustomCron())
 }
 
@@ -109,7 +114,8 @@ function cronDescription(cron) {
 }
 
 const description = computed(() => cronDescription(props.modelValue))
-const CRON_RE = /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/
+const CRON_RE =
+  /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/
 const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 </script>
 
@@ -122,7 +128,9 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
         class="tab-btn"
         :class="{ active: activeTab === tab.key }"
         @click="switchTab(tab.key)"
-      >{{ $t(tab.labelKey) }}</button>
+      >
+        {{ $t(tab.labelKey) }}
+      </button>
     </div>
 
     <div v-if="activeTab === 'preset'" class="preset-grid">
@@ -161,7 +169,9 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
             class="day-btn"
             :class="{ active: customDays.includes(d.value) }"
             @click="toggleDay(d.value)"
-          >{{ $t(d.labelKey) }}</button>
+          >
+            {{ $t(d.labelKey) }}
+          </button>
         </div>
       </div>
     </div>
@@ -211,10 +221,17 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   font-size: 13px;
   cursor: pointer;
   font-family: var(--font-sans);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.tab-btn:last-child { border-right: none; }
-.tab-btn.active { background: var(--color-primary); color: #fff; }
+.tab-btn:last-child {
+  border-right: none;
+}
+.tab-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+}
 .tab-btn:not(.active):hover {
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
@@ -232,9 +249,13 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   border-radius: 8px;
   padding: 10px 10px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
-.preset-card:hover { border-color: var(--color-primary); }
+.preset-card:hover {
+  border-color: var(--color-primary);
+}
 .preset-card.selected {
   background: var(--color-primary-subtle);
   border-color: var(--color-primary);
@@ -252,9 +273,20 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   display: none; /* Hide technical cron syntax from regular users */
 }
 
-.custom-panel { display: flex; flex-direction: column; gap: 14px; }
-.custom-row { display: flex; gap: 12px; }
-.custom-field { display: flex; flex-direction: column; gap: 4px; }
+.custom-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.custom-row {
+  display: flex;
+  gap: 12px;
+}
+.custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
 .field-label {
   font-size: 11px;
@@ -263,8 +295,15 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   letter-spacing: 0.05em;
 }
 
-.day-section { display: flex; flex-direction: column; gap: 6px; }
-.day-buttons { display: flex; gap: 6px; }
+.day-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.day-buttons {
+  display: flex;
+  gap: 6px;
+}
 
 .day-btn {
   width: 32px;
@@ -276,7 +315,10 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   font-size: 12px;
   cursor: pointer;
   font-family: var(--font-sans);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,8 +330,15 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   color: #fff;
 }
 
-.advanced-panel { display: flex; flex-direction: column; gap: 4px; }
-.adv-hint { font-size: 11px; color: var(--color-text-muted); }
+.advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.adv-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
 
 .preview-bar {
   display: flex;
@@ -309,12 +358,22 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   border-color: rgba(239, 68, 68, 0.2);
 }
 
-.preview-icon { flex-shrink: 0; }
-.preview-bar.valid  .preview-icon { color: var(--color-online); }
-.preview-bar.invalid .preview-icon { color: var(--color-error); }
+.preview-icon {
+  flex-shrink: 0;
+}
+.preview-bar.valid .preview-icon {
+  color: var(--color-online);
+}
+.preview-bar.invalid .preview-icon {
+  color: var(--color-error);
+}
 
-.preview-bar.valid  .preview-text { color: var(--color-online); }
-.preview-bar.invalid .preview-text { color: var(--color-error); }
+.preview-bar.valid .preview-text {
+  color: var(--color-online);
+}
+.preview-bar.invalid .preview-text {
+  color: var(--color-error);
+}
 
 .preview-cron {
   display: none; /* Hide technical cron syntax from regular users */

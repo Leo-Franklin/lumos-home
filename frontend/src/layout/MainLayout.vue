@@ -79,7 +79,7 @@ watch(
   () => router.currentRoute.value.fullPath,
   () => {
     if (isTabletOrBelow.value) closeDrawer()
-  }
+  },
 )
 
 // If viewport resizes to desktop, ensure drawer is closed (clean state)
@@ -115,13 +115,26 @@ watch(isTabletOrBelow, (v) => {
             class="ws-dot"
             :class="connected ? 'connected' : reconnecting ? 'reconnecting' : 'disconnected'"
           />
-          <span v-if="!isMobile" class="ws-label">{{ connected ? $t('layout.connected') : reconnecting ? $t('layout.reconnecting') : $t('layout.disconnected') }}</span>
+          <span v-if="!isMobile" class="ws-label">{{
+            connected
+              ? $t('layout.connected')
+              : reconnecting
+                ? $t('layout.reconnecting')
+                : $t('layout.disconnected')
+          }}</span>
         </div>
-        <button class="lang-switch" @click="switchLang(localeStore.locale === 'zh-CN' ? 'en' : 'zh-CN')">
+        <button
+          class="lang-switch"
+          @click="switchLang(localeStore.locale === 'zh-CN' ? 'en' : 'zh-CN')"
+        >
           {{ $t('layout.switchLang') }}
         </button>
         <el-dropdown @command="(cmd) => cmd === 'logout' && logout()">
-          <div class="user-trigger" :class="{ 'user-trigger--icon-only': isMobile }" :title="auth.username">
+          <div
+            class="user-trigger"
+            :class="{ 'user-trigger--icon-only': isMobile }"
+            :title="auth.username"
+          >
             <el-icon :size="14"><User /></el-icon>
             <span v-if="!isMobile">{{ auth.username }}</span>
           </div>
@@ -139,11 +152,19 @@ watch(isTabletOrBelow, (v) => {
       <nav v-if="!isTabletOrBelow" class="app-sidebar">
         <div class="nav-section">
           <div class="nav-section-label">{{ $t('layout.overview') }}</div>
-          <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
+          <RouterLink
+            to="/dashboard"
+            class="nav-item"
+            :class="{ active: $route.path === '/dashboard' }"
+          >
             <el-icon :size="16"><DataAnalysis /></el-icon>
             <span>{{ $t('layout.dashboard') }}</span>
           </RouterLink>
-          <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
+          <RouterLink
+            to="/analytics"
+            class="nav-item"
+            :class="{ active: $route.path === '/analytics' }"
+          >
             <el-icon :size="16"><TrendCharts /></el-icon>
             <span>{{ $t('layout.analytics') }}</span>
           </RouterLink>
@@ -151,15 +172,27 @@ watch(isTabletOrBelow, (v) => {
 
         <div class="nav-section">
           <div class="nav-section-label">{{ $t('layout.devices') }}</div>
-          <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
+          <RouterLink
+            to="/devices"
+            class="nav-item"
+            :class="{ active: $route.path === '/devices' }"
+          >
             <el-icon :size="16"><Monitor /></el-icon>
             <span>{{ $t('layout.devices') }}</span>
           </RouterLink>
-          <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
+          <RouterLink
+            to="/cameras"
+            class="nav-item"
+            :class="{ active: $route.path === '/cameras' }"
+          >
             <el-icon :size="16"><VideoCameraFilled /></el-icon>
             <span>{{ $t('layout.cameras') }}</span>
           </RouterLink>
-          <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
+          <RouterLink
+            to="/topology"
+            class="nav-item"
+            :class="{ active: $route.path === '/topology' }"
+          >
             <el-icon :size="16"><Share /></el-icon>
             <span>{{ $t('layout.topology') }}</span>
           </RouterLink>
@@ -167,7 +200,11 @@ watch(isTabletOrBelow, (v) => {
 
         <div class="nav-section">
           <div class="nav-section-label">{{ $t('layout.media') }}</div>
-          <RouterLink to="/recordings" class="nav-item" :class="{ active: $route.path === '/recordings' }">
+          <RouterLink
+            to="/recordings"
+            class="nav-item"
+            :class="{ active: $route.path === '/recordings' }"
+          >
             <el-icon :size="16"><Film /></el-icon>
             <span>{{ $t('layout.recordings') }}</span>
           </RouterLink>
@@ -179,15 +216,27 @@ watch(isTabletOrBelow, (v) => {
 
         <div class="nav-section">
           <div class="nav-section-label">{{ $t('layout.system') }}</div>
-          <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
+          <RouterLink
+            to="/members"
+            class="nav-item"
+            :class="{ active: $route.path === '/members' }"
+          >
             <el-icon :size="16"><UserFilled /></el-icon>
             <span>{{ $t('layout.members') }}</span>
           </RouterLink>
-          <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
+          <RouterLink
+            to="/schedule"
+            class="nav-item"
+            :class="{ active: $route.path === '/schedule' }"
+          >
             <el-icon :size="16"><Clock /></el-icon>
             <span>{{ $t('layout.schedule') }}</span>
           </RouterLink>
-          <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
+          <RouterLink
+            to="/settings"
+            class="nav-item"
+            :class="{ active: $route.path === '/settings' }"
+          >
             <el-icon :size="16"><Setting /></el-icon>
             <span>{{ $t('layout.settings') }}</span>
           </RouterLink>
@@ -197,22 +246,25 @@ watch(isTabletOrBelow, (v) => {
       <!-- Mobile/Tablet: drawer + overlay -->
       <Teleport v-if="isTabletOrBelow" to="body">
         <Transition name="overlay">
-          <div
-            v-if="drawerOpen"
-            class="drawer-overlay"
-            @click="closeDrawer"
-            aria-hidden="true"
-          />
+          <div v-if="drawerOpen" class="drawer-overlay" @click="closeDrawer" aria-hidden="true" />
         </Transition>
         <Transition name="drawer">
           <nav v-if="drawerOpen" class="app-sidebar app-sidebar--drawer">
             <div class="nav-section">
               <div class="nav-section-label">{{ $t('layout.overview') }}</div>
-              <RouterLink to="/dashboard" class="nav-item" :class="{ active: $route.path === '/dashboard' }">
+              <RouterLink
+                to="/dashboard"
+                class="nav-item"
+                :class="{ active: $route.path === '/dashboard' }"
+              >
                 <el-icon :size="16"><DataAnalysis /></el-icon>
                 <span>{{ $t('layout.dashboard') }}</span>
               </RouterLink>
-              <RouterLink to="/analytics" class="nav-item" :class="{ active: $route.path === '/analytics' }">
+              <RouterLink
+                to="/analytics"
+                class="nav-item"
+                :class="{ active: $route.path === '/analytics' }"
+              >
                 <el-icon :size="16"><TrendCharts /></el-icon>
                 <span>{{ $t('layout.analytics') }}</span>
               </RouterLink>
@@ -220,15 +272,27 @@ watch(isTabletOrBelow, (v) => {
 
             <div class="nav-section">
               <div class="nav-section-label">{{ $t('layout.devices') }}</div>
-              <RouterLink to="/devices" class="nav-item" :class="{ active: $route.path === '/devices' }">
+              <RouterLink
+                to="/devices"
+                class="nav-item"
+                :class="{ active: $route.path === '/devices' }"
+              >
                 <el-icon :size="16"><Monitor /></el-icon>
                 <span>{{ $t('layout.devices') }}</span>
               </RouterLink>
-              <RouterLink to="/cameras" class="nav-item" :class="{ active: $route.path === '/cameras' }">
+              <RouterLink
+                to="/cameras"
+                class="nav-item"
+                :class="{ active: $route.path === '/cameras' }"
+              >
                 <el-icon :size="16"><VideoCameraFilled /></el-icon>
                 <span>{{ $t('layout.cameras') }}</span>
               </RouterLink>
-              <RouterLink to="/topology" class="nav-item" :class="{ active: $route.path === '/topology' }">
+              <RouterLink
+                to="/topology"
+                class="nav-item"
+                :class="{ active: $route.path === '/topology' }"
+              >
                 <el-icon :size="16"><Share /></el-icon>
                 <span>{{ $t('layout.topology') }}</span>
               </RouterLink>
@@ -236,7 +300,11 @@ watch(isTabletOrBelow, (v) => {
 
             <div class="nav-section">
               <div class="nav-section-label">{{ $t('layout.media') }}</div>
-              <RouterLink to="/recordings" class="nav-item" :class="{ active: $route.path === '/recordings' }">
+              <RouterLink
+                to="/recordings"
+                class="nav-item"
+                :class="{ active: $route.path === '/recordings' }"
+              >
                 <el-icon :size="16"><Film /></el-icon>
                 <span>{{ $t('layout.recordings') }}</span>
               </RouterLink>
@@ -248,15 +316,27 @@ watch(isTabletOrBelow, (v) => {
 
             <div class="nav-section">
               <div class="nav-section-label">{{ $t('layout.system') }}</div>
-              <RouterLink to="/members" class="nav-item" :class="{ active: $route.path === '/members' }">
+              <RouterLink
+                to="/members"
+                class="nav-item"
+                :class="{ active: $route.path === '/members' }"
+              >
                 <el-icon :size="16"><UserFilled /></el-icon>
                 <span>{{ $t('layout.members') }}</span>
               </RouterLink>
-              <RouterLink to="/schedule" class="nav-item" :class="{ active: $route.path === '/schedule' }">
+              <RouterLink
+                to="/schedule"
+                class="nav-item"
+                :class="{ active: $route.path === '/schedule' }"
+              >
                 <el-icon :size="16"><Clock /></el-icon>
                 <span>{{ $t('layout.schedule') }}</span>
               </RouterLink>
-              <RouterLink to="/settings" class="nav-item" :class="{ active: $route.path === '/settings' }">
+              <RouterLink
+                to="/settings"
+                class="nav-item"
+                :class="{ active: $route.path === '/settings' }"
+              >
                 <el-icon :size="16"><Setting /></el-icon>
                 <span>{{ $t('layout.settings') }}</span>
               </RouterLink>
@@ -265,7 +345,13 @@ watch(isTabletOrBelow, (v) => {
         </Transition>
       </Teleport>
 
-      <main class="app-content" :class="{ 'app-content--mobile': isMobile, 'app-content--tablet': isTabletOrBelow && !isMobile }">
+      <main
+        class="app-content"
+        :class="{
+          'app-content--mobile': isMobile,
+          'app-content--tablet': isTabletOrBelow && !isMobile,
+        }"
+      >
         <Transition name="stale-banner">
           <div v-if="isStale" class="stale-banner" role="status" aria-live="polite">
             <el-icon :size="16" class="stale-banner-icon"><WarningFilled /></el-icon>
@@ -275,7 +361,9 @@ watch(isTabletOrBelow, (v) => {
         <div class="content-header">
           <el-breadcrumb separator="/">
             <el-breadcrumb-item to="/dashboard">{{ $t('layout.dashboard') }}</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="$route.meta.title">{{ $route.meta.title }}</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="$route.meta.title">{{
+              $route.meta.title
+            }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <router-view />
@@ -348,9 +436,10 @@ watch(isTabletOrBelow, (v) => {
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out,
-              border-color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out,
+    border-color var(--duration-fast) ease-out;
 }
 .hamburger-btn:hover {
   background: var(--color-surface-raised);
@@ -375,8 +464,12 @@ watch(isTabletOrBelow, (v) => {
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.ws-dot.connected    { background: var(--color-online); }
-.ws-dot.disconnected { background: var(--color-offline); }
+.ws-dot.connected {
+  background: var(--color-online);
+}
+.ws-dot.disconnected {
+  background: var(--color-offline);
+}
 .ws-dot.reconnecting {
   background: var(--color-scanning);
   animation: ws-reconnect-pulse 1s ease-in-out infinite;
@@ -394,9 +487,10 @@ watch(isTabletOrBelow, (v) => {
   font-size: 12px;
   padding: 3px 10px;
   cursor: pointer;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out,
-              border-color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out,
+    border-color var(--duration-fast) ease-out;
 }
 .lang-switch:hover {
   background: var(--color-surface-raised);
@@ -413,8 +507,9 @@ watch(isTabletOrBelow, (v) => {
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
 .user-trigger:hover {
   background: var(--color-surface-raised);
@@ -476,8 +571,9 @@ watch(isTabletOrBelow, (v) => {
   color: var(--color-text-secondary);
   text-decoration: none;
   position: relative;
-  transition: background var(--duration-fast) var(--easing-standard),
-              color var(--duration-fast) var(--easing-standard);
+  transition:
+    background var(--duration-fast) var(--easing-standard),
+    color var(--duration-fast) var(--easing-standard);
 }
 .nav-item:hover {
   background: var(--color-surface-raised);
@@ -609,8 +705,9 @@ watch(isTabletOrBelow, (v) => {
 
 .stale-banner-enter-active,
 .stale-banner-leave-active {
-  transition: transform 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-              opacity 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  transition:
+    transform 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+    opacity 0.25s var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 }
 .stale-banner-enter-from,
 .stale-banner-leave-to {

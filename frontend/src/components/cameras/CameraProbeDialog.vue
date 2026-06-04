@@ -24,11 +24,9 @@ const visible = computed({
     </div>
     <template v-else-if="result">
       <el-descriptions :column="2" border>
-        <el-descriptions-item
-          v-for="(v, k) in result.device_info"
-          :key="k"
-          :label="k"
-        >{{ v }}</el-descriptions-item>
+        <el-descriptions-item v-for="(v, k) in result.device_info" :key="k" :label="k">{{
+          v
+        }}</el-descriptions-item>
       </el-descriptions>
       <h4 style="margin: 16px 0 8px">{{ t('cameras.availableStreams') }}</h4>
       <el-table :data="result.profiles" size="small" border>

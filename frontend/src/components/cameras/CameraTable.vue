@@ -1,5 +1,17 @@
 <script setup>
-import { Edit, Delete, Search, VideoPlay, Camera, VideoCamera, VideoPause, VideoCameraFilled, ArrowDown, Setting, MoreFilled } from '@element-plus/icons-vue'
+import {
+  Edit,
+  Delete,
+  Search,
+  VideoPlay,
+  Camera,
+  VideoCamera,
+  VideoPause,
+  VideoCameraFilled,
+  ArrowDown,
+  Setting,
+  MoreFilled,
+} from '@element-plus/icons-vue'
 
 defineProps({
   cameras: { type: Array, required: true },
@@ -87,11 +99,7 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
             </template>
           </el-dropdown>
           <el-dropdown trigger="click" @command="(cmd) => emit('more', cmd, row)">
-            <el-button
-              class="action-btn"
-              size="small"
-              :aria-label="$t('cameras.managePresets')"
-            >
+            <el-button class="action-btn" size="small" :aria-label="$t('cameras.managePresets')">
               <el-icon aria-hidden="true"><MoreFilled /></el-icon>
               <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
             </el-button>
@@ -179,8 +187,9 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
   border: 1px solid transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--easing-standard),
-              color var(--duration-fast) var(--easing-standard);
+  transition:
+    background var(--duration-fast) var(--easing-standard),
+    color var(--duration-fast) var(--easing-standard);
   flex-shrink: 0;
 }
 
@@ -230,8 +239,13 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
 }
 
 @keyframes recording-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
 }
 
 :deep(.el-dropdown-menu__item) {

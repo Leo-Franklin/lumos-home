@@ -20,11 +20,17 @@ const { t } = useI18n()
 const devicesStore = useDevicesStore()
 const dlnaStore = useDLNAStore()
 
-const title = computed(() => (props.mode === 'add' ? t('cameras.addCamera') : t('cameras.editCamera')))
+const title = computed(() =>
+  props.mode === 'add' ? t('cameras.addCamera') : t('cameras.editCamera'),
+)
 const isAdd = computed(() => props.mode === 'add')
 
-function onSubmit() { emit('submit') }
-function onCancel() { emit('cancel') }
+function onSubmit() {
+  emit('submit')
+}
+function onCancel() {
+  emit('cancel')
+}
 </script>
 
 <template>

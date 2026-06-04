@@ -49,39 +49,51 @@ function initVjs(src) {
     sources: [{ src, type: 'application/x-mpegURL' }],
     html5: { vhs: { overrideNative: true } },
   })
-  vjsPlayer.on('ready', () => { loading.value = false })
+  vjsPlayer.on('ready', () => {
+    loading.value = false
+  })
   vjsPlayer.on('error', () => {
     error.value = t('cameras.hlsLoadFailed')
     loading.value = false
   })
 }
 
-watch(() => props.src, (src) => {
-  error.value = ''
-  loading.value = true
-  if (props.mode === 'hls') nextTick(() => initVjs(src))
-})
+watch(
+  () => props.src,
+  (src) => {
+    error.value = ''
+    loading.value = true
+    if (props.mode === 'hls') nextTick(() => initVjs(src))
+  },
+)
 
 onMounted(() => {
   if (props.mode === 'hls') nextTick(() => initVjs(props.src))
 })
 
 onUnmounted(() => {
-  if (vjsPlayer) { vjsPlayer.dispose(); vjsPlayer = null }
+  if (vjsPlayer) {
+    vjsPlayer.dispose()
+    vjsPlayer = null
+  }
 })
 </script>
 
 <template>
-  <div style="position: relative; background: #000; border-radius: 4px; overflow: hidden;">
+  <div style="position: relative; background: #000; border-radius: 4px; overflow: hidden">
     <!-- HLS 播放：video.js -->
     <div v-if="mode === 'hls'">
-      <video ref="hlsRef" class="video-js vjs-default-skin" style="width: 100%; max-height: 480px;" />
+      <video
+        ref="hlsRef"
+        class="video-js vjs-default-skin"
+        style="width: 100%; max-height: 480px"
+      />
     </div>
     <!-- 实时预览：MJPEG img -->
     <img
       v-else-if="mode === 'live'"
       :src="src"
-      style="width: 100%; max-height: 480px; display: block; object-fit: contain;"
+      style="width: 100%; max-height: 480px; display: block; object-fit: contain"
       @load="loading = false"
       @error="onError"
     />
@@ -92,24 +104,48 @@ onUnmounted(() => {
       controls
       autoplay
       muted
-      style="width: 100%; max-height: 480px; display: block;"
+      style="width: 100%; max-height: 480px; display: block"
       @error="onError"
       @loadeddata="loading = false"
     />
 
     <div
       v-if="loading && !error && mode !== 'hls'"
-      style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;"
+      style="
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 14px;
+      "
     >
       {{ mode === 'live' ? $t('common.connecting') : $t('common.loading') }}
     </div>
     <div
       v-if="error"
-      style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-error); padding: 20px; text-align: center;"
+      style="
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-error);
+        padding: 20px;
+        text-align: center;
+      "
     >
-      <el-icon :size="40" style="margin-bottom: 12px;"><Warning /></el-icon>
+      <el-icon :size="40" style="margin-bottom: 12px"><Warning /></el-icon>
       <span>{{ error }}</span>
-      <el-link v-if="mode === 'recorded'" :href="src" target="_blank" style="margin-top: 12px; color: var(--el-color-primary); font-size: 12px;">{{ $t('cameras.openInNewTab') }}</el-link>
+      <el-link
+        v-if="mode === 'recorded'"
+        :href="src"
+        target="_blank"
+        style="margin-top: 12px; color: var(--el-color-primary); font-size: 12px"
+        >{{ $t('cameras.openInNewTab') }}</el-link
+      >
     </div>
   </div>
 </template>

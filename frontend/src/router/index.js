@@ -6,7 +6,11 @@ import MainLayout from '@/layout/MainLayout.vue'
 const routes = [
   { path: '/login', component: LoginView, meta: { public: true } },
   { path: '/register', component: RegisterView, meta: { public: true } },
-  { path: '/reset-password', component: () => import('@/views/ResetPasswordView.vue'), meta: { public: true } },
+  {
+    path: '/reset-password',
+    component: () => import('@/views/ResetPasswordView.vue'),
+    meta: { public: true },
+  },
   {
     path: '/',
     component: MainLayout,
@@ -25,7 +29,11 @@ const routes = [
     ],
   },
   // Catch-all 404 route - must be registered LAST
-  { path: '/:pathMatch(.*)*', component: () => import('@/views/NotFoundView.vue'), meta: { public: true } },
+  {
+    path: '/:pathMatch(.*)*',
+    component: () => import('@/views/NotFoundView.vue'),
+    meta: { public: true },
+  },
 ]
 
 const router = createRouter({

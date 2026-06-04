@@ -228,7 +228,11 @@ export function useCameraActions() {
   async function closeHlsLive() {
     hlsSrc.value = ''
     if (hlsMac) {
-      try { await stopLive(hlsMac) } catch { /* ignore */ }
+      try {
+        await stopLive(hlsMac)
+      } catch {
+        /* ignore */
+      }
       hlsMac = ''
     }
   }
@@ -360,7 +364,12 @@ export function useCameraActions() {
   const recordCam = ref(null)
   const recordPresets = ref([])
   const recordSelectedPresetId = ref(null)
-  const recordOverrides = ref({ segment_duration: null, bitrate: null, fps: null, resolution: null })
+  const recordOverrides = ref({
+    segment_duration: null,
+    bitrate: null,
+    fps: null,
+    resolution: null,
+  })
   const recordSaving = ref(false)
 
   async function openRecordDialog(cam) {
@@ -386,7 +395,8 @@ export function useCameraActions() {
     recordSaving.value = true
     try {
       const overrides = {}
-      if (recordOverrides.value.segment_duration) overrides.segment_duration = recordOverrides.value.segment_duration
+      if (recordOverrides.value.segment_duration)
+        overrides.segment_duration = recordOverrides.value.segment_duration
       if (recordOverrides.value.bitrate) overrides.bitrate = recordOverrides.value.bitrate
       if (recordOverrides.value.fps) overrides.fps = recordOverrides.value.fps
       if (recordOverrides.value.resolution) overrides.resolution = recordOverrides.value.resolution

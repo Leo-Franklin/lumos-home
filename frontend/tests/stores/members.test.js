@@ -78,9 +78,7 @@ describe('useMembersStore', () => {
 
   it('onPresenceEvent does nothing if member not found', () => {
     const store = useMembersStore()
-    store.items = [
-      { id: 1, name: 'Alice', is_home: false },
-    ]
+    store.items = [{ id: 1, name: 'Alice', is_home: false }]
 
     store.onPresenceEvent(999, 'member_arrived')
 

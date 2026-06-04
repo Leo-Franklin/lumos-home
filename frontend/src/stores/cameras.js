@@ -1,11 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { listCameras, listPresets, createPreset, deletePreset, setDefaultPreset, getCamera } from '@/api/cameras'
+import {
+  listCameras,
+  listPresets,
+  createPreset,
+  deletePreset,
+  setDefaultPreset,
+  getCamera,
+} from '@/api/cameras'
 
 export const useCamerasStore = defineStore('cameras', () => {
   const items = ref([])
   const loading = ref(false)
-  const presets = ref({})       // { mac: [preset1, preset2] }
+  const presets = ref({}) // { mac: [preset1, preset2] }
   const defaultPresetId = ref({}) // { mac: presetId }
 
   async function fetchCameras() {
@@ -79,5 +86,19 @@ export const useCamerasStore = defineStore('cameras', () => {
     if (cam) cam.is_online = true
   }
 
-  return { items, loading, presets, defaultPresetId, fetchCameras, loadPresets, addPreset, removePreset, setDefault, onRecordingStarted, onRecordingStopped, onCameraOffline, onCameraOnline }
+  return {
+    items,
+    loading,
+    presets,
+    defaultPresetId,
+    fetchCameras,
+    loadPresets,
+    addPreset,
+    removePreset,
+    setDefault,
+    onRecordingStarted,
+    onRecordingStopped,
+    onCameraOffline,
+    onCameraOnline,
+  }
 })

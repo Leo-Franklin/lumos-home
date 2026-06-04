@@ -7,9 +7,14 @@ import { useMembersStore } from '@/stores/members'
 import { listDevices } from '@/api/devices'
 import { listCameras } from '@/api/cameras'
 import {
-  createMember, updateMember, deleteMember,
-  listMemberDevices, bindDevice, unbindDevice,
-  listPresenceLogs, getMemberStats,
+  createMember,
+  updateMember,
+  deleteMember,
+  listMemberDevices,
+  bindDevice,
+  unbindDevice,
+  listPresenceLogs,
+  getMemberStats,
 } from '@/api/members'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, Link, Document, DataAnalysis, Plus } from '@element-plus/icons-vue'
@@ -84,7 +89,11 @@ async function submitMember() {
 }
 
 async function handleDeleteMember(row) {
-  await ElMessageBox.confirm(t('members.deleteConfirm', { name: row.name }), t('common.confirmDelete'), { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('members.deleteConfirm', { name: row.name }),
+    t('common.confirmDelete'),
+    { type: 'warning' },
+  )
   await deleteMember(row.id)
   ElMessage.success(t('members.deleted'))
   membersStore.fetchMembers()
@@ -117,7 +126,10 @@ async function loadBoundDevices(memberId) {
 async function handleBind() {
   if (!bindForm.value.mac) return
   try {
-    await bindDevice(currentMember.value.id, { mac: bindForm.value.mac, label: bindForm.value.label || null })
+    await bindDevice(currentMember.value.id, {
+      mac: bindForm.value.mac,
+      label: bindForm.value.label || null,
+    })
     ElMessage.success(t('members.bound'))
     bindForm.value = { mac: '', label: '' }
     loadBoundDevices(currentMember.value.id)
@@ -234,7 +246,9 @@ function formatLogTime(iso) {
   <div>
     <div class="page-header">
       <h2 class="page-title">{{ $t('members.title') }}</h2>
-      <el-button type="primary" :icon="Plus" @click="openAddMember">{{ $t('members.addMember') }}</el-button>
+      <el-button type="primary" :icon="Plus" @click="openAddMember">{{
+        $t('members.addMember')
+      }}</el-button>
     </div>
 
     <el-table v-loading="membersStore.loading" :data="membersStore.items" style="width: 100%">
@@ -283,11 +297,37 @@ function formatLogTime(iso) {
         <template #default="{ row }">
           <ActionButtonGroup
             :actions="[
-              { icon: Link, tooltip: $t('members.bindDevice'), ariaLabel: $t('members.bindDevice'), onClick: () => openDevices(row) },
-              { icon: Document, tooltip: $t('members.logs'), ariaLabel: $t('members.logs'), onClick: () => openLogs(row) },
-              { icon: DataAnalysis, tooltip: $t('members.stats'), ariaLabel: $t('members.stats'), onClick: () => openStats(row) },
-              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEditMember(row) },
-              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDeleteMember(row) },
+              {
+                icon: Link,
+                tooltip: $t('members.bindDevice'),
+                ariaLabel: $t('members.bindDevice'),
+                onClick: () => openDevices(row),
+              },
+              {
+                icon: Document,
+                tooltip: $t('members.logs'),
+                ariaLabel: $t('members.logs'),
+                onClick: () => openLogs(row),
+              },
+              {
+                icon: DataAnalysis,
+                tooltip: $t('members.stats'),
+                ariaLabel: $t('members.stats'),
+                onClick: () => openStats(row),
+              },
+              {
+                icon: Edit,
+                tooltip: $t('common.edit'),
+                ariaLabel: $t('common.edit'),
+                onClick: () => openEditMember(row),
+              },
+              {
+                icon: Delete,
+                tooltip: $t('common.delete'),
+                ariaLabel: $t('common.delete'),
+                danger: true,
+                onClick: () => handleDeleteMember(row),
+              },
             ]"
           />
         </template>
@@ -295,7 +335,11 @@ function formatLogTime(iso) {
     </el-table>
 
     <!-- Member create/edit dialog -->
-    <el-dialog v-model="memberDialog" :title="isEditMember ? $t('members.editMember') : $t('members.addMember')" width="460px">
+    <el-dialog
+      v-model="memberDialog"
+      :title="isEditMember ? $t('members.editMember') : $t('members.addMember')"
+      width="460px"
+    >
       <el-form :model="memberForm" label-width="110px">
         <el-form-item :label="$t('members.name')" required>
           <el-input v-model="memberForm.name" :placeholder="$t('members.namePlaceholder')" />
@@ -304,7 +348,10 @@ function formatLogTime(iso) {
           <el-input v-model="memberForm.avatar_url" :placeholder="$t('members.avatarOptional')" />
         </el-form-item>
         <el-form-item :label="$t('members.webhook')">
-          <el-input v-model="memberForm.webhook_url" :placeholder="$t('members.webhookPlaceholder')" />
+          <el-input
+            v-model="memberForm.webhook_url"
+            :placeholder="$t('members.webhookPlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="$t('members.autoRecord')">
           <el-select
@@ -325,7 +372,9 @@ function formatLogTime(iso) {
       </el-form>
       <template #footer>
         <el-button @click="memberDialog = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitMember">{{ isEditMember ? $t('common.save') : $t('common.create') }}</el-button>
+        <el-button type="primary" @click="submitMember">{{
+          isEditMember ? $t('common.save') : $t('common.create')
+        }}</el-button>
       </template>
     </el-dialog>
 
@@ -349,11 +398,20 @@ function formatLogTime(iso) {
             :value="d.mac"
           />
         </el-select>
-        <el-input v-model="bindForm.label" :placeholder="$t('members.noteOptional')" style="width: 130px" />
+        <el-input
+          v-model="bindForm.label"
+          :placeholder="$t('members.noteOptional')"
+          style="width: 130px"
+        />
         <el-button type="primary" @click="handleBind">{{ $t('members.bindDevice') }}</el-button>
       </div>
 
-      <el-table v-loading="devicesLoading" :data="boundDevices" style="margin-top: 12px" size="small">
+      <el-table
+        v-loading="devicesLoading"
+        :data="boundDevices"
+        style="margin-top: 12px"
+        size="small"
+      >
         <el-table-column :label="$t('members.device')" min-width="160">
           <template #default="{ row }">{{ deviceLabel(row) }}</template>
         </el-table-column>
@@ -365,7 +423,13 @@ function formatLogTime(iso) {
           <template #default="{ row }">
             <ActionButtonGroup
               :actions="[
-                { icon: Delete, tooltip: $t('members.unbind'), ariaLabel: $t('members.unbind'), danger: true, onClick: () => handleUnbind(row.mac) },
+                {
+                  icon: Delete,
+                  tooltip: $t('members.unbind'),
+                  ariaLabel: $t('members.unbind'),
+                  danger: true,
+                  onClick: () => handleUnbind(row.mac),
+                },
               ]"
             />
           </template>
@@ -383,11 +447,7 @@ function formatLogTime(iso) {
       <div class="logs-container">
         <div v-loading="logsLoading" class="logs-scroll">
           <template v-if="logs.length">
-            <div
-              v-for="(group, dateLabel) in groupedLogs"
-              :key="dateLabel"
-              class="log-group"
-            >
+            <div v-for="(group, dateLabel) in groupedLogs" :key="dateLabel" class="log-group">
               <div class="log-date-header">{{ dateLabel }}</div>
               <div class="log-timeline">
                 <div
@@ -396,10 +456,16 @@ function formatLogTime(iso) {
                   class="log-item"
                   :class="{ 'log-item--last': idx === group.length - 1 }"
                 >
-                  <div class="log-dot" :class="log.event === 'arrived' ? 'log-dot--arrive' : 'log-dot--leave'" />
+                  <div
+                    class="log-dot"
+                    :class="log.event === 'arrived' ? 'log-dot--arrive' : 'log-dot--leave'"
+                  />
                   <div class="log-content">
                     <span class="log-time">{{ formatLogTime(log.occurred_at) }}</span>
-                    <span class="log-badge" :class="log.event === 'arrived' ? 'log-badge--arrive' : 'log-badge--leave'">
+                    <span
+                      class="log-badge"
+                      :class="log.event === 'arrived' ? 'log-badge--arrive' : 'log-badge--leave'"
+                    >
                       {{ log.event === 'arrived' ? $t('members.arrived') : $t('members.left') }}
                     </span>
                   </div>
@@ -409,12 +475,7 @@ function formatLogTime(iso) {
             </div>
           </template>
           <div v-else-if="!logsLoading" class="logs-empty">
-            <EmptyState
-              compact
-              size="small"
-              icon="member"
-              :title="$t('members.noData')"
-            />
+            <EmptyState compact size="small" icon="member" :title="$t('members.noData')" />
           </div>
         </div>
       </div>
@@ -451,14 +512,10 @@ function formatLogTime(iso) {
         </span>
       </div>
 
-      <el-skeleton v-if="statsLoading" :rows="4" animated style="margin-top:12px" />
+      <el-skeleton v-if="statsLoading" :rows="4" animated style="margin-top: 12px" />
 
       <div v-if="statsData && !statsLoading" class="daily-chart">
-        <div
-          v-for="d in statsData.daily"
-          :key="d.date"
-          class="daily-bar-col"
-        >
+        <div v-for="d in statsData.daily" :key="d.date" class="daily-bar-col">
           <div
             class="daily-bar"
             :style="{ height: Math.max(4, (d.minutes / statsDailyMax()) * 80) + 'px' }"
@@ -528,7 +585,9 @@ function formatLogTime(iso) {
   transition: opacity 0.15s;
 }
 
-.daily-bar:hover { opacity: 0.75; }
+.daily-bar:hover {
+  opacity: 0.75;
+}
 
 .daily-label {
   font-size: 10px;
@@ -745,8 +804,9 @@ function formatLogTime(iso) {
   padding: 3px;
   border-radius: 5px;
   font-size: 15px;
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
 
 .action-btn--danger {

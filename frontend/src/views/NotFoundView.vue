@@ -22,13 +22,7 @@ function goHome() {
       </div>
       <h1 class="notfound-title">{{ $t('common.notFound.title') }}</h1>
       <p class="notfound-desc">{{ $t('common.notFound.desc') }}</p>
-      <el-button
-        type="primary"
-        size="large"
-        :icon="House"
-        class="back-btn"
-        @click="goHome"
-      >
+      <el-button type="primary" size="large" :icon="House" class="back-btn" @click="goHome">
         {{ $t('common.notFound.backHome') }}
       </el-button>
     </div>
@@ -114,8 +108,12 @@ function goHome() {
 }
 
 @keyframes orbit-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .notfound-title {
