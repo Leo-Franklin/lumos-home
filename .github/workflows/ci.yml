@@ -2,19 +2,46 @@ name: CI
 
 on:
   push:
-    branches: [master, chore/**, feature/**, fix/**, refactor/**]
+    branches: [main, chore/**, feature/**, fix/**, refactor/**]
   pull_request:
-    branches: [master]
+    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  filter:
+    name: Path filter
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      contract: ${{ steps.filter.outputs.contract }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'scripts/check_api_contract.py'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            contract:
+              - 'backend/app/schemas/**'
+              - 'frontend/src/api/**'
+
   backend:
-    name: Backend · lint · test · typecheck
+    name: Backend · lint · typecheck · test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: filter
+    if: needs.filter.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -25,6 +52,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          cache-dependency-glob: backend/uv.lock
 
       - name: Install dependencies
         run: uv sync --dev
@@ -38,17 +66,31 @@ jobs:
       - name: Mypy
         run: uv run mypy app/
 
-      - name: Pytest
+      - name: Pytest + coverage
         env:
           JWT_SECRET_KEY: test_secret_key_that_is_at_least_32_characters_long
           ADMIN_PASSWORD: testpassword_for_ci_only
           CORS_ALLOW_ORIGINS: http://localhost:5173
-        run: uv run pytest tests/ -v
+        run: |
+          uv run pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   frontend:
     name: Frontend · lint · test · build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true'
     defaults:
       run:
         working-directory: frontend
@@ -69,8 +111,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Unit tests
         run: pnpm test
 
       - name: Build
         run: pnpm build
+
+  contract:
+    name: API contract · backend schema ↔ frontend api
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: filter
+    if: needs.filter.outputs.contract == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run contract check
+        run: python scripts/check_api_contract.py
