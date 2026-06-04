@@ -419,9 +419,7 @@ async def test_end_to_end_recording_with_preset(test_env, unique_mac):
             # so a missing `session_recording_id` would defeat the
             # `or` fallback and pass a MagicMock straight into SQL.
             _rid = resp.json()['recording_id']
-            mock_recorder.active = {
-                mac: MagicMock(recording_id=_rid, session_recording_id=_rid)
-            }
+            mock_recorder.active = {mac: MagicMock(recording_id=_rid, session_recording_id=_rid)}
 
             resp = await ac.post(f'/api/v1/cameras/{mac}/record/stop', headers=headers)
             assert resp.status_code == 202
