@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Refresh, User, Lock, Bell, Setting, Download, Delete,
+  Refresh, User, Lock, Setting, Download, Delete,
   Sunny, Moon, Cellphone, ChatLineRound, VideoCamera,
   Camera as CameraIcon, Film, Connection, Failed,
 } from '@element-plus/icons-vue'

@@ -29,7 +29,6 @@ const now = ref(Date.now())
 let _ws = null
 let _retryTimer = null
 let _nowTimer = null
-let _staleTimer = null
 let _configured = false
 let _wsUrl = null
 let _staleThresholdMs = STALE_DEFAULT_MS

@@ -4,26 +4,20 @@ import { useI18n } from 'vue-i18n'
 import EmptyState from '@/components/EmptyState.vue'
 
 const props = defineProps({
-  modelValue: { type: Boolean, required: true },
   camera: { type: Object, default: null },
   presets: { type: Array, required: true },
-  selectedPresetId: { type: [Number, null], default: null },
-  overrides: { type: Object, required: true },
   saving: { type: Boolean, default: false },
 })
-const emit = defineEmits([
-  'update:modelValue',
-  'update:selectedPresetId',
-  'update:overrides',
-  'start',
-])
+const emit = defineEmits(['start'])
+
+// v-model bindings: visibility + selectedPresetId + overrides. defineModel
+// keeps the parent as the source of truth while letting the child mutate
+// inner fields via v-model without tripping vue/no-mutating-props.
+const visible = defineModel({ type: Boolean, required: true })
+const selectedPresetId = defineModel('selectedPresetId', { type: [Number, null], default: null })
+const overrides = defineModel('overrides', { type: Object, required: true })
 
 const { t } = useI18n()
-
-const visible = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v),
-})
 
 const title = computed(() =>
   props.camera
@@ -32,7 +26,7 @@ const title = computed(() =>
 )
 
 function togglePreset(id) {
-  emit('update:selectedPresetId', props.selectedPresetId === id ? null : id)
+  selectedPresetId.value = selectedPresetId.value === id ? null : id
 }
 </script>
 

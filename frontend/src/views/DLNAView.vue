@@ -17,7 +17,6 @@ const mediaUrl = ref('')
 const fileList = ref([])
 const castLoading = ref(false)
 const playLoading = ref(false)
-const statusTimer = ref(null)
 
 onMounted(() => {
   dlna.fetchDevices()
@@ -277,6 +276,10 @@ function handleFileRemove() {
                 drag
               >
                 <el-icon class="el-icon--upload"><Upload /></el-icon>
+                <!-- v-html here is safe: the translation strings are bundled
+                     constants we control (see locales/*/dlna.js), not user
+                     input. The <em> markup styles the "click to upload" hint. -->
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <div class="el-upload__text" v-html="$t('dlna.dragUploadText')"></div>
                 <template #tip>
                   <div class="el-upload__tip">{{ $t('dlna.uploadTip') }}</div>

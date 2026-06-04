@@ -1,12 +1,11 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import {
   listRecordings, deleteRecording, streamUrl, downloadUrl,
   getRecordingStats,
   openRecordingFolder,
 } from '@/api/recordings'
 import { listCameras } from '@/api/cameras'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { VideoCameraFilled, Clock, FolderOpened, VideoPlay, Download, Delete } from '@element-plus/icons-vue'
 import CameraPlayer from '@/components/CameraPlayer.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -156,11 +155,6 @@ function statusType(s) {
 const statusLabels = { completed: 'recordings.statusCompleted', recording: 'recordings.statusRecording', failed: 'recordings.statusFailed', synced: 'recordings.statusSynced' }
 function statusLabel(s) {
   return t(statusLabels[s] || s)
-}
-
-function cameraLabel(mac) {
-  const cam = cameras.value.find((c) => c.device_mac === mac)
-  return cam ? cam.onvif_host : mac
 }
 </script>
 

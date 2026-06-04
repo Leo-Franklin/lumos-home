@@ -65,7 +65,6 @@ export default {
   deleted: '已删除',
   delete: '删除',
   deleteConfirm: '确定删除摄像头 {host}？',
-  recordStarted: '已发送开始录制指令',
   recordStopped: '已发送停止录制指令',
   mainStream: '主码流 (mainStream)',
   subStream: '子码流 (subStream)',

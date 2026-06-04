@@ -1,7 +1,5 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useCamerasStore } from '@/stores/cameras'
 import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
@@ -14,7 +12,6 @@ import CameraProbeDialog from '@/components/cameras/CameraProbeDialog.vue'
 import CameraPresetDialog from '@/components/cameras/CameraPresetDialog.vue'
 import CameraRecordDialog from '@/components/cameras/CameraRecordDialog.vue'
 
-const { t } = useI18n()
 const camerasStore = useCamerasStore()
 const devicesStore = useDevicesStore()
 const dlnaStore = useDLNAStore()
@@ -121,7 +118,7 @@ onUnmounted(() => {
       v-if="formDialog.open"
       v-model="formDialog.open"
       :mode="formDialog.mode"
-      :form="formData"
+      v-model:form="formData"
       :submitting="formSubmitting"
       @submit="handleFormSubmit"
       @cancel="closeFormDialog"
@@ -178,7 +175,7 @@ onUnmounted(() => {
       :list="presetList"
       :loading="presetLoading"
       :saving="presetSaving"
-      :form="presetForm"
+      v-model:form="presetForm"
       :editing="presetEditing"
       @add="startPresetAdd"
       @edit="startPresetEdit"
