@@ -19,15 +19,37 @@ class MockWebSocket {
     this._onclose = null
     this._onerror = null
   }
-  get onopen() { return this._onopen }
-  set onopen(fn) { this._onopen = fn; mockWs.onopen = fn }
-  get onmessage() { return this._onmessage }
-  set onmessage(fn) { this._onmessage = fn; mockWs.onmessage = fn }
-  get onclose() { return this._onclose }
-  set onclose(fn) { this._onclose = fn; mockWs.onclose = fn }
-  get onerror() { return this._onerror }
-  set onerror(fn) { this._onerror = fn; mockWs.onerror = fn }
-  close() { mockWs.close() }
+  get onopen() {
+    return this._onopen
+  }
+  set onopen(fn) {
+    this._onopen = fn
+    mockWs.onopen = fn
+  }
+  get onmessage() {
+    return this._onmessage
+  }
+  set onmessage(fn) {
+    this._onmessage = fn
+    mockWs.onmessage = fn
+  }
+  get onclose() {
+    return this._onclose
+  }
+  set onclose(fn) {
+    this._onclose = fn
+    mockWs.onclose = fn
+  }
+  get onerror() {
+    return this._onerror
+  }
+  set onerror(fn) {
+    this._onerror = fn
+    mockWs.onerror = fn
+  }
+  close() {
+    mockWs.close()
+  }
 }
 
 vi.stubGlobal('WebSocket', MockWebSocket)
@@ -112,7 +134,9 @@ describe('useWebSocket', () => {
 
   it('should not connect if no token', async () => {
     mockLocalStorage.getItem.mockReturnValue(null)
-    const { connected, reconnecting } = useWebSocket('wss://example.com/ws', { onMessage: mockOnMessage })
+    const { connected, reconnecting } = useWebSocket('wss://example.com/ws', {
+      onMessage: mockOnMessage,
+    })
 
     expect(mockWs.onopen).toBeNull()
     expect(connected.value).toBe(false)

@@ -8,27 +8,29 @@ import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS } from './chartColors'
 const { t, tm, rt } = useI18n()
 
 const props = defineProps({
-  data:        { type: Array,  default: () => [] },
-  range:       { type: String, default: '7d' },
-  deviceTypes: { type: Array,  default: () => [] },
-  height:      { type: Number, default: 200 },
+  data: { type: Array, default: () => [] },
+  range: { type: String, default: '7d' },
+  deviceTypes: { type: Array, default: () => [] },
+  height: { type: Number, default: 200 },
 })
 
 const emit = defineEmits(['range-change', 'type-filter-change', 'cell-click'])
 
-const svgRef       = ref(null)
-const tooltipRef   = ref(null)
+const svgRef = ref(null)
+const tooltipRef = ref(null)
 const containerRef = ref(null)
 let ro = null
 
 const RANGES = computed(() => [
-  { label: t('charts.ranges.today'),   value: '24h' },
-  { label: t('charts.ranges.last7d'),  value: '7d'  },
+  { label: t('charts.ranges.today'), value: '24h' },
+  { label: t('charts.ranges.last7d'), value: '7d' },
   { label: t('charts.ranges.last30d'), value: '30d' },
 ])
 
 const TYPE_OPTIONS = Object.entries(DEVICE_TYPE_LABELS).map(([value, label]) => ({
-  value, label, color: DEVICE_TYPE_COLORS[value],
+  value,
+  label,
+  color: DEVICE_TYPE_COLORS[value],
 }))
 
 // Localized weekday labels (Sunday=0 … Saturday=6) — re-derived reactively
@@ -40,10 +42,10 @@ const DAYS_7 = computed(() => {
 
 // Background shading bands by time of day (rgba tints on the dark canvas)
 const TIME_BANDS = computed(() => [
-  { start: 0,  end: 6,  label: t('charts.timeBands.lateNight'), bg: 'rgba(99,102,241,0.06)' },
-  { start: 6,  end: 12, label: t('charts.timeBands.morning'),    bg: 'rgba(99,102,241,0.04)' },
-  { start: 12, end: 18, label: t('charts.timeBands.afternoon'),  bg: 'rgba(99,102,241,0.03)' },
-  { start: 18, end: 24, label: t('charts.timeBands.evening'),    bg: 'rgba(99,102,241,0.05)' },
+  { start: 0, end: 6, label: t('charts.timeBands.lateNight'), bg: 'rgba(99,102,241,0.06)' },
+  { start: 6, end: 12, label: t('charts.timeBands.morning'), bg: 'rgba(99,102,241,0.04)' },
+  { start: 12, end: 18, label: t('charts.timeBands.afternoon'), bg: 'rgba(99,102,241,0.03)' },
+  { start: 18, end: 24, label: t('charts.timeBands.evening'), bg: 'rgba(99,102,241,0.05)' },
 ])
 
 // Derived summary stats shown in the toolbar
@@ -52,7 +54,7 @@ const stats = computed(() => {
   if (!active.length) return null
 
   const hourTotals = {}
-  const dayTotals  = {}
+  const dayTotals = {}
   let total = 0
 
   props.data.forEach((d) => {
@@ -63,14 +65,14 @@ const stats = computed(() => {
   })
 
   const peakHour = Object.entries(hourTotals).sort((a, b) => b[1] - a[1])[0]?.[0]
-  const peakDay  = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]?.[0]
+  const peakDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]?.[0]
   const maxCount = d3.max(props.data, (d) => d.count) || 1
 
   return {
     total,
     maxCount,
     peakHour: peakHour != null ? `${peakHour}:00` : '--',
-    peakDay:  peakDay  != null ? (DAYS_7.value[+peakDay] || '--') : '--',
+    peakDay: peakDay != null ? DAYS_7.value[+peakDay] || '--' : '--',
   }
 })
 
@@ -78,32 +80,29 @@ function renderChart() {
   if (!svgRef.value || !containerRef.value) return
 
   const containerW = containerRef.value.clientWidth || 800
-  const isDay      = props.range === '24h'
-  const dayLabels  = DAYS_7.value
-  const rowLabels  = isDay ? ['00', '10', '20', '30', '40', '50'] : dayLabels
-  const rowCount   = rowLabels.length
+  const isDay = props.range === '24h'
+  const dayLabels = DAYS_7.value
+  const rowLabels = isDay ? ['00', '10', '20', '30', '40', '50'] : dayLabels
+  const rowCount = rowLabels.length
 
   // Layout constants
-  const ml      = 46   // left margin for row labels
-  const mt      = 38   // top margin for hour labels + zone labels
-  const pad     = 3    // gap between cells
-  const legendH = 28   // height of color-scale legend at bottom
+  const ml = 46 // left margin for row labels
+  const mt = 38 // top margin for hour labels + zone labels
+  const pad = 3 // gap between cells
+  const legendH = 28 // height of color-scale legend at bottom
 
   // Compute a responsive cell size that fills the full container width
   const availW = containerW - ml - 8
   const rawCell = Math.floor((availW - pad * 23) / 24)
-  const cell    = Math.max(18, Math.min(40, rawCell))
+  const cell = Math.max(18, Math.min(40, rawCell))
 
   const svgH = mt + rowCount * (cell + pad) + legendH + 10
 
   d3.select(svgRef.value).selectAll('*').remove()
-  const svg = d3.select(svgRef.value)
-    .append('svg')
-    .attr('width', containerW)
-    .attr('height', svgH)
+  const svg = d3.select(svgRef.value).append('svg').attr('width', containerW).attr('height', svgH)
 
   const cellMap = new Map(
-    props.data.map((d) => [`${isDay ? (d.minuteBlock ?? 0) : d.day}-${d.hour}`, d])
+    props.data.map((d) => [`${isDay ? (d.minuteBlock ?? 0) : d.day}-${d.hour}`, d]),
   )
 
   const maxVal = d3.max(props.data, (d) => d.count) || 1
@@ -122,7 +121,8 @@ function renderChart() {
   const grad = defs.append('linearGradient').attr('id', gradId)
   d3.range(11).forEach((i) => {
     const t = Math.pow(i / 10, 0.4)
-    grad.append('stop')
+    grad
+      .append('stop')
       .attr('offset', `${i * 10}%`)
       .attr('stop-color', d3.interpolateRgb('#1e1e40', '#6366F1')(t))
   })
@@ -133,9 +133,12 @@ function renderChart() {
     const x = ml + start * (cell + pad)
     const w = (end - start) * (cell + pad) - pad
     const h = rowCount * (cell + pad) - pad
-    bandG.append('rect')
-      .attr('x', x).attr('y', mt - 2)
-      .attr('width', w).attr('height', h + 4)
+    bandG
+      .append('rect')
+      .attr('x', x)
+      .attr('y', mt - 2)
+      .attr('width', w)
+      .attr('height', h + 4)
       .attr('rx', 4)
       .attr('fill', bg)
   })
@@ -143,7 +146,8 @@ function renderChart() {
   // ── Time-band zone labels ─────────────────────────────
   TIME_BANDS.value.forEach(({ start, end, label }) => {
     const mid = (start + end) / 2
-    svg.append('text')
+    svg
+      .append('text')
       .attr('x', ml + mid * (cell + pad))
       .attr('y', mt - 20)
       .attr('text-anchor', 'middle')
@@ -155,7 +159,8 @@ function renderChart() {
 
   // ── Hour tick labels every 3 h ────────────────────────
   d3.range(0, 24, 3).forEach((h) => {
-    svg.append('text')
+    svg
+      .append('text')
       .attr('x', ml + h * (cell + pad) + cell / 2)
       .attr('y', mt - 8)
       .attr('text-anchor', 'middle')
@@ -166,7 +171,8 @@ function renderChart() {
 
   // ── Row labels ────────────────────────────────────────
   rowLabels.forEach((label, i) => {
-    svg.append('text')
+    svg
+      .append('text')
       .attr('x', ml - 8)
       .attr('y', mt + i * (cell + pad) + cell / 2 + 4)
       .attr('text-anchor', 'end')
@@ -187,36 +193,52 @@ function renderChart() {
         count: 0,
         devices: [],
       }
-      const x        = ml + col * (cell + pad)
-      const y        = mt + row * (cell + pad)
-      const fill     = colorScale(d.count)
+      const x = ml + col * (cell + pad)
+      const y = mt + row * (cell + pad)
+      const fill = colorScale(d.count)
       const isActive = d.count > 0
 
-      svg.append('rect')
-        .attr('x', x).attr('y', y)
-        .attr('width', cell).attr('height', cell)
+      svg
+        .append('rect')
+        .attr('x', x)
+        .attr('y', y)
+        .attr('width', cell)
+        .attr('height', cell)
         .attr('rx', 3)
-        .attr('fill',         isActive ? fill : 'var(--color-surface-overlay)')
-        .attr('stroke',       isActive ? 'var(--color-primary-border)' : 'var(--color-border-subtle)')
+        .attr('fill', isActive ? fill : 'var(--color-surface-overlay)')
+        .attr('stroke', isActive ? 'var(--color-primary-border)' : 'var(--color-border-subtle)')
         .attr('stroke-width', isActive ? 1 : 0.5)
         .style('cursor', isActive ? 'pointer' : 'default')
-        .on('mousemove', isActive ? (event) => {
-          const timeLabel = isDay
-            ? `${d.hour}:${String((d.minuteBlock ?? 0) * 10).padStart(2, '0')}`
-            : `${DAYS_7.value[d.day ?? row]} ${d.hour}:00`
-          const list = (d.devices || []).slice(0, 5).join('<br>')
-          const more = (d.devices || []).length > 5
-            ? `<br><span style="color:var(--color-text-muted)">${t('charts.heatmap.moreDevices', { count: d.devices.length - 5 })}</span>` : ''
-          tooltip
-            .style('display', 'block')
-            .style('left', event.clientX + 14 + 'px')
-            .style('top',  event.clientY - 40 + 'px')
-            .html(`<strong>${timeLabel}</strong><br>${t('charts.heatmap.devicesOnline', { count: d.count })}${list ? '<br>' + list + more : ''}`)
-        } : null)
+        .on(
+          'mousemove',
+          isActive
+            ? (event) => {
+                const timeLabel = isDay
+                  ? `${d.hour}:${String((d.minuteBlock ?? 0) * 10).padStart(2, '0')}`
+                  : `${DAYS_7.value[d.day ?? row]} ${d.hour}:00`
+                const list = (d.devices || []).slice(0, 5).join('<br>')
+                const more =
+                  (d.devices || []).length > 5
+                    ? `<br><span style="color:var(--color-text-muted)">${t('charts.heatmap.moreDevices', { count: d.devices.length - 5 })}</span>`
+                    : ''
+                tooltip
+                  .style('display', 'block')
+                  .style('left', event.clientX + 14 + 'px')
+                  .style('top', event.clientY - 40 + 'px')
+                  .html(
+                    `<strong>${timeLabel}</strong><br>${t('charts.heatmap.devicesOnline', { count: d.count })}${list ? '<br>' + list + more : ''}`,
+                  )
+              }
+            : null,
+        )
         .on('mouseleave', isActive ? () => tooltip.style('display', 'none') : null)
-        .on('click', isActive
-          ? () => emit('cell-click', { day: d.day ?? row, hour: d.hour, devices: d.devices || [] })
-          : null)
+        .on(
+          'click',
+          isActive
+            ? () =>
+                emit('cell-click', { day: d.day ?? row, hour: d.hour, devices: d.devices || [] })
+            : null,
+        )
     }
   }
 
@@ -224,21 +246,30 @@ function renderChart() {
   const legendY = mt + rowCount * (cell + pad) + 10
   const legendW = Math.min(160, containerW - ml - 80)
 
-  svg.append('rect')
-    .attr('x', ml).attr('y', legendY)
-    .attr('width', legendW).attr('height', 6)
+  svg
+    .append('rect')
+    .attr('x', ml)
+    .attr('y', legendY)
+    .attr('width', legendW)
+    .attr('height', 6)
     .attr('rx', 3)
     .attr('fill', `url(#${gradId})`)
 
-  svg.append('text')
-    .attr('x', ml).attr('y', legendY + 17)
-    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
+  svg
+    .append('text')
+    .attr('x', ml)
+    .attr('y', legendY + 17)
+    .attr('font-size', 9)
+    .attr('fill', 'var(--color-text-muted)')
     .text('0')
 
-  svg.append('text')
-    .attr('x', ml + legendW).attr('y', legendY + 17)
+  svg
+    .append('text')
+    .attr('x', ml + legendW)
+    .attr('y', legendY + 17)
     .attr('text-anchor', 'end')
-    .attr('font-size', 9).attr('fill', 'var(--color-text-muted)')
+    .attr('font-size', 9)
+    .attr('fill', 'var(--color-text-muted)')
     .text(t('charts.heatmap.legendMax', { count: maxVal }))
 }
 
@@ -266,12 +297,19 @@ onUnmounted(() => ro?.disconnect())
           :key="t.value"
           class="type-chip"
           :class="{ active: deviceTypes.includes(t.value) }"
-          :style="deviceTypes.includes(t.value)
-            ? { color: t.color, borderColor: t.color + '88', background: t.color + '18' }
-            : {}"
-          @click="emit('type-filter-change', deviceTypes.includes(t.value)
-            ? deviceTypes.filter((v) => v !== t.value)
-            : [...deviceTypes, t.value])"
+          :style="
+            deviceTypes.includes(t.value)
+              ? { color: t.color, borderColor: t.color + '88', background: t.color + '18' }
+              : {}
+          "
+          @click="
+            emit(
+              'type-filter-change',
+              deviceTypes.includes(t.value)
+                ? deviceTypes.filter((v) => v !== t.value)
+                : [...deviceTypes, t.value],
+            )
+          "
         >
           {{ t.label }}
         </button>
@@ -299,7 +337,7 @@ onUnmounted(() => ro?.disconnect())
       <div
         ref="tooltipRef"
         class="chart-tooltip"
-        style="display:none;position:fixed;z-index:9999;pointer-events:none"
+        style="display: none; position: fixed; z-index: 9999; pointer-events: none"
       />
     </div>
   </div>
@@ -313,7 +351,11 @@ onUnmounted(() => ro?.disconnect())
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
-.hm-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.hm-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .type-chip {
   padding: 2px 10px;
   font-size: 11px;
@@ -324,9 +366,14 @@ onUnmounted(() => ro?.disconnect())
   cursor: pointer;
   transition: all 0.15s;
 }
-.type-chip:hover { color: var(--color-text-primary); }
+.type-chip:hover {
+  color: var(--color-text-primary);
+}
 
-.hm-container { width: 100%; overflow-x: hidden; }
+.hm-container {
+  width: 100%;
+  overflow-x: hidden;
+}
 
 /* Summary stats pushed to the right end of the toolbar */
 .hm-stats {

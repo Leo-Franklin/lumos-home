@@ -21,19 +21,19 @@ const error = ref('')
 const { connected, refreshTick, onEvent } = useConnectionStatus()
 
 const EVENT_CATEGORY = {
-  device_online:           'device',
-  device_offline:          'device',
+  device_online: 'device',
+  device_offline: 'device',
   unknown_device_detected: 'device',
-  camera_online:           'camera',
-  camera_offline:          'camera',
-  recording_started:       'camera',
-  recording_completed:     'camera',
-  recording_failed:        'camera',
-  member_arrived:          'member',
-  member_left:             'member',
-  scan_completed:          'system',
+  camera_online: 'camera',
+  camera_offline: 'camera',
+  recording_started: 'camera',
+  recording_completed: 'camera',
+  recording_failed: 'camera',
+  member_arrived: 'member',
+  member_left: 'member',
+  scan_completed: 'system',
   dlna_discover_completed: 'system',
-  dlna_cast_started:       'system',
+  dlna_cast_started: 'system',
 }
 
 // Only these event types actually change the dashboard snapshot.
@@ -54,20 +54,34 @@ const DASHBOARD_REFRESH_EVENTS = new Set([
 function eventLabel(msg) {
   const d = msg.data || {}
   switch (msg.event) {
-    case 'device_online':          return t('dashboard.event_device_online',          d)
-    case 'device_offline':         return t('dashboard.event_device_offline',         d)
-    case 'unknown_device_detected':return t('dashboard.event_unknown_device',        d)
-    case 'camera_online':          return t('dashboard.event_camera_online',         d)
-    case 'camera_offline':         return t('dashboard.event_camera_offline',        d)
-    case 'recording_started':      return t('dashboard.event_recording_started',     d)
-    case 'recording_completed':    return t('dashboard.event_recording_completed',   d)
-    case 'recording_failed':       return t('dashboard.event_recording_failed',      d)
-    case 'member_arrived':         return t('dashboard.event_member_arrived',        d)
-    case 'member_left':            return t('dashboard.event_member_left',           d)
-    case 'scan_completed':         return t('dashboard.event_scan_completed')
-    case 'dlna_discover_completed':return t('dashboard.event_dlna_discover')
-    case 'dlna_cast_started':      return t('dashboard.event_dlna_cast')
-    default:                       return msg.event
+    case 'device_online':
+      return t('dashboard.event_device_online', d)
+    case 'device_offline':
+      return t('dashboard.event_device_offline', d)
+    case 'unknown_device_detected':
+      return t('dashboard.event_unknown_device', d)
+    case 'camera_online':
+      return t('dashboard.event_camera_online', d)
+    case 'camera_offline':
+      return t('dashboard.event_camera_offline', d)
+    case 'recording_started':
+      return t('dashboard.event_recording_started', d)
+    case 'recording_completed':
+      return t('dashboard.event_recording_completed', d)
+    case 'recording_failed':
+      return t('dashboard.event_recording_failed', d)
+    case 'member_arrived':
+      return t('dashboard.event_member_arrived', d)
+    case 'member_left':
+      return t('dashboard.event_member_left', d)
+    case 'scan_completed':
+      return t('dashboard.event_scan_completed')
+    case 'dlna_discover_completed':
+      return t('dashboard.event_dlna_discover')
+    case 'dlna_cast_started':
+      return t('dashboard.event_dlna_cast')
+    default:
+      return msg.event
   }
 }
 
@@ -75,7 +89,7 @@ const recentEvents = computed(() =>
   notifications.messages.slice(0, 20).map((msg) => ({
     category: EVENT_CATEGORY[msg.event] || 'system',
     label: eventLabel(msg),
-  }))
+  })),
 )
 
 let timer = null
@@ -139,14 +153,18 @@ watch(connected, (isConnected) => {
 })
 
 // User-triggered force refresh (e.g. clicking the banner refresh button).
-watch(refreshTick, () => { fetchDashboard() })
+watch(refreshTick, () => {
+  fetchDashboard()
+})
 </script>
 
 <template>
   <div>
     <div class="page-header">
       <h2 class="page-title">{{ $t('dashboard.title') }}</h2>
-      <el-button :icon="Refresh" :loading="loading" @click="fetchDashboard">{{ $t('common.refresh') }}</el-button>
+      <el-button :icon="Refresh" :loading="loading" @click="fetchDashboard">{{
+        $t('common.refresh')
+      }}</el-button>
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon style="margin-bottom: 16px" />
@@ -163,11 +181,17 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '0ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M3 21v-2a7 7 0 0 1 10-5.5"/>
-              <circle cx="17" cy="8" r="3"/>
-              <path d="M14 21v-2a5 5 0 0 1 3.5-4.8"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <circle cx="9" cy="7" r="4" />
+              <path d="M3 21v-2a7 7 0 0 1 10-5.5" />
+              <circle cx="17" cy="8" r="3" />
+              <path d="M14 21v-2a5 5 0 0 1 3.5-4.8" />
             </svg>
           </template>
         </StatCard>
@@ -181,9 +205,17 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '40ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M2 8.5A2.5 2.5 0 0 1 4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7Z"/>
-              <path d="m17 10 4.5-3v10L17 14"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 8.5A2.5 2.5 0 0 1 4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7Z"
+              />
+              <path d="m17 10 4.5-3v10L17 14" />
             </svg>
           </template>
           <template #suffix>
@@ -202,10 +234,16 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '80ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <rect x="2" y="3" width="20" height="12" rx="2"/>
-              <path d="M8 21h8"/>
-              <path d="M12 15v6"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <rect x="2" y="3" width="20" height="12" rx="2" />
+              <path d="M8 21h8" />
+              <path d="M12 15v6" />
             </svg>
           </template>
         </StatCard>
@@ -213,14 +251,29 @@ watch(refreshTick, () => { fetchDashboard() })
         <StatCard
           :title="$t('dashboard.todayRecordings')"
           :value="data.recordings_today_count"
-          :description="$t('common.unit_record') + ' · ' + formatDuration(data.recordings_today_duration_seconds)"
+          :description="
+            $t('common.unit_record') +
+            ' · ' +
+            formatDuration(data.recordings_today_duration_seconds)
+          "
           variant="recordings"
           :style="{ animationDelay: '120ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" opacity=".85"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polygon
+                points="10 8 16 12 10 16 10 8"
+                fill="currentColor"
+                stroke="none"
+                opacity=".85"
+              />
             </svg>
           </template>
         </StatCard>
@@ -234,20 +287,22 @@ watch(refreshTick, () => { fetchDashboard() })
           :style="{ animationDelay: '160ms' }"
         >
           <template #icon>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16v-4"/>
-              <circle cx="12" cy="8" r=".5" fill="currentColor"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <circle cx="12" cy="8" r=".5" fill="currentColor" />
             </svg>
           </template>
         </StatCard>
       </div>
 
-      <ActivityFeed
-        :items="recentEvents"
-        :max-height="420"
-        :show-view-all="true"
-      />
+      <ActivityFeed :items="recentEvents" :max-height="420" :show-view-all="true" />
     </template>
   </div>
 </template>

@@ -31,12 +31,7 @@ function togglePreset(id) {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    :title="title"
-    width="860px"
-    :destroy-on-close="true"
-  >
+  <el-dialog v-model="visible" :title="title" width="860px" :destroy-on-close="true">
     <el-scrollbar style="padding-right: 8px">
       <template v-if="presets.length">
         <p style="margin: 0 0 12px; color: var(--color-text-muted); font-size: 13px">
@@ -51,16 +46,14 @@ function togglePreset(id) {
             @click="togglePreset(p.id)"
           >
             <div class="preset-card__name">{{ p.name }}</div>
-            <div class="preset-card__meta">{{ p.resolution }} &middot; {{ p.segment_duration }}s &middot; {{ p.bitrate }}k</div>
+            <div class="preset-card__meta">
+              {{ p.resolution }} &middot; {{ p.segment_duration }}s &middot; {{ p.bitrate }}k
+            </div>
             <div class="preset-card__fps">{{ p.fps }} fps</div>
           </el-card>
         </div>
       </template>
-      <EmptyState
-        v-else
-        :title="t('cameras.noPresetsAvailable')"
-        size="small"
-      />
+      <EmptyState v-else :title="t('cameras.noPresetsAvailable')" size="small" />
 
       <el-divider content-position="left">{{ t('cameras.parameterOverrides') }}</el-divider>
       <el-form label-width="140px">

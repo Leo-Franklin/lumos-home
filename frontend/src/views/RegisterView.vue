@@ -189,8 +189,9 @@ async function handleRegister() {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
 .lang-trigger:hover {
   background: var(--color-surface-raised);

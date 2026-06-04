@@ -46,7 +46,11 @@ async function submit() {
     return
   }
   if (!formRef.value) return
-  try { await formRef.value.validate() } catch { return }
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
   loading.value = true
   try {
     await resetPassword(token.value, form.value.password)

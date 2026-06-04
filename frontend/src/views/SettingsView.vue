@@ -4,9 +4,21 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Refresh, User, Lock, Setting, Download, Delete,
-  Sunny, Moon, Cellphone, ChatLineRound, VideoCamera,
-  Camera as CameraIcon, Film, Connection, Failed,
+  Refresh,
+  User,
+  Lock,
+  Setting,
+  Download,
+  Delete,
+  Sunny,
+  Moon,
+  Cellphone,
+  ChatLineRound,
+  VideoCamera,
+  Camera as CameraIcon,
+  Film,
+  Connection,
+  Failed,
 } from '@element-plus/icons-vue'
 import api from '@/api/index'
 import { changePassword } from '@/api/auth'
@@ -94,7 +106,9 @@ async function submitChangePassword() {
   if (!passwordFormRef.value) return
   try {
     await passwordFormRef.value.validate()
-  } catch { return }
+  } catch {
+    return
+  }
   passwordSubmitting.value = true
   try {
     await changePassword(passwordForm.value.current, passwordForm.value.next)
@@ -112,7 +126,9 @@ async function handleLogout() {
     await ElMessageBox.confirm(t('settings.user.logoutConfirm'), t('settings.user.logout'), {
       type: 'warning',
     })
-  } catch { return }
+  } catch {
+    return
+  }
   auth.logout()
   ElMessage.success(t('settings.user.logout'))
   router.push('/login')
@@ -159,7 +175,9 @@ function loadPreferences() {
     const raw = localStorage.getItem('pref:notify-events')
     if (raw) Object.assign(prefEvents.value, JSON.parse(raw))
     prefSound.value = localStorage.getItem('pref:notify-sound') === '1'
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   prefLanguage.value = localeStore.locale
 }
 
@@ -179,14 +197,24 @@ const exporting = ref({ devices: false, recordings: false })
 async function doExportDevices() {
   exporting.value.devices = true
   try {
-    const items = devicesStore.items?.length ? devicesStore.items : (await devicesStore.fetchDevices(), devicesStore.items)
+    const items = devicesStore.items?.length
+      ? devicesStore.items
+      : (await devicesStore.fetchDevices(), devicesStore.items)
     const headers = [
-      t('devices.mac'), t('devices.alias'), t('devices.deviceType'),
-      t('devices.ipAddress'), t('devices.vendor'), t('common.online'),
+      t('devices.mac'),
+      t('devices.alias'),
+      t('devices.deviceType'),
+      t('devices.ipAddress'),
+      t('devices.vendor'),
+      t('common.online'),
     ]
     const rows = (items || []).map((d) => [
-      d.mac, d.alias || '', d.device_type || '',
-      d.ip || '', d.vendor || '', d.is_online ? t('common.online') : t('common.offline'),
+      d.mac,
+      d.alias || '',
+      d.device_type || '',
+      d.ip || '',
+      d.vendor || '',
+      d.is_online ? t('common.online') : t('common.offline'),
     ])
     const name = exportCsv(`devices-${Date.now()}.csv`, headers, rows)
     ElMessage.success(t('settings.data.exportSuccess', { name }))
@@ -204,13 +232,22 @@ async function doExportRecordings() {
     const { data } = await api.get('/recordings', { params: { page: 1, page_size: 1000 } })
     const items = data.items || []
     const headers = [
-      'ID', t('recordings.cameraMac'), t('recordings.file'),
-      t('recordings.startTime'), t('recordings.duration'), t('recordings.size'),
+      'ID',
+      t('recordings.cameraMac'),
+      t('recordings.file'),
+      t('recordings.startTime'),
+      t('recordings.duration'),
+      t('recordings.size'),
       t('recordings.status'),
     ]
     const rows = items.map((r) => [
-      r.id, r.camera_mac || '', r.file_name || '',
-      r.started_at || '', r.duration || 0, r.file_size || 0, r.status || '',
+      r.id,
+      r.camera_mac || '',
+      r.file_name || '',
+      r.started_at || '',
+      r.duration || 0,
+      r.file_size || 0,
+      r.status || '',
     ])
     const name = exportCsv(`recordings-${Date.now()}.csv`, headers, rows)
     ElMessage.success(t('settings.data.exportSuccess', { name }))
@@ -226,7 +263,9 @@ async function clearCache() {
     await ElMessageBox.confirm(t('settings.data.cacheWarning'), t('settings.data.clearCache'), {
       type: 'warning',
     })
-  } catch { return }
+  } catch {
+    return
+  }
   // 保留 app-locale 但清掉其它键
   const keepLocale = localStorage.getItem('app-locale')
   localStorage.clear()
@@ -287,14 +326,25 @@ onMounted(() => {
         </div>
       </template>
 
-      <el-alert v-if="healthError" :title="healthError" type="error" show-icon :closable="false" class="mb" />
+      <el-alert
+        v-if="healthError"
+        :title="healthError"
+        type="error"
+        show-icon
+        :closable="false"
+        class="mb"
+      />
 
       <el-skeleton v-else-if="healthLoading && !health" :rows="3" animated />
 
       <el-descriptions v-else-if="health" :column="2" border>
         <el-descriptions-item :label="$t('settings.overallStatus')">
           <el-tag :type="health.status === 'healthy' ? 'success' : 'danger'" size="small">
-            {{ health.status === 'healthy' ? $t('settings.systemHealthy') : $t('settings.systemUnhealthy') }}
+            {{
+              health.status === 'healthy'
+                ? $t('settings.systemHealthy')
+                : $t('settings.systemUnhealthy')
+            }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item :label="$t('settings.uptime')">
@@ -317,7 +367,9 @@ onMounted(() => {
           {{ auth.username || '—' }}
         </el-descriptions-item>
         <el-descriptions-item :label="$t('settings.user.role')">
-          {{ auth.username === 'admin' ? $t('settings.user.roleAdmin') : $t('settings.user.roleUser') }}
+          {{
+            auth.username === 'admin' ? $t('settings.user.roleAdmin') : $t('settings.user.roleUser')
+          }}
         </el-descriptions-item>
         <el-descriptions-item :label="$t('settings.user.loginTime')">
           {{ loginTime ? loginTime.toLocaleString() : '—' }}
@@ -427,18 +479,10 @@ onMounted(() => {
       <p class="section-desc">{{ $t('settings.data.exportDesc') }}</p>
 
       <div class="action-row">
-        <el-button
-          :loading="exporting.devices"
-          :icon="Cellphone"
-          @click="doExportDevices"
-        >
+        <el-button :loading="exporting.devices" :icon="Cellphone" @click="doExportDevices">
           {{ $t('settings.data.exportDevices') }}
         </el-button>
-        <el-button
-          :loading="exporting.recordings"
-          :icon="VideoCamera"
-          @click="doExportRecordings"
-        >
+        <el-button :loading="exporting.recordings" :icon="VideoCamera" @click="doExportRecordings">
           {{ $t('settings.data.exportRecordings') }}
         </el-button>
       </div>

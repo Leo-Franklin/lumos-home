@@ -17,19 +17,19 @@ const devicesStore = useDevicesStore()
 // d3 attr() accepts CSS var() strings; backgrounds use color-mix() to derive alpha tints.
 // Labels are derived from t('common.deviceTypes.*') at render time via typeLabel().
 const TYPE_CONFIG = {
-  phone:         { color: 'var(--color-type-phone)',         icon: '📱' },
-  computer:      { color: 'var(--color-type-computer)',      icon: '💻' },
-  camera:        { color: 'var(--color-type-camera)',        icon: '📷' },
-  iot:           { color: 'var(--color-type-iot)',           icon: '🔌' },
-  router:        { color: 'var(--color-type-router)',        icon: '📡' },
-  tablet:        { color: 'var(--color-type-tablet)',        icon: '📋' },
-  tv:            { color: 'var(--color-type-tv)',            icon: '📺' },
-  printer:       { color: 'var(--color-type-printer)',       icon: '🖨️' },
+  phone: { color: 'var(--color-type-phone)', icon: '📱' },
+  computer: { color: 'var(--color-type-computer)', icon: '💻' },
+  camera: { color: 'var(--color-type-camera)', icon: '📷' },
+  iot: { color: 'var(--color-type-iot)', icon: '🔌' },
+  router: { color: 'var(--color-type-router)', icon: '📡' },
+  tablet: { color: 'var(--color-type-tablet)', icon: '📋' },
+  tv: { color: 'var(--color-type-tv)', icon: '📺' },
+  printer: { color: 'var(--color-type-printer)', icon: '🖨️' },
   smart_speaker: { color: 'var(--color-type-smart-speaker)', icon: '🔊' },
-  game_console:  { color: 'var(--color-type-game-console)',  icon: '🎮' },
-  nas:           { color: 'var(--color-type-nas)',           icon: '🗄️' },
-  wearable:      { color: 'var(--color-type-wearable)',      icon: '⌚' },
-  unknown:       { color: 'var(--color-type-unknown)',       icon: '⬡'  },
+  game_console: { color: 'var(--color-type-game-console)', icon: '🎮' },
+  nas: { color: 'var(--color-type-nas)', icon: '🗄️' },
+  wearable: { color: 'var(--color-type-wearable)', icon: '⌚' },
+  unknown: { color: 'var(--color-type-unknown)', icon: '⬡' },
 }
 
 const typeOf = (d) => TYPE_CONFIG[d.device_type] ?? TYPE_CONFIG.unknown
@@ -39,24 +39,27 @@ function typeLabel(type) {
 }
 
 // ── State ────────────────────────────────────────────────
-const svgEl      = ref(null)
-const loading    = ref(false)
-const nodes      = ref([])
-const selected   = ref(null)
-const activeTypes = ref([])   // empty = show all
-const tooltip    = ref({ visible: false, x: 0, y: 0, node: null })
+const svgEl = ref(null)
+const loading = ref(false)
+const nodes = ref([])
+const selected = ref(null)
+const activeTypes = ref([]) // empty = show all
+const tooltip = ref({ visible: false, x: 0, y: 0, node: null })
 
 let zoomBehavior = null
 
 const stats = computed(() => ({
-  total:  nodes.value.length,
-  online: nodes.value.filter(n => n.is_online).length,
+  total: nodes.value.length,
+  online: nodes.value.filter((n) => n.is_online).length,
 }))
 
 // React to scan completion: reload topology when scan finishes
-watch(() => devicesStore.scanning, (isScanning, wasScanning) => {
-  if (wasScanning && !isScanning) loadTopology()
-})
+watch(
+  () => devicesStore.scanning,
+  (isScanning, wasScanning) => {
+    if (wasScanning && !isScanning) loadTopology()
+  },
+)
 
 // ── Data ─────────────────────────────────────────────────
 async function loadTopology() {
@@ -76,24 +79,27 @@ async function loadTopology() {
 // ── Type filter ───────────────────────────────────────────
 function toggleType(type) {
   const idx = activeTypes.value.indexOf(type)
-  activeTypes.value = idx === -1
-    ? [...activeTypes.value, type]
-    : activeTypes.value.filter(t => t !== type)
+  activeTypes.value =
+    idx === -1 ? [...activeTypes.value, type] : activeTypes.value.filter((t) => t !== type)
   updateNodeOpacity()
 }
 
 function updateNodeOpacity() {
   if (!svgEl.value) return
   const active = activeTypes.value
-  d3.select(svgEl.value).selectAll('g.dev')
-    .transition().duration(180)
-    .attr('opacity', d => {
+  d3.select(svgEl.value)
+    .selectAll('g.dev')
+    .transition()
+    .duration(180)
+    .attr('opacity', (d) => {
       if (active.length === 0) return 1
       return active.includes(d.device_type ?? 'unknown') ? 1 : 0.1
     })
-  d3.select(svgEl.value).selectAll('line')
-    .transition().duration(180)
-    .attr('opacity', d => {
+  d3.select(svgEl.value)
+    .selectAll('line')
+    .transition()
+    .duration(180)
+    .attr('opacity', (d) => {
       const baseOpacity = d.is_online ? 0.22 : 0.09
       if (active.length === 0) return baseOpacity
       return active.includes(d.device_type ?? 'unknown') ? baseOpacity : 0.03
@@ -114,8 +120,13 @@ function renderGraph() {
 
   // Glow filter
   const defs = svg.append('defs')
-  const flt  = defs.append('filter').attr('id', 'topo-glow')
-    .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%')
+  const flt = defs
+    .append('filter')
+    .attr('id', 'topo-glow')
+    .attr('x', '-50%')
+    .attr('y', '-50%')
+    .attr('width', '200%')
+    .attr('height', '200%')
   flt.append('feGaussianBlur').attr('stdDeviation', 2.5).attr('result', 'blur')
   const fm = flt.append('feMerge')
   fm.append('feMergeNode').attr('in', 'blur')
@@ -124,9 +135,10 @@ function renderGraph() {
   const g = svg.append('g')
 
   // Zoom / pan
-  zoomBehavior = d3.zoom()
+  zoomBehavior = d3
+    .zoom()
     .scaleExtent([0.1, 6])
-    .on('zoom', e => g.attr('transform', e.transform))
+    .on('zoom', (e) => g.attr('transform', e.transform))
   svg.call(zoomBehavior)
   svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(W / 2, H / 2))
 
@@ -134,7 +146,7 @@ function renderGraph() {
 
   // Build type groups
   const typeGroups = {}
-  nodes.value.forEach(n => {
+  nodes.value.forEach((n) => {
     const t = n.device_type || 'unknown'
     ;(typeGroups[t] = typeGroups[t] || []).push(n)
   })
@@ -142,31 +154,32 @@ function renderGraph() {
   const nTypes = typeKeys.length
 
   const typeAngle = Object.fromEntries(
-    typeKeys.map((t, i) => [t, (2 * Math.PI * i) / nTypes - Math.PI / 2])
+    typeKeys.map((t, i) => [t, (2 * Math.PI * i) / nTypes - Math.PI / 2]),
   )
 
   // Radial ring distance, scales gently with total node count
   const RADIAL_R = Math.max(220, Math.min(340, nodes.value.length * 5))
-  const SLOT = 34  // px per node slot (diameter + gap)
+  const SLOT = 34 // px per node slot (diameter + gap)
 
   // ── Structured warm-start positions ──
   // Each type group is spread across one or more concentric arcs
   // within its sector, so the force simulation starts without overlap.
   const initPos = new Map()
-  typeKeys.forEach(type => {
-    const devs  = typeGroups[type]
-    const M     = devs.length
+  typeKeys.forEach((type) => {
+    const devs = typeGroups[type]
+    const M = devs.length
     const angle = typeAngle[type]
-    const sectorSpan = Math.min((2 * Math.PI / nTypes) * 0.72, Math.PI * 1.25)
+    const sectorSpan = Math.min(((2 * Math.PI) / nTypes) * 0.72, Math.PI * 1.25)
 
-    let placed = 0, ring = 0
+    let placed = 0,
+      ring = 0
     while (placed < M) {
-      const r   = RADIAL_R + ring * 46
+      const r = RADIAL_R + ring * 46
       const cap = Math.max(1, Math.floor((sectorSpan * r) / SLOT))
-      const n   = Math.min(cap, M - placed)
+      const n = Math.min(cap, M - placed)
       const span = n === 1 ? 0 : sectorSpan * (n / cap)
       for (let j = 0; j < n; j++) {
-        const da = n === 1 ? angle : angle - span / 2 + span * j / (n - 1)
+        const da = n === 1 ? angle : angle - span / 2 + (span * j) / (n - 1)
         initPos.set(devs[placed + j].mac, { x: r * Math.cos(da), y: r * Math.sin(da) })
       }
       placed += n
@@ -175,20 +188,27 @@ function renderGraph() {
   })
 
   // ── Force simulation for collision resolution ──
-  const simNodes = nodes.value.map(n => {
+  const simNodes = nodes.value.map((n) => {
     const p = initPos.get(n.mac)
-    return { id: n.mac, data: n, group: n.device_type || 'unknown',
-             targetAngle: typeAngle[n.device_type || 'unknown'] ?? 0,
-             x: p.x, y: p.y, vx: 0, vy: 0 }
+    return {
+      id: n.mac,
+      data: n,
+      group: n.device_type || 'unknown',
+      targetAngle: typeAngle[n.device_type || 'unknown'] ?? 0,
+      x: p.x,
+      y: p.y,
+      vx: 0,
+      vy: 0,
+    }
   })
   const gwNode = { id: '__gw__', fx: 0, fy: 0 }
   const allSimNodes = [gwNode, ...simNodes]
-  const simLinks = simNodes.map(n => ({ source: '__gw__', target: n.id }))
+  const simLinks = simNodes.map((n) => ({ source: '__gw__', target: n.id }))
 
   function makeAngularForce() {
     let ns = []
     function force(alpha) {
-      ns.forEach(n => {
+      ns.forEach((n) => {
         if (n.fx !== undefined) return
         const tx = RADIAL_R * Math.cos(n.targetAngle)
         const ty = RADIAL_R * Math.sin(n.targetAngle)
@@ -196,43 +216,55 @@ function renderGraph() {
         n.vy += (ty - n.y) * 0.06 * alpha
       })
     }
-    force.initialize = nodes => { ns = nodes }
+    force.initialize = (nodes) => {
+      ns = nodes
+    }
     return force
   }
 
-  const simulation = d3.forceSimulation(allSimNodes)
-    .force('link',     d3.forceLink(simLinks).id(d => d.id).distance(RADIAL_R).strength(0.03))
-    .force('charge',   d3.forceManyBody().strength(-45))
+  const simulation = d3
+    .forceSimulation(allSimNodes)
+    .force(
+      'link',
+      d3
+        .forceLink(simLinks)
+        .id((d) => d.id)
+        .distance(RADIAL_R)
+        .strength(0.03),
+    )
+    .force('charge', d3.forceManyBody().strength(-45))
     .force('collision', d3.forceCollide(16).strength(1))
-    .force('radial',   d3.forceRadial(RADIAL_R, 0, 0).strength(0.18))
-    .force('angular',  makeAngularForce())
+    .force('radial', d3.forceRadial(RADIAL_R, 0, 0).strength(0.18))
+    .force('angular', makeAngularForce())
     .stop()
 
   for (let i = 0; i < 300; i++) simulation.tick()
 
-  const pos = new Map(simNodes.map(n => [n.id, { x: n.x, y: n.y }]))
+  const pos = new Map(simNodes.map((n) => [n.id, { x: n.x, y: n.y }]))
 
   // ── Connection lines ──
-  g.append('g').selectAll('line')
+  g.append('g')
+    .selectAll('line')
     .data(nodes.value)
     .join('line')
-    .attr('x1', 0).attr('y1', 0)
-    .attr('x2', d => pos.get(d.mac).x)
-    .attr('y2', d => pos.get(d.mac).y)
-    .attr('stroke', d => typeOf(d).color)
+    .attr('x1', 0)
+    .attr('y1', 0)
+    .attr('x2', (d) => pos.get(d.mac).x)
+    .attr('y2', (d) => pos.get(d.mac).y)
+    .attr('stroke', (d) => typeOf(d).color)
     .attr('stroke-width', 0.7)
-    .attr('stroke-dasharray', d => d.is_online ? 'none' : '4,3')
-    .attr('opacity',           d => d.is_online ? 0.14 : 0.06)
+    .attr('stroke-dasharray', (d) => (d.is_online ? 'none' : '4,3'))
+    .attr('opacity', (d) => (d.is_online ? 0.14 : 0.06))
 
   // ── Group labels (at cluster centroid) ──
-  typeKeys.forEach(type => {
-    const group = simNodes.filter(n => n.group === type)
+  typeKeys.forEach((type) => {
+    const group = simNodes.filter((n) => n.group === type)
     if (!group.length) return
-    const cx    = d3.mean(group, n => n.x)
-    const cy    = d3.mean(group, n => n.y)
+    const cx = d3.mean(group, (n) => n.x)
+    const cy = d3.mean(group, (n) => n.y)
     const angle = Math.atan2(cy, cx)
-    const dist  = Math.hypot(cx, cy)
-    const cfg   = TYPE_CONFIG[type] || TYPE_CONFIG.unknown
+    const dist = Math.hypot(cx, cy)
+    const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.unknown
 
     g.append('text')
       .attr('x', (dist + 40) * Math.cos(angle))
@@ -249,68 +281,105 @@ function renderGraph() {
   })
 
   // ── Device nodes ──
-  const nodeG = g.append('g').selectAll('g.dev')
+  const nodeG = g
+    .append('g')
+    .selectAll('g.dev')
     .data(nodes.value)
     .join('g')
     .attr('class', 'dev')
-    .attr('transform', d => { const p = pos.get(d.mac); return `translate(${p.x},${p.y})` })
+    .attr('transform', (d) => {
+      const p = pos.get(d.mac)
+      return `translate(${p.x},${p.y})`
+    })
     .style('cursor', 'pointer')
-    .on('click', (_, d) => { selected.value = d })
+    .on('click', (_, d) => {
+      selected.value = d
+    })
     .on('mouseover', (_, d) => {
-      const p  = pos.get(d.mac)
+      const p = pos.get(d.mac)
       const xf = d3.zoomTransform(svgEl.value)
       tooltip.value = { visible: true, x: xf.applyX(p.x) + 16, y: xf.applyY(p.y) - 10, node: d }
     })
-    .on('mouseout', () => { tooltip.value = { ...tooltip.value, visible: false } })
+    .on('mouseout', () => {
+      tooltip.value = { ...tooltip.value, visible: false }
+    })
 
   // Glow halo (online only — small, won't bleed into neighbours)
-  nodeG.filter(d => d.is_online)
+  nodeG
+    .filter((d) => d.is_online)
     .append('circle')
     .attr('r', 14)
-    .attr('fill', d => typeOf(d).color)
+    .attr('fill', (d) => typeOf(d).color)
     .attr('opacity', 0.1)
     .attr('filter', 'url(#topo-glow)')
 
   // Main circle
-  nodeG.append('circle')
-    .attr('r', d => d.is_online ? 7 : 5)
-    .attr('fill',   d => d.is_online ? typeOf(d).color : 'transparent')
-    .attr('stroke', d => typeOf(d).color)
-    .attr('stroke-width', d => d.is_online ? 0 : 1.5)
-    .attr('opacity', d => d.is_online ? 0.9 : 0.4)
+  nodeG
+    .append('circle')
+    .attr('r', (d) => (d.is_online ? 7 : 5))
+    .attr('fill', (d) => (d.is_online ? typeOf(d).color : 'transparent'))
+    .attr('stroke', (d) => typeOf(d).color)
+    .attr('stroke-width', (d) => (d.is_online ? 0 : 1.5))
+    .attr('opacity', (d) => (d.is_online ? 0.9 : 0.4))
 
   // ── Gateway node (center) ──
   const gwG = g.append('g').attr('class', 'gateway')
-  gwG.append('circle')
-    .attr('r', 38).attr('fill', 'var(--color-primary)').attr('opacity', 0.07)
+  gwG
+    .append('circle')
+    .attr('r', 38)
+    .attr('fill', 'var(--color-primary)')
+    .attr('opacity', 0.07)
     .attr('filter', 'url(#topo-glow)')
-  gwG.append('circle')
-    .attr('r', 24).attr('fill', 'var(--color-bg)')
-    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 2)
-  gwG.append('circle')
-    .attr('r', 30).attr('fill', 'none')
-    .attr('stroke', 'var(--color-primary)').attr('stroke-width', 1).attr('opacity', 0.2)
-  gwG.append('text')
-    .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-    .attr('font-size', '18px').attr('pointer-events', 'none').text('🏠')
-  gwG.append('text')
-    .attr('y', 40).attr('text-anchor', 'middle')
-    .attr('font-size', '11px').attr('fill', 'var(--color-text-secondary)').attr('font-weight', 600)
-    .attr('pointer-events', 'none').text(t('topology.gatewayLabel'))
+  gwG
+    .append('circle')
+    .attr('r', 24)
+    .attr('fill', 'var(--color-bg)')
+    .attr('stroke', 'var(--color-primary)')
+    .attr('stroke-width', 2)
+  gwG
+    .append('circle')
+    .attr('r', 30)
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--color-primary)')
+    .attr('stroke-width', 1)
+    .attr('opacity', 0.2)
+  gwG
+    .append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'central')
+    .attr('font-size', '18px')
+    .attr('pointer-events', 'none')
+    .text('🏠')
+  gwG
+    .append('text')
+    .attr('y', 40)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '11px')
+    .attr('fill', 'var(--color-text-secondary)')
+    .attr('font-weight', 600)
+    .attr('pointer-events', 'none')
+    .text(t('topology.gatewayLabel'))
 
   if (activeTypes.value.length > 0) updateNodeOpacity()
 }
 
 // ── Zoom controls ─────────────────────────────────────────
-function zoomIn()  { d3.select(svgEl.value).transition().duration(300).call(zoomBehavior.scaleBy, 1.4) }
-function zoomOut() { d3.select(svgEl.value).transition().duration(300).call(zoomBehavior.scaleBy, 0.7) }
+function zoomIn() {
+  d3.select(svgEl.value).transition().duration(300).call(zoomBehavior.scaleBy, 1.4)
+}
+function zoomOut() {
+  d3.select(svgEl.value).transition().duration(300).call(zoomBehavior.scaleBy, 0.7)
+}
 function resetZoom() {
   if (!svgEl.value) return
   const parent = svgEl.value.parentElement
-  d3.select(svgEl.value).transition().duration(400).call(
-    zoomBehavior.transform,
-    d3.zoomIdentity.translate(parent.clientWidth / 2, parent.clientHeight / 2),
-  )
+  d3.select(svgEl.value)
+    .transition()
+    .duration(400)
+    .call(
+      zoomBehavior.transform,
+      d3.zoomIdentity.translate(parent.clientWidth / 2, parent.clientHeight / 2),
+    )
 }
 
 // ── Helpers ───────────────────────────────────────────────
@@ -338,7 +407,9 @@ onMounted(loadTopology)
         <h2 class="page-title">{{ $t('topology.title') }}</h2>
         <span class="page-sub">
           {{ $t('topology.onlineCount', { online: stats.online, total: stats.total }) }}
-          <span v-if="devicesStore.scanning" class="scanning-tag">● {{ $t('topology.scanning') }}</span>
+          <span v-if="devicesStore.scanning" class="scanning-tag"
+            >● {{ $t('topology.scanning') }}</span
+          >
         </span>
       </div>
       <div class="header-actions">
@@ -368,12 +439,13 @@ onMounted(loadTopology)
             class="node-tooltip"
             :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
           >
-            <span class="tt-name">{{ tooltip.node.alias || tooltip.node.hostname || tooltip.node.ip || tooltip.node.mac }}</span>
+            <span class="tt-name">{{
+              tooltip.node.alias || tooltip.node.hostname || tooltip.node.ip || tooltip.node.mac
+            }}</span>
             <span class="tt-sep">·</span>
-            <span
-              class="tt-status"
-              :class="tooltip.node.is_online ? 'tt-online' : 'tt-offline'"
-            >{{ tooltip.node.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
+            <span class="tt-status" :class="tooltip.node.is_online ? 'tt-online' : 'tt-offline'">{{
+              tooltip.node.is_online ? $t('topology.online') : $t('topology.offline')
+            }}</span>
             <template v-if="tooltip.node.is_online && tooltip.node.response_time_ms != null">
               <span class="tt-sep">·</span>
               <span class="tt-lat" :style="{ color: latencyColor(tooltip.node.response_time_ms) }">
@@ -386,7 +458,14 @@ onMounted(loadTopology)
         <!-- Zoom controls -->
         <div class="zoom-controls">
           <button class="zoom-btn" :aria-label="$t('topology.zoomIn')" @click="zoomIn">+</button>
-          <button class="zoom-btn" :aria-label="$t('topology.resetView')" :title="$t('topology.resetView')" @click="resetZoom">⊙</button>
+          <button
+            class="zoom-btn"
+            :aria-label="$t('topology.resetView')"
+            :title="$t('topology.resetView')"
+            @click="resetZoom"
+          >
+            ⊙
+          </button>
           <button class="zoom-btn" :aria-label="$t('topology.zoomOut')" @click="zoomOut">−</button>
         </div>
 
@@ -396,7 +475,10 @@ onMounted(loadTopology)
             v-for="(cfg, key) in TYPE_CONFIG"
             :key="key"
             class="legend-item"
-            :class="{ active: activeTypes.includes(key), dimmed: activeTypes.length > 0 && !activeTypes.includes(key) }"
+            :class="{
+              active: activeTypes.includes(key),
+              dimmed: activeTypes.length > 0 && !activeTypes.includes(key),
+            }"
             @click="toggleType(key)"
           >
             <span class="legend-dot" :style="{ background: cfg.color }" />
@@ -405,7 +487,10 @@ onMounted(loadTopology)
           <div
             v-if="activeTypes.length > 0"
             class="legend-item legend-clear"
-            @click="activeTypes = []; updateNodeOpacity()"
+            @click="
+              activeTypes = []
+              updateNodeOpacity()
+            "
           >
             ✕ {{ $t('topology.clear') }}
           </div>
@@ -429,11 +514,16 @@ onMounted(loadTopology)
           <div class="panel-head">
             <span
               class="type-badge"
-              :style="{ background: `color-mix(in srgb, ${typeOf(selected).color} 12%, transparent)`, color: typeOf(selected).color }"
+              :style="{
+                background: `color-mix(in srgb, ${typeOf(selected).color} 12%, transparent)`,
+                color: typeOf(selected).color,
+              }"
             >
               {{ typeOf(selected).icon }} {{ typeLabel(selected.device_type) }}
             </span>
-            <button class="close-btn" :aria-label="$t('common.close')" @click="selected = null">✕</button>
+            <button class="close-btn" :aria-label="$t('common.close')" @click="selected = null">
+              ✕
+            </button>
           </div>
 
           <div class="panel-name">
@@ -447,7 +537,9 @@ onMounted(loadTopology)
               role="status"
               :aria-label="selected.is_online ? $t('topology.online') : $t('topology.offline')"
             />
-            <span class="status-text">{{ selected.is_online ? $t('topology.online') : $t('topology.offline') }}</span>
+            <span class="status-text">{{
+              selected.is_online ? $t('topology.online') : $t('topology.offline')
+            }}</span>
             <span
               v-if="selected.is_online && selected.response_time_ms != null"
               class="latency"
@@ -458,11 +550,26 @@ onMounted(loadTopology)
           </div>
 
           <div class="info-section">
-            <div class="info-row"><span class="il">{{ $t('topology.mac') }}</span><span class="iv mono">{{ selected.mac }}</span></div>
-            <div class="info-row"><span class="il">{{ $t('topology.ip') }}</span><span class="iv mono">{{ selected.ip || '—' }}</span></div>
-            <div class="info-row"><span class="il">{{ $t('topology.hostname') }}</span><span class="iv mono">{{ selected.hostname || '—' }}</span></div>
-            <div class="info-row"><span class="il">{{ $t('topology.vendor') }}</span><span class="iv">{{ selected.vendor || '—' }}</span></div>
-            <div class="info-row"><span class="il">{{ $t('topology.lastSeen') }}</span><span class="iv">{{ formatTime(selected.last_seen) }}</span></div>
+            <div class="info-row">
+              <span class="il">{{ $t('topology.mac') }}</span
+              ><span class="iv mono">{{ selected.mac }}</span>
+            </div>
+            <div class="info-row">
+              <span class="il">{{ $t('topology.ip') }}</span
+              ><span class="iv mono">{{ selected.ip || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="il">{{ $t('topology.hostname') }}</span
+              ><span class="iv mono">{{ selected.hostname || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="il">{{ $t('topology.vendor') }}</span
+              ><span class="iv">{{ selected.vendor || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="il">{{ $t('topology.lastSeen') }}</span
+              ><span class="iv">{{ formatTime(selected.last_seen) }}</span>
+            </div>
           </div>
 
           <div v-if="selected.owners?.length" class="info-section">
@@ -470,7 +577,12 @@ onMounted(loadTopology)
             <div v-for="owner in selected.owners" :key="owner.id" class="owner-row">
               <!-- Avatar -->
               <div class="owner-avatar" :class="owner.is_home ? 'home' : 'away'">
-                <img v-if="owner.avatar_url" :src="owner.avatar_url" :alt="owner.name" class="avatar-img" />
+                <img
+                  v-if="owner.avatar_url"
+                  :src="owner.avatar_url"
+                  :alt="owner.name"
+                  class="avatar-img"
+                />
                 <span v-else class="avatar-initial">{{ avatarInitial(owner.name) }}</span>
               </div>
               <span class="owner-name">{{ owner.name }}</span>
@@ -516,12 +628,24 @@ onMounted(loadTopology)
   margin-left: 6px;
 }
 @keyframes blink {
-  0%, 100% { opacity: 1 }
-  50% { opacity: 0.35 }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 @keyframes breathe {
-  0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); }
-  50% { opacity: 0.4; box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    opacity: 0.4;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+  }
 }
 .header-actions {
   display: flex;
@@ -569,16 +693,32 @@ onMounted(loadTopology)
   backdrop-filter: blur(4px);
   box-shadow: var(--shadow-md);
 }
-.tt-name   { color: var(--color-text-primary); font-weight: 500; }
-.tt-sep    { color: var(--color-text-muted); }
-.tt-online { color: var(--color-online); }
-.tt-offline{ color: var(--color-offline); }
-.tt-lat    { font-family: var(--font-mono); font-weight: 600; }
+.tt-name {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+.tt-sep {
+  color: var(--color-text-muted);
+}
+.tt-online {
+  color: var(--color-online);
+}
+.tt-offline {
+  color: var(--color-offline);
+}
+.tt-lat {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
 
 .tt-fade-enter-active,
-.tt-fade-leave-active { transition: opacity 0.1s ease; }
+.tt-fade-leave-active {
+  transition: opacity 0.1s ease;
+}
 .tt-fade-enter-from,
-.tt-fade-leave-to  { opacity: 0; }
+.tt-fade-leave-to {
+  opacity: 0;
+}
 
 /* Zoom controls */
 .zoom-controls {
@@ -681,9 +821,14 @@ onMounted(loadTopology)
 }
 
 .panel-slide-enter-active,
-.panel-slide-leave-active { transition: all 0.2s ease; }
+.panel-slide-leave-active {
+  transition: all 0.2s ease;
+}
 .panel-slide-enter-from,
-.panel-slide-leave-to { opacity: 0; transform: translateX(20px); }
+.panel-slide-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
 
 .panel-head {
   display: flex;
@@ -734,8 +879,14 @@ onMounted(loadTopology)
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot.online  { background: var(--color-online); box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); animation: breathe 2s ease-in-out infinite; }
-.status-dot.offline { background: var(--color-offline); }
+.status-dot.online {
+  background: var(--color-online);
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+  animation: breathe 2s ease-in-out infinite;
+}
+.status-dot.offline {
+  background: var(--color-offline);
+}
 .latency {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -743,7 +894,9 @@ onMounted(loadTopology)
   font-weight: 600;
 }
 
-.info-section { margin-bottom: 14px; }
+.info-section {
+  margin-bottom: 14px;
+}
 .section-title {
   font-size: 10px;
   font-weight: 700;

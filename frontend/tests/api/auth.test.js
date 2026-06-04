@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  login, register, changePassword, forgotPassword, resetPassword, verifyEmail,
+  login,
+  register,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
 } from '@/api/auth'
 
 const mockPost = vi.hoisted(() => vi.fn())

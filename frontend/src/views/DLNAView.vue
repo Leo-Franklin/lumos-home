@@ -3,7 +3,16 @@ import { ref, computed, onMounted } from 'vue'
 import { useDLNAStore } from '@/stores/dlna'
 import { castURL, castFile, playDevice, pauseDevice, stopDevice } from '@/api/dlna'
 import { ElMessage } from 'element-plus'
-import { Search, VideoPlay, VideoPause, SwitchButton, Refresh, Upload, Link, Monitor } from '@element-plus/icons-vue'
+import {
+  Search,
+  VideoPlay,
+  VideoPause,
+  SwitchButton,
+  Refresh,
+  Upload,
+  Link,
+  Monitor,
+} from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useApiError } from '@/composables/useApiError'
 import EmptyState from '@/components/EmptyState.vue'
@@ -135,16 +144,17 @@ function handleFileRemove() {
       <h2 class="page-title">{{ $t('dlna.title') }}</h2>
       <div class="page-header-actions">
         <el-tooltip :content="$t('dlna.searchDevices')" :show-after="400">
-          <el-button
-            :loading="dlna.discovering"
-            :icon="Search"
-            @click="dlna.discover()"
-          >
+          <el-button :loading="dlna.discovering" :icon="Search" @click="dlna.discover()">
             {{ dlna.discovering ? $t('dlna.searching') : $t('dlna.searchDevices') }}
           </el-button>
         </el-tooltip>
         <el-tooltip :content="$t('common.refresh')" :show-after="400">
-          <el-button :icon="Refresh" circle :aria-label="$t('common.refresh')" @click="dlna.fetchDevices()" />
+          <el-button
+            :icon="Refresh"
+            circle
+            :aria-label="$t('common.refresh')"
+            @click="dlna.fetchDevices()"
+          />
         </el-tooltip>
       </div>
     </div>
@@ -162,7 +172,10 @@ function handleFileRemove() {
           <span>{{ $t('dlna.discoveringTip') }}</span>
         </div>
 
-        <div v-if="dlna.devices.length === 0 && !dlna.discovering && !dlna.loading" class="empty-tip">
+        <div
+          v-if="dlna.devices.length === 0 && !dlna.discovering && !dlna.loading"
+          class="empty-tip"
+        >
           <EmptyState
             compact
             size="small"
@@ -223,11 +236,15 @@ function handleFileRemove() {
                 <div>
                   <div class="device-card-name">{{ dlna.selectedDevice.friendly_name }}</div>
                   <div class="device-card-meta">{{ dlna.selectedDevice.ip }}</div>
-                  <div v-if="dlna.selectedDevice.model_name" class="device-card-meta">{{ dlna.selectedDevice.model_name }}</div>
+                  <div v-if="dlna.selectedDevice.model_name" class="device-card-meta">
+                    {{ dlna.selectedDevice.model_name }}
+                  </div>
                 </div>
               </div>
               <div class="device-card-state">
-                <el-tag v-if="dlna.transportState" :type="stateType" size="small">{{ stateLabel }}</el-tag>
+                <el-tag v-if="dlna.transportState" :type="stateType" size="small">{{
+                  stateLabel
+                }}</el-tag>
                 <el-tooltip :content="$t('common.refresh')" :show-after="400">
                   <el-button
                     :loading="dlna.statusLoading"
@@ -301,37 +318,37 @@ function handleFileRemove() {
           <div class="control-section">
             <div class="section-title">{{ $t('dlna.playbackControl') }}</div>
             <div class="playback-controls">
-            <el-tooltip :content="$t('dlna.play')" :show-after="400">
-              <el-button
-                type="success"
-                :icon="VideoPlay"
-                :loading="playLoading"
-                size="large"
-                :aria-label="$t('dlna.play')"
-                @click="handlePlay"
-              />
-            </el-tooltip>
-            <el-tooltip :content="$t('dlna.pause')" :show-after="400">
-              <el-button
-                type="warning"
-                :icon="VideoPause"
-                :loading="playLoading"
-                size="large"
-                :aria-label="$t('dlna.pause')"
-                @click="handlePause"
-              />
-            </el-tooltip>
-            <el-tooltip :content="$t('dlna.stop')" :show-after="400">
-              <el-button
-                type="danger"
-                :icon="SwitchButton"
-                :loading="playLoading"
-                size="large"
-                :aria-label="$t('dlna.stop')"
-                @click="handleStop"
-              />
-            </el-tooltip>
-          </div>
+              <el-tooltip :content="$t('dlna.play')" :show-after="400">
+                <el-button
+                  type="success"
+                  :icon="VideoPlay"
+                  :loading="playLoading"
+                  size="large"
+                  :aria-label="$t('dlna.play')"
+                  @click="handlePlay"
+                />
+              </el-tooltip>
+              <el-tooltip :content="$t('dlna.pause')" :show-after="400">
+                <el-button
+                  type="warning"
+                  :icon="VideoPause"
+                  :loading="playLoading"
+                  size="large"
+                  :aria-label="$t('dlna.pause')"
+                  @click="handlePause"
+                />
+              </el-tooltip>
+              <el-tooltip :content="$t('dlna.stop')" :show-after="400">
+                <el-button
+                  type="danger"
+                  :icon="SwitchButton"
+                  :loading="playLoading"
+                  size="large"
+                  :aria-label="$t('dlna.stop')"
+                  @click="handleStop"
+                />
+              </el-tooltip>
+            </div>
           </div>
 
           <!-- 传输状态详情 -->
@@ -341,8 +358,12 @@ function handleFileRemove() {
               <el-descriptions-item :label="$t('dlna.playbackState')">
                 <el-tag :type="stateType" size="small">{{ stateLabel }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item :label="$t('dlna.speed')">{{ dlna.transportState.speed || '--' }}</el-descriptions-item>
-              <el-descriptions-item :label="$t('dlna.statusCode')" :span="2">{{ dlna.transportState.status || '--' }}</el-descriptions-item>
+              <el-descriptions-item :label="$t('dlna.speed')">{{
+                dlna.transportState.speed || '--'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="$t('dlna.statusCode')" :span="2">{{
+                dlna.transportState.status || '--'
+              }}</el-descriptions-item>
             </el-descriptions>
           </div>
         </template>
@@ -412,8 +433,12 @@ function handleFileRemove() {
   transition: background var(--duration-fast) ease-out;
   border-bottom: 1px solid var(--color-border);
 }
-.device-item:last-child { border-bottom: none; }
-.device-item:hover { background: var(--color-surface-raised); }
+.device-item:last-child {
+  border-bottom: none;
+}
+.device-item:hover {
+  background: var(--color-surface-raised);
+}
 .device-item.selected {
   background: var(--color-primary-subtle);
   border-left: 2px solid var(--color-primary);
@@ -431,9 +456,14 @@ function handleFileRemove() {
   flex-shrink: 0;
   color: var(--color-text-secondary);
 }
-.device-item.selected .device-icon { color: var(--color-primary); }
+.device-item.selected .device-icon {
+  color: var(--color-primary);
+}
 
-.device-info { flex: 1; min-width: 0; }
+.device-info {
+  flex: 1;
+  min-width: 0;
+}
 .device-name {
   font-size: 13px;
   font-weight: 500;
@@ -448,15 +478,21 @@ function handleFileRemove() {
   margin-top: 2px;
 }
 
-.device-status { flex-shrink: 0; }
+.device-status {
+  flex-shrink: 0;
+}
 .status-dot {
   display: inline-block;
   width: 7px;
   height: 7px;
   border-radius: var(--radius-full);
 }
-.status-dot.online { background: var(--color-online); }
-.status-dot.offline { background: var(--color-offline); }
+.status-dot.online {
+  background: var(--color-online);
+}
+.status-dot.offline {
+  background: var(--color-offline);
+}
 
 /* ── 右侧控制面板 ── */
 .dlna-control-panel {
@@ -525,12 +561,20 @@ function handleFileRemove() {
   align-items: center;
 }
 
-.cast-url-row { display: flex; align-items: center; gap: 8px; }
-.cast-file-row { margin-top: 4px; }
+.cast-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cast-file-row {
+  margin-top: 4px;
+}
 
 .playback-controls {
   display: flex;
   gap: 10px;
 }
-.playback-controls .el-button { flex: 1; }
+.playback-controls .el-button {
+  flex: 1;
+}
 </style>

@@ -6,13 +6,13 @@ import * as d3 from 'd3'
 const props = defineProps({
   // vertical / horizontal: [{ label: string, value: number, color?: string, valueLabel?: string }]
   // grouped:               [{ label: string, [groupKey]: number }]
-  data:    { type: Array,    default: () => [] },
-  mode:    { type: String,   default: 'vertical' }, // 'vertical'|'horizontal'|'grouped'
-  color:   { type: String,   default: 'var(--color-primary)' },
+  data: { type: Array, default: () => [] },
+  mode: { type: String, default: 'vertical' }, // 'vertical'|'horizontal'|'grouped'
+  color: { type: String, default: 'var(--color-primary)' },
   // grouped only: [{ key: 'camera', color: '#6366F1', label: '摄像头' }, ...]
-  groups:  { type: Array,    default: () => [] },
-  height:  { type: Number,   default: 200 },
-  mini:    { type: Boolean,  default: false },
+  groups: { type: Array, default: () => [] },
+  height: { type: Number, default: 200 },
+  mini: { type: Boolean, default: false },
   // optional: (value: number) => cssColorString — overrides per-bar color in vertical/horizontal
   colorFn: { type: Function, default: null },
   // horizontal mode: outer wrapper clips at this height and becomes scrollable
@@ -22,7 +22,7 @@ const props = defineProps({
 const emit = defineEmits(['bar-click'])
 
 const containerRef = ref(null)
-const svgRef       = ref(null)
+const svgRef = ref(null)
 let ro = null
 
 const ROW_H = 26 // min px per item in horizontal mode
@@ -31,9 +31,9 @@ const ROW_H = 26 // min px per item in horizontal mode
 const scrollWrapStyle = computed(() => {
   if (props.mode === 'horizontal' && !props.mini) {
     return {
-      maxHeight:   `${props.scrollMaxHeight}px`,
-      overflowY:   'auto',
-      overflowX:   'hidden',
+      maxHeight: `${props.scrollMaxHeight}px`,
+      overflowY: 'auto',
+      overflowX: 'hidden',
     }
   }
   return {}
@@ -51,7 +51,8 @@ function renderChart() {
   d3.select(svgRef.value).selectAll('*').remove()
 
   // Subtract 4px to leave room for the thin scrollbar in horizontal mode
-  const W = (containerRef.value.clientWidth || 400) - (props.mode === 'horizontal' && !props.mini ? 4 : 0)
+  const W =
+    (containerRef.value.clientWidth || 400) - (props.mode === 'horizontal' && !props.mini ? 4 : 0)
   const H = computeH()
   const m = props.mini
     ? { top: 4, right: 4, bottom: 4, left: 4 }
@@ -60,31 +61,43 @@ function renderChart() {
       : { top: 10, right: 16, bottom: 36, left: 44 }
 
   const w = W - m.left - m.right
-  const h = H - m.top  - m.bottom
+  const h = H - m.top - m.bottom
 
-  const svg = d3.select(svgRef.value)
-    .append('svg').attr('width', W).attr('height', H)
-    .append('g').attr('transform', `translate(${m.left},${m.top})`)
+  const svg = d3
+    .select(svgRef.value)
+    .append('svg')
+    .attr('width', W)
+    .attr('height', H)
+    .append('g')
+    .attr('transform', `translate(${m.left},${m.top})`)
 
-  if      (props.mode === 'horizontal') renderHorizontal(svg, w, h)
-  else if (props.mode === 'grouped')    renderGrouped(svg, w, h)
-  else                                  renderVertical(svg, w, h)
+  if (props.mode === 'horizontal') renderHorizontal(svg, w, h)
+  else if (props.mode === 'grouped') renderGrouped(svg, w, h)
+  else renderVertical(svg, w, h)
 }
 
 function barColor(d) {
-  return props.colorFn ? props.colorFn(d.value) : (d.color || props.color)
+  return props.colorFn ? props.colorFn(d.value) : d.color || props.color
 }
 
 function renderVertical(svg, w, h) {
-  const x = d3.scaleBand().domain(props.data.map((d) => d.label)).range([0, w]).padding(0.25)
-  const y = d3.scaleLinear()
+  const x = d3
+    .scaleBand()
+    .domain(props.data.map((d) => d.label))
+    .range([0, w])
+    .padding(0.25)
+  const y = d3
+    .scaleLinear()
     .domain([0, (d3.max(props.data, (d) => d.value) || 1) * 1.1])
     .range([h, 0])
 
-  svg.selectAll('rect').data(props.data).join('rect')
+  svg
+    .selectAll('rect')
+    .data(props.data)
+    .join('rect')
     .attr('x', (d) => x(d.label))
     .attr('y', (d) => y(d.value))
-    .attr('width',  x.bandwidth())
+    .attr('width', x.bandwidth())
     .attr('height', (d) => h - y(d.value))
     .attr('rx', 3)
     .attr('fill', (d) => barColor(d))
@@ -93,16 +106,23 @@ function renderVertical(svg, w, h) {
 
   if (props.mini) return
 
-  svg.append('g').attr('transform', `translate(0,${h})`)
+  svg
+    .append('g')
+    .attr('transform', `translate(0,${h})`)
     .call(d3.axisBottom(x).tickSize(0))
     .call((ax) => ax.select('.domain').attr('stroke', 'var(--color-border)'))
-    .selectAll('text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
+    .selectAll('text')
+    .attr('fill', 'var(--color-text-secondary)')
+    .attr('font-size', 10)
 
-  svg.append('g')
+  svg
+    .append('g')
     .call(d3.axisLeft(y).ticks(4).tickSize(-w))
     .call((ax) => {
       ax.select('.domain').remove()
-      ax.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-dasharray', '3,3')
+      ax.selectAll('.tick line')
+        .attr('stroke', 'var(--color-border)')
+        .attr('stroke-dasharray', '3,3')
       ax.selectAll('.tick text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
     })
 }
@@ -112,18 +132,23 @@ function renderHorizontal(svg, w, h) {
   // Shrink font for very dense lists
   const fontSize = n > 100 ? 9 : n > 50 ? 10 : 11
   // Truncate labels that would overflow the left margin
-  const truncate = (s) => s.length > 15 ? s.slice(0, 14) + '…' : s
+  const truncate = (s) => (s.length > 15 ? s.slice(0, 14) + '…' : s)
 
-  const y = d3.scaleBand()
+  const y = d3
+    .scaleBand()
     .domain(props.data.map((d) => d.label))
     .range([0, h])
     .padding(0.3)
-  const x = d3.scaleLinear()
+  const x = d3
+    .scaleLinear()
     .domain([0, (d3.max(props.data, (d) => d.value) || 1) * 1.1])
     .range([0, w])
 
   // Subtle background track
-  svg.selectAll('.bg-track').data(props.data).join('rect')
+  svg
+    .selectAll('.bg-track')
+    .data(props.data)
+    .join('rect')
     .attr('class', 'bg-track')
     .attr('y', (d) => y(d.label))
     .attr('x', 0)
@@ -133,19 +158,25 @@ function renderHorizontal(svg, w, h) {
     .attr('fill', 'var(--color-surface-overlay)')
 
   // Value bar
-  svg.selectAll('.bar').data(props.data).join('rect')
+  svg
+    .selectAll('.bar')
+    .data(props.data)
+    .join('rect')
     .attr('class', 'bar')
     .attr('y', (d) => y(d.label))
     .attr('x', 0)
     .attr('height', y.bandwidth())
-    .attr('width',  (d) => Math.max(0, x(d.value)))
+    .attr('width', (d) => Math.max(0, x(d.value)))
     .attr('rx', 3)
     .attr('fill', (d) => barColor(d))
     .style('cursor', 'pointer')
     .on('click', (event, d) => emit('bar-click', d))
 
   // Value label to the right
-  svg.selectAll('.vl').data(props.data).join('text')
+  svg
+    .selectAll('.vl')
+    .data(props.data)
+    .join('text')
     .attr('class', 'vl')
     .attr('y', (d) => y(d.label) + y.bandwidth() / 2 + 4)
     .attr('x', (d) => x(d.value) + 6)
@@ -155,7 +186,8 @@ function renderHorizontal(svg, w, h) {
 
   if (props.mini) return
 
-  svg.append('g')
+  svg
+    .append('g')
     .call(d3.axisLeft(y).tickSize(0).tickFormat(truncate))
     .call((ax) => ax.select('.domain').remove())
     .selectAll('text')
@@ -165,17 +197,24 @@ function renderHorizontal(svg, w, h) {
 
 function renderGrouped(svg, w, h) {
   const keys = props.groups.map((g) => g.key)
-  const x0 = d3.scaleBand().domain(props.data.map((d) => d.label)).range([0, w]).padding(0.2)
+  const x0 = d3
+    .scaleBand()
+    .domain(props.data.map((d) => d.label))
+    .range([0, w])
+    .padding(0.2)
   const x1 = d3.scaleBand().domain(keys).range([0, x0.bandwidth()]).padding(0.05)
   const maxY = (d3.max(props.data, (d) => d3.max(keys, (k) => d[k] ?? 0)) || 1) * 1.1
-  const y    = d3.scaleLinear().domain([0, maxY]).range([h, 0])
+  const y = d3.scaleLinear().domain([0, maxY]).range([h, 0])
 
   props.groups.forEach((grp) => {
-    svg.selectAll(`.bar-${grp.key}`).data(props.data).join('rect')
+    svg
+      .selectAll(`.bar-${grp.key}`)
+      .data(props.data)
+      .join('rect')
       .attr('class', `bar-${grp.key}`)
-      .attr('x',      (d) => x0(d.label) + x1(grp.key))
-      .attr('y',      (d) => y(d[grp.key] ?? 0))
-      .attr('width',  x1.bandwidth())
+      .attr('x', (d) => x0(d.label) + x1(grp.key))
+      .attr('y', (d) => y(d[grp.key] ?? 0))
+      .attr('width', x1.bandwidth())
       .attr('height', (d) => h - y(d[grp.key] ?? 0))
       .attr('rx', 2)
       .attr('fill', grp.color)
@@ -185,16 +224,23 @@ function renderGrouped(svg, w, h) {
 
   if (props.mini) return
 
-  svg.append('g').attr('transform', `translate(0,${h})`)
+  svg
+    .append('g')
+    .attr('transform', `translate(0,${h})`)
     .call(d3.axisBottom(x0).tickSize(0))
     .call((ax) => ax.select('.domain').attr('stroke', 'var(--color-border)'))
-    .selectAll('text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
+    .selectAll('text')
+    .attr('fill', 'var(--color-text-secondary)')
+    .attr('font-size', 10)
 
-  svg.append('g')
+  svg
+    .append('g')
     .call(d3.axisLeft(y).ticks(4).tickSize(-w))
     .call((ax) => {
       ax.select('.domain').remove()
-      ax.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-dasharray', '3,3')
+      ax.selectAll('.tick line')
+        .attr('stroke', 'var(--color-border)')
+        .attr('stroke-dasharray', '3,3')
       ax.selectAll('.tick text').attr('fill', 'var(--color-text-secondary)').attr('font-size', 10)
     })
 }
@@ -209,7 +255,7 @@ onUnmounted(() => ro?.disconnect())
 </script>
 
 <template>
-  <div ref="containerRef" style="width:100%">
+  <div ref="containerRef" style="width: 100%">
     <div :style="scrollWrapStyle" class="bar-scroll">
       <div ref="svgRef" />
     </div>

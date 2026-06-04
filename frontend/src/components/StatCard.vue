@@ -5,12 +5,13 @@ defineProps({
   total: { type: [String, Number], default: null },
   suffix: { type: String, default: '' },
   description: { type: String, default: '' },
-  trend: { type: String, default: null },  // e.g., "+2 vs last week"
+  trend: { type: String, default: null }, // e.g., "+2 vs last week"
   iconColor: { type: String, default: 'var(--color-primary)' },
   variant: {
     type: String,
     default: 'default',
-    validator: (v) => ['default', 'members', 'cameras', 'devices', 'recordings', 'unknown'].includes(v)
+    validator: (v) =>
+      ['default', 'members', 'cameras', 'devices', 'recordings', 'unknown'].includes(v),
   },
   warning: { type: Boolean, default: false },
 })
@@ -47,8 +48,9 @@ defineProps({
   align-items: flex-start;
   gap: var(--space-4);
   padding: var(--space-5);
-  transition: transform var(--duration-base) var(--easing-snap),
-              box-shadow var(--duration-base) var(--easing-standard);
+  transition:
+    transform var(--duration-base) var(--easing-snap),
+    box-shadow var(--duration-base) var(--easing-standard);
 }
 
 .stat-card:hover {
@@ -138,12 +140,24 @@ defineProps({
 }
 
 /* Variant colors for icon backgrounds */
-.stat-card--members .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-card--cameras .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-card--devices .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-card--recordings .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-card--unknown .stat-icon-wrap { background: var(--color-primary-subtle); }
-.stat-card--warn .stat-icon-wrap { background: rgba(245, 158, 11, 0.15); }
+.stat-card--members .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-card--cameras .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-card--devices .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-card--recordings .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-card--unknown .stat-icon-wrap {
+  background: var(--color-primary-subtle);
+}
+.stat-card--warn .stat-icon-wrap {
+  background: rgba(245, 158, 11, 0.15);
+}
 
 /* Animation */
 .stat-card {

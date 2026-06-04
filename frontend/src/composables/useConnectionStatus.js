@@ -40,14 +40,22 @@ const _connectionSubs = new Set()
 
 function _emit(msg) {
   _eventSubs.forEach((fn) => {
-    try { fn(msg) } catch (e) { console.error('[useConnectionStatus] event handler error:', e) }
+    try {
+      fn(msg)
+    } catch (e) {
+      console.error('[useConnectionStatus] event handler error:', e)
+    }
   })
 }
 
 function _emitConnection() {
   const snapshot = { connected: connected.value, reconnecting: reconnecting.value }
   _connectionSubs.forEach((fn) => {
-    try { fn(snapshot) } catch (e) { console.error('[useConnectionStatus] connection handler error:', e) }
+    try {
+      fn(snapshot)
+    } catch (e) {
+      console.error('[useConnectionStatus] connection handler error:', e)
+    }
   })
 }
 
@@ -113,7 +121,11 @@ function _connect() {
   }
 
   _ws.onerror = () => {
-    try { _ws?.close() } catch { /* noop */ }
+    try {
+      _ws?.close()
+    } catch {
+      /* noop */
+    }
   }
 }
 
@@ -124,7 +136,11 @@ function _disconnectInternal() {
   }
   _stopNowTick()
   if (_ws) {
-    try { _ws.close() } catch { /* noop */ }
+    try {
+      _ws.close()
+    } catch {
+      /* noop */
+    }
     _ws = null
   }
   connected.value = false
@@ -132,7 +148,11 @@ function _disconnectInternal() {
   _emitConnection()
 }
 
-function _configure({ wsUrl, staleThresholdMs = STALE_DEFAULT_MS, maxRetries = MAX_RETRIES_DEFAULT } = {}) {
+function _configure({
+  wsUrl,
+  staleThresholdMs = STALE_DEFAULT_MS,
+  maxRetries = MAX_RETRIES_DEFAULT,
+} = {}) {
   if (_configured) return
   if (!wsUrl) return
   _configured = true
@@ -176,7 +196,11 @@ export function useConnectionStatus(options = {}) {
   function onConnectionChange(fn) {
     _connectionSubs.add(fn)
     // Fire immediately so subscriber sees current state.
-    try { fn({ connected: connected.value, reconnecting: reconnecting.value }) } catch { /* noop */ }
+    try {
+      fn({ connected: connected.value, reconnecting: reconnecting.value })
+    } catch {
+      /* noop */
+    }
     return () => _connectionSubs.delete(fn)
   }
 

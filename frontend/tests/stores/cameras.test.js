@@ -48,8 +48,8 @@ describe('useCamerasStore', () => {
     const mockDefaultPresetId = 1
 
     api.get
-      .mockResolvedValueOnce({ data: mockPresets })  // listPresets
-      .mockResolvedValueOnce({ data: { default_preset_id: mockDefaultPresetId } })  // getCamera
+      .mockResolvedValueOnce({ data: mockPresets }) // listPresets
+      .mockResolvedValueOnce({ data: { default_preset_id: mockDefaultPresetId } }) // getCamera
 
     const store = useCamerasStore()
     await store.loadPresets(mac)

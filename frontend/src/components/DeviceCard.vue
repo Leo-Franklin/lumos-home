@@ -1,7 +1,18 @@
 <script setup>
 import {
-  VideoCameraFilled, Monitor, Iphone, Cpu, QuestionFilled,
-  Connection, Grid, Film, Printer, Microphone, Trophy, Box, Watch,
+  VideoCameraFilled,
+  Monitor,
+  Iphone,
+  Cpu,
+  QuestionFilled,
+  Connection,
+  Grid,
+  Film,
+  Printer,
+  Microphone,
+  Trophy,
+  Box,
+  Watch,
 } from '@element-plus/icons-vue'
 
 defineProps({
@@ -10,19 +21,19 @@ defineProps({
 defineEmits(['edit', 'delete', 'detail'])
 
 const TYPE_CONFIG = {
-  camera:        { label: 'Camera',        hex: 'var(--color-type-camera)' },
-  computer:      { label: 'Computer',      hex: 'var(--color-type-computer)' },
-  phone:         { label: 'Phone',         hex: 'var(--color-type-phone)' },
-  iot:           { label: 'IoT',           hex: 'var(--color-type-iot)' },
-  router:        { label: 'Router',        hex: 'var(--color-type-router)' },
-  tablet:        { label: 'Tablet',        hex: 'var(--color-type-tablet)' },
-  tv:            { label: 'TV',            hex: 'var(--color-type-tv)' },
-  printer:       { label: 'Printer',       hex: 'var(--color-type-printer)' },
+  camera: { label: 'Camera', hex: 'var(--color-type-camera)' },
+  computer: { label: 'Computer', hex: 'var(--color-type-computer)' },
+  phone: { label: 'Phone', hex: 'var(--color-type-phone)' },
+  iot: { label: 'IoT', hex: 'var(--color-type-iot)' },
+  router: { label: 'Router', hex: 'var(--color-type-router)' },
+  tablet: { label: 'Tablet', hex: 'var(--color-type-tablet)' },
+  tv: { label: 'TV', hex: 'var(--color-type-tv)' },
+  printer: { label: 'Printer', hex: 'var(--color-type-printer)' },
   smart_speaker: { label: 'Smart Speaker', hex: 'var(--color-type-smart-speaker)' },
-  game_console:  { label: 'Game Console',  hex: 'var(--color-type-game-console)' },
-  nas:           { label: 'NAS',           hex: 'var(--color-type-nas)' },
-  wearable:      { label: 'Wearable',      hex: 'var(--color-type-wearable)' },
-  unknown:       { label: 'Unknown',       hex: 'var(--color-type-unknown)' },
+  game_console: { label: 'Game Console', hex: 'var(--color-type-game-console)' },
+  nas: { label: 'NAS', hex: 'var(--color-type-nas)' },
+  wearable: { label: 'Wearable', hex: 'var(--color-type-wearable)' },
+  unknown: { label: 'Unknown', hex: 'var(--color-type-unknown)' },
 }
 
 function typeIcon(t) {
@@ -90,9 +101,15 @@ function typeBadgeStyle(t) {
 
     <!-- 操作按钮 -->
     <div class="row-actions">
-      <el-button size="small" link @click="$emit('detail', device)">{{ $t('common.detail') }}</el-button>
-      <el-button size="small" link @click="$emit('edit', device)">{{ $t('common.edit') }}</el-button>
-      <el-button size="small" link type="danger" @click="$emit('delete', device)">{{ $t('common.delete') }}</el-button>
+      <el-button size="small" link @click="$emit('detail', device)">{{
+        $t('common.detail')
+      }}</el-button>
+      <el-button size="small" link @click="$emit('edit', device)">{{
+        $t('common.edit')
+      }}</el-button>
+      <el-button size="small" link type="danger" @click="$emit('delete', device)">{{
+        $t('common.delete')
+      }}</el-button>
     </div>
   </div>
 </template>

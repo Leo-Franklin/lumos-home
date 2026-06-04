@@ -93,7 +93,7 @@ watch(
     }
     _scheduleFlush()
   },
-  { deep: true, immediate: false }
+  { deep: true, immediate: false },
 )
 
 onUnmounted(() => {
@@ -112,13 +112,7 @@ defineExpose({
   <div class="activity-panel glass-card">
     <div class="activity-header">
       <span class="activity-title">{{ $t('dashboard.recentActivity') }}</span>
-      <el-button
-        v-if="showViewAll"
-        link
-        size="small"
-        class="view-all-btn"
-        @click="emit('viewAll')"
-      >
+      <el-button v-if="showViewAll" link size="small" class="view-all-btn" @click="emit('viewAll')">
         {{ $t('common.viewAll') }}
       </el-button>
     </div>
@@ -130,7 +124,7 @@ defineExpose({
       <template v-else>
         <div
           v-for="(item, index) in renderedItems"
-          :key="(item.__bulk ? 'bulk-' + item.count + '-' + item.timestamp : 'row-' + index)"
+          :key="item.__bulk ? 'bulk-' + item.count + '-' + item.timestamp : 'row-' + index"
           class="activity-item"
           :class="{ 'activity-item--bulk': item.__bulk }"
           :style="{ animationDelay: Math.min(index * 30, 200) + 'ms' }"

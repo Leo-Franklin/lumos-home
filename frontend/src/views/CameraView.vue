@@ -17,25 +17,64 @@ const devicesStore = useDevicesStore()
 const dlnaStore = useDLNAStore()
 
 const {
-  formDialog, formData, formSubmitting,
-  openAddDialog, openEditDialog, closeFormDialog, submitFormDialog,
+  formDialog,
+  formData,
+  formSubmitting,
+  openAddDialog,
+  openEditDialog,
+  closeFormDialog,
+  submitFormDialog,
   deleteCameraAction,
-  probeDialog, probeResult, probeLoading, openProbeDialog, closeProbeDialog,
-  liveDialog, liveUrl, liveTitle, openLive, closeLive,
-  snapshotDialog, snapshotUrl, snapshotTitle,
-  takeSnapshotAction, closeSnapshot, downloadSnapshot,
-  hlsDialog, hlsTitle, hlsSrc, openHlsLive, closeHlsLive,
+  probeDialog,
+  probeResult,
+  probeLoading,
+  openProbeDialog,
+  closeProbeDialog,
+  liveDialog,
+  liveUrl,
+  liveTitle,
+  openLive,
+  closeLive,
+  snapshotDialog,
+  snapshotUrl,
+  snapshotTitle,
+  takeSnapshotAction,
+  closeSnapshot,
+  downloadSnapshot,
+  hlsDialog,
+  hlsTitle,
+  hlsSrc,
+  openHlsLive,
+  closeHlsLive,
   toggleRecord,
-  presetDialog, presetCam, presetList, presetLoading, presetSaving,
-  presetForm, presetEditing,
-  openPresets, closePresets, startPresetAdd, startPresetEdit,
-  savePreset, deletePresetAction, setDefaultPresetAction,
-  recordDialog, recordCam, recordPresets, recordSelectedPresetId,
-  recordOverrides, recordSaving,
-  openRecordDialog, closeRecordDialog, startRecordWithDialog,
+  presetDialog,
+  presetCam,
+  presetList,
+  presetLoading,
+  presetSaving,
+  presetForm,
+  presetEditing,
+  openPresets,
+  closePresets,
+  startPresetAdd,
+  startPresetEdit,
+  savePreset,
+  deletePresetAction,
+  setDefaultPresetAction,
+  recordDialog,
+  recordCam,
+  recordPresets,
+  recordSelectedPresetId,
+  recordOverrides,
+  recordSaving,
+  openRecordDialog,
+  closeRecordDialog,
+  startRecordWithDialog,
 } = useCameraActions()
 
-async function refreshAfterMutation() { await camerasStore.fetchCameras() }
+async function refreshAfterMutation() {
+  await camerasStore.fetchCameras()
+}
 
 function handlePreviewCommand(cmd, row) {
   if (cmd === 'live') openLive(row)
@@ -46,7 +85,10 @@ function handlePreviewCommand(cmd, row) {
 function handleMoreCommand(cmd, row) {
   if (cmd === 'probe') openProbeDialog(row)
   else if (cmd === 'presets') openPresets(row)
-  else if (cmd === 'delete') deleteCameraAction(row).then(refreshAfterMutation).catch(() => {})
+  else if (cmd === 'delete')
+    deleteCameraAction(row)
+      .then(refreshAfterMutation)
+      .catch(() => {})
 }
 
 async function handleFormSubmit() {
@@ -83,11 +125,7 @@ function handleKeydown(e) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  Promise.all([
-    camerasStore.fetchCameras(),
-    devicesStore.fetchDevices(),
-    dlnaStore.fetchDevices(),
-  ])
+  Promise.all([camerasStore.fetchCameras(), devicesStore.fetchDevices(), dlnaStore.fetchDevices()])
 })
 
 onUnmounted(() => {
@@ -182,7 +220,11 @@ onUnmounted(() => {
       @save="savePreset().then(refreshAfterMutation)"
       @delete="deletePresetAction"
       @setDefault="setDefaultPresetAction"
-      @update:modelValue="(v) => { if (!v) closePresets() }"
+      @update:modelValue="
+        (v) => {
+          if (!v) closePresets()
+        }
+      "
     />
 
     <CameraRecordDialog
@@ -194,7 +236,11 @@ onUnmounted(() => {
       v-model:overrides="recordOverrides"
       :saving="recordSaving"
       @start="handleStartRecord"
-      @update:modelValue="(v) => { if (!v) closeRecordDialog() }"
+      @update:modelValue="
+        (v) => {
+          if (!v) closeRecordDialog()
+        }
+      "
     />
   </div>
 </template>

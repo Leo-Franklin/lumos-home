@@ -29,13 +29,7 @@ import { ElMessage } from 'element-plus'
  * @param {(e:any)=>any} [opts.onError]    删除失败时的错误处理
  * @param {number} [opts.duration]         倒计时毫秒，默认 5000
  */
-export function scheduleUndo({
-  label,
-  performDelete,
-  onUndo,
-  onError,
-  duration = 5000,
-}) {
+export function scheduleUndo({ label, performDelete, onUndo, onError, duration = 5000 }) {
   let undone = false
   let executed = false
 

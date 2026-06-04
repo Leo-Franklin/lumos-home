@@ -11,13 +11,7 @@ const props = defineProps({
   saving: { type: Boolean, default: false },
   editing: { type: [Number, null], default: null },
 })
-const emit = defineEmits([
-  'add',
-  'edit',
-  'save',
-  'delete',
-  'setDefault',
-])
+const emit = defineEmits(['add', 'edit', 'save', 'delete', 'setDefault'])
 
 // v-model bindings: visibility + form. defineModel keeps the parent as the
 // source of truth while letting the child mutate inner fields via v-model
@@ -35,12 +29,7 @@ const title = computed(() =>
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    :title="title"
-    width="900px"
-    :destroy-on-close="true"
-  >
+  <el-dialog v-model="visible" :title="title" width="900px" :destroy-on-close="true">
     <div v-loading="loading" style="padding-right: 8px">
       <!-- Preset list -->
       <div v-if="list.length" style="margin-bottom: 16px">
@@ -75,11 +64,7 @@ const title = computed(() =>
           </el-table-column>
         </el-table>
       </div>
-      <EmptyState
-        v-else
-        :title="t('cameras.noPresets')"
-        size="small"
-      />
+      <EmptyState v-else :title="t('cameras.noPresets')" size="small" />
 
       <!-- Add/Edit form -->
       <el-divider />
@@ -102,10 +87,21 @@ const title = computed(() =>
           </el-select>
         </el-form-item>
         <el-form-item :label="t('cameras.segmentSec')">
-          <el-input-number v-model="form.segment_duration" :min="60" :max="3600" style="width: 140px" />
+          <el-input-number
+            v-model="form.segment_duration"
+            :min="60"
+            :max="3600"
+            style="width: 140px"
+          />
         </el-form-item>
         <el-form-item :label="t('cameras.bitrateKbps')">
-          <el-input-number v-model="form.bitrate" :min="256" :max="20000" :step="256" style="width: 140px" />
+          <el-input-number
+            v-model="form.bitrate"
+            :min="256"
+            :max="20000"
+            :step="256"
+            style="width: 140px"
+          />
         </el-form-item>
         <el-form-item :label="t('cameras.frameRate')">
           <el-input-number v-model="form.fps" :min="5" :max="60" style="width: 140px" />

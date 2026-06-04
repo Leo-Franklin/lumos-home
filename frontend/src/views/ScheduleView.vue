@@ -22,7 +22,15 @@ const dialog = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 
-const form = ref({ camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true, preset_id: null, overrides: {} })
+const form = ref({
+  camera_mac: '',
+  name: '',
+  cron_expr: '0 2 * * *',
+  segment_duration: 1800,
+  enabled: true,
+  preset_id: null,
+  overrides: {},
+})
 const editId = ref(null)
 const showOverrides = ref(false)
 const dialogTitle = ref('')
@@ -34,27 +42,31 @@ onMounted(async () => {
   fetch()
 })
 
-watch(() => form.value.camera_mac, async (newMac) => {
-  if (newMac) {
-    const mac = newMac
-    try {
-      await camerasStore.loadPresets(mac)
-    } catch (e) {
-      console.warn('Failed to load presets for camera:', mac, e.message)
-    }
-    const presets = camerasStore.presets[mac] || []
-    if (presets.length > 0) {
-      const defaultPreset = presets.find(p => p.id === camerasStore.defaultPresetId[mac]) || presets[0]
-      form.value.preset_id = defaultPreset.id
+watch(
+  () => form.value.camera_mac,
+  async (newMac) => {
+    if (newMac) {
+      const mac = newMac
+      try {
+        await camerasStore.loadPresets(mac)
+      } catch (e) {
+        console.warn('Failed to load presets for camera:', mac, e.message)
+      }
+      const presets = camerasStore.presets[mac] || []
+      if (presets.length > 0) {
+        const defaultPreset =
+          presets.find((p) => p.id === camerasStore.defaultPresetId[mac]) || presets[0]
+        form.value.preset_id = defaultPreset.id
+      } else {
+        form.value.preset_id = null
+      }
     } else {
       form.value.preset_id = null
     }
-  } else {
-    form.value.preset_id = null
-  }
-  form.value.overrides = {}
-  showOverrides.value = false
-})
+    form.value.overrides = {}
+    showOverrides.value = false
+  },
+)
 
 async function fetch() {
   loading.value = true
@@ -69,7 +81,15 @@ async function fetch() {
 function openAdd() {
   isEdit.value = false
   editId.value = null
-  form.value = { camera_mac: '', name: '', cron_expr: '0 2 * * *', segment_duration: 1800, enabled: true, preset_id: null, overrides: {} }
+  form.value = {
+    camera_mac: '',
+    name: '',
+    cron_expr: '0 2 * * *',
+    segment_duration: 1800,
+    enabled: true,
+    preset_id: null,
+    overrides: {},
+  }
   showOverrides.value = false
   dialogTitle.value = t('schedule.newSchedule')
   submitText.value = t('common.create')
@@ -84,7 +104,15 @@ async function openEdit(row) {
   } catch (e) {
     console.warn('Failed to load presets for camera:', row.camera_mac, e.message)
   }
-  form.value = { camera_mac: row.camera_mac, name: row.name || '', cron_expr: row.cron_expr, segment_duration: row.segment_duration, enabled: row.enabled, preset_id: row.preset_id || null, overrides: row.overrides || {} }
+  form.value = {
+    camera_mac: row.camera_mac,
+    name: row.name || '',
+    cron_expr: row.cron_expr,
+    segment_duration: row.segment_duration,
+    enabled: row.enabled,
+    preset_id: row.preset_id || null,
+    overrides: row.overrides || {},
+  }
   showOverrides.value = !!(row.overrides && Object.keys(row.overrides).length > 0)
   dialogTitle.value = t('schedule.editSchedule')
   submitText.value = t('common.save')
@@ -120,7 +148,11 @@ async function toggleEnabled(row) {
 }
 
 async function handleDelete(row) {
-  await ElMessageBox.confirm(t('schedule.deleteConfirm', { name: row.name || row.cron_expr }), t('common.confirmDelete'), { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('schedule.deleteConfirm', { name: row.name || row.cron_expr }),
+    t('common.confirmDelete'),
+    { type: 'warning' },
+  )
   await deleteSchedule(row.id)
   ElMessage.success(t('schedule.deleted'))
   fetch()
@@ -143,48 +175,61 @@ async function handleDelete(row) {
       <el-skeleton :rows="4" animated class="table-loading-skeleton" />
     </div>
     <div v-else-if="schedules.length > 0" class="table-content">
-    <el-table :data="schedules" style="width: 100%" row-key="id">
-      <el-table-column prop="name" :label="$t('schedule.scheduleName')" min-width="160">
-        <template #default="{ row }">
-          <div class="name-cell">
-            <span class="cell-name">{{ row.name || $t('schedule.unnamed') }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column prop="camera_mac" :label="$t('schedule.cameraMac')" width="150">
-        <template #default="{ row }">
-          <span class="cell-mono">{{ row.camera_mac }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="cron_expr" :label="$t('schedule.triggerTime')" width="140">
-        <template #default="{ row }">
-          <div class="cron-cell">
-            <Clock class="cron-icon" />
-            <span>{{ row.cron_expr }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('schedule.segmentDuration')" width="110">
-        <template #default="{ row }">
-          <span class="cell-secondary">{{ Math.floor(row.segment_duration / 60) }} {{ $t('schedule.segmentUnit') }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('schedule.status')" width="80" align="center">
-        <template #default="{ row }">
-          <el-switch :model-value="row.enabled" @change="toggleEnabled(row)" />
-        </template>
-      </el-table-column>
-      <el-table-column :label="$t('schedule.actions')" width="100" align="center" fixed="right">
-        <template #default="{ row }">
-          <ActionButtonGroup
-            :actions="[
-              { icon: Edit, tooltip: $t('common.edit'), ariaLabel: $t('common.edit'), onClick: () => openEdit(row) },
-              { icon: Delete, tooltip: $t('common.delete'), ariaLabel: $t('common.delete'), danger: true, onClick: () => handleDelete(row) },
-            ]"
-          />
-        </template>
-      </el-table-column>
-    </el-table>
+      <el-table :data="schedules" style="width: 100%" row-key="id">
+        <el-table-column prop="name" :label="$t('schedule.scheduleName')" min-width="160">
+          <template #default="{ row }">
+            <div class="name-cell">
+              <span class="cell-name">{{ row.name || $t('schedule.unnamed') }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="camera_mac" :label="$t('schedule.cameraMac')" width="150">
+          <template #default="{ row }">
+            <span class="cell-mono">{{ row.camera_mac }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="cron_expr" :label="$t('schedule.triggerTime')" width="140">
+          <template #default="{ row }">
+            <div class="cron-cell">
+              <Clock class="cron-icon" />
+              <span>{{ row.cron_expr }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('schedule.segmentDuration')" width="110">
+          <template #default="{ row }">
+            <span class="cell-secondary"
+              >{{ Math.floor(row.segment_duration / 60) }} {{ $t('schedule.segmentUnit') }}</span
+            >
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('schedule.status')" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch :model-value="row.enabled" @change="toggleEnabled(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('schedule.actions')" width="100" align="center" fixed="right">
+          <template #default="{ row }">
+            <ActionButtonGroup
+              :actions="[
+                {
+                  icon: Edit,
+                  tooltip: $t('common.edit'),
+                  ariaLabel: $t('common.edit'),
+                  onClick: () => openEdit(row),
+                },
+                {
+                  icon: Delete,
+                  tooltip: $t('common.delete'),
+                  ariaLabel: $t('common.delete'),
+                  danger: true,
+                  onClick: () => handleDelete(row),
+                },
+              ]"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
     <div v-else class="schedule-empty">
       <EmptyState
@@ -210,7 +255,11 @@ async function handleDelete(row) {
             {{ $t('schedule.basicInfo') }}
           </div>
           <el-form-item :label="$t('schedule.cameraMac')">
-            <el-select v-model="form.camera_mac" :placeholder="$t('schedule.selectCamera')" style="width: 100%">
+            <el-select
+              v-model="form.camera_mac"
+              :placeholder="$t('schedule.selectCamera')"
+              style="width: 100%"
+            >
               <el-option
                 v-for="c in cameras"
                 :key="c.device_mac"
@@ -233,16 +282,26 @@ async function handleDelete(row) {
             <CronSelector v-model="form.cron_expr" />
           </el-form-item>
           <el-form-item :label="$t('schedule.segmentLabel')">
-            <el-input-number v-model="form.segment_duration" :min="60" :step="300" style="width: 100%" />
+            <el-input-number
+              v-model="form.segment_duration"
+              :min="60"
+              :step="300"
+              style="width: 100%"
+            />
           </el-form-item>
         </div>
 
         <div class="form-section">
           <div class="section-title">{{ $t('schedule.preset') }}</div>
           <el-form-item :label="$t('schedule.preset')">
-            <el-select v-model="form.preset_id" :placeholder="$t('schedule.selectPreset')" style="width: 100%" clearable>
+            <el-select
+              v-model="form.preset_id"
+              :placeholder="$t('schedule.selectPreset')"
+              style="width: 100%"
+              clearable
+            >
               <el-option
-                v-for="p in (camerasStore.presets[form.camera_mac] || [])"
+                v-for="p in camerasStore.presets[form.camera_mac] || []"
                 :key="p.id"
                 :label="p.name"
                 :value="p.id"
@@ -256,7 +315,15 @@ async function handleDelete(row) {
             <el-button text type="primary" @click="showOverrides = !showOverrides">
               {{ showOverrides ? $t('schedule.hideOverrides') : $t('schedule.showOverrides') }}
               <span class="toggle-arrow" :class="{ open: showOverrides }" aria-hidden="true">
-                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M4 6l4 4 4-4"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
               </span>
             </el-button>
           </el-form-item>
@@ -270,10 +337,25 @@ async function handleDelete(row) {
                 </el-select>
               </el-form-item>
               <el-form-item :label="$t('schedule.bitrate')">
-                <el-input-number v-model="form.overrides.bitrate" :min="256" :max="20000" :step="256" style="width: 100%" clearable :placeholder="$t('schedule.bitratePlaceholder')" />
+                <el-input-number
+                  v-model="form.overrides.bitrate"
+                  :min="256"
+                  :max="20000"
+                  :step="256"
+                  style="width: 100%"
+                  clearable
+                  :placeholder="$t('schedule.bitratePlaceholder')"
+                />
               </el-form-item>
               <el-form-item :label="$t('schedule.frameRate')">
-                <el-input-number v-model="form.overrides.frame_rate" :min="5" :max="60" style="width: 100%" clearable :placeholder="$t('schedule.frameRatePlaceholder')" />
+                <el-input-number
+                  v-model="form.overrides.frame_rate"
+                  :min="5"
+                  :max="60"
+                  style="width: 100%"
+                  clearable
+                  :placeholder="$t('schedule.frameRatePlaceholder')"
+                />
               </el-form-item>
             </div>
           </template>
@@ -286,7 +368,9 @@ async function handleDelete(row) {
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialog = false">{{ $t('schedule.cancel') }}</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ submitText }}</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+            submitText
+          }}</el-button>
         </div>
       </template>
     </el-dialog>

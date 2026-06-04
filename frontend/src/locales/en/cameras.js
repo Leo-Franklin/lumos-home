@@ -1,7 +1,8 @@
 // src/locales/en/cameras.js
 export default {
   // CameraPlayer (from Task 8)
-  streamLoadFailed: 'Failed to load live stream, check if camera is online and RTSP address is correct',
+  streamLoadFailed:
+    'Failed to load live stream, check if camera is online and RTSP address is correct',
   hlsLoadFailed: 'HLS stream failed to load, please confirm transcoding is complete',
   errAborted: 'Loading aborted',
   errNetwork: 'Network error, unable to load video',

@@ -2,7 +2,7 @@
 defineProps({
   label: { type: String, required: true },
   active: { type: Boolean, default: false },
-  color: { type: String, default: null },  // hex or CSS var
+  color: { type: String, default: null }, // hex or CSS var
   count: { type: Number, default: null },
 })
 
@@ -13,11 +13,19 @@ defineEmits(['click'])
   <button
     class="filter-chip"
     :class="{ active }"
-    :style="active && color ? {
-      '--chip-color': color,
-      '--chip-bg': color.startsWith('var(') ? 'color-mix(in srgb, ' + color + ' 12%, transparent)' : color + '18',
-      '--chip-border': color.startsWith('var(') ? 'color-mix(in srgb, ' + color + ' 30%, transparent)' : color + '50'
-    } : {}"
+    :style="
+      active && color
+        ? {
+            '--chip-color': color,
+            '--chip-bg': color.startsWith('var(')
+              ? 'color-mix(in srgb, ' + color + ' 12%, transparent)'
+              : color + '18',
+            '--chip-border': color.startsWith('var(')
+              ? 'color-mix(in srgb, ' + color + ' 30%, transparent)'
+              : color + '50',
+          }
+        : {}
+    "
     @click="$emit('click')"
   >
     <span

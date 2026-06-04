@@ -26,7 +26,9 @@ function onCancel() {
   <div v-if="devicesStore.scanning" class="scan-progress">
     <div class="scan-progress-text">
       <el-icon class="is-loading scan-icon"><Loading /></el-icon>
-      <span class="scan-stage">{{ t('common.scanStage', { subnet: devicesStore.scanningStage || '192.168.1.x' }) }}</span>
+      <span class="scan-stage">{{
+        t('common.scanStage', { subnet: devicesStore.scanningStage || '192.168.1.x' })
+      }}</span>
     </div>
     <el-progress
       :percentage="progressPct"
@@ -37,13 +39,7 @@ function onCancel() {
       class="scan-progress-bar"
     />
     <span class="scan-progress-pct">{{ t('common.scanProgress', { pct: progressPct }) }}</span>
-    <el-button
-      size="small"
-      link
-      :icon="Close"
-      class="scan-cancel-btn"
-      @click="onCancel"
-    >
+    <el-button size="small" link :icon="Close" class="scan-cancel-btn" @click="onCancel">
       {{ t('common.cancelScan') }}
     </el-button>
   </div>

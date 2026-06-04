@@ -45,7 +45,7 @@ async function handleLogin() {
   try {
     await formRef.value.validate()
   } catch {
-    return  // 校验未通过，错误信息已经显示
+    return // 校验未通过，错误信息已经显示
   }
   loading.value = true
   try {
@@ -126,20 +126,10 @@ async function handleLogin() {
           {{ $t('login.submit') }}
         </el-button>
         <div class="login-links">
-          <el-button
-            text
-            size="small"
-            :disabled="loading"
-            @click="forgotDialogOpen = true"
-          >
+          <el-button text size="small" :disabled="loading" @click="forgotDialogOpen = true">
             {{ $t('login.forgotPassword') }}
           </el-button>
-          <el-button
-            text
-            size="small"
-            :disabled="loading"
-            @click="router.push('/register')"
-          >
+          <el-button text size="small" :disabled="loading" @click="router.push('/register')">
             {{ $t('login.goToRegister') }}
           </el-button>
         </div>
@@ -162,7 +152,6 @@ async function handleLogin() {
   background-size: 28px 28px;
 }
 
-
 .lang-bar {
   width: 380px;
   display: flex;
@@ -177,8 +166,9 @@ async function handleLogin() {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  transition: background var(--duration-fast) ease-out,
-              color var(--duration-fast) ease-out;
+  transition:
+    background var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out;
 }
 .lang-trigger:hover {
   background: var(--color-surface-raised);

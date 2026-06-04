@@ -34,7 +34,11 @@ function close() {
 
 async function submit() {
   if (!formRef.value) return
-  try { await formRef.value.validate() } catch { return }
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
   loading.value = true
   try {
     await forgotPassword(form.value.email)
@@ -54,7 +58,7 @@ async function submit() {
     :title="$t('login.forgotPasswordTitle')"
     width="420px"
     :close-on-click-modal="false"
-    @update:model-value="(v) => v ? visible = true : close()"
+    @update:model-value="(v) => (v ? (visible = true) : close())"
     @close="close"
   >
     <p class="dialog-desc">{{ $t('login.forgotPasswordDesc') }}</p>
@@ -67,12 +71,7 @@ async function submit() {
       @submit.prevent="submit"
     >
       <el-form-item prop="email">
-        <el-input
-          v-model="form.email"
-          :placeholder="$t('login.email')"
-          size="large"
-          type="email"
-        />
+        <el-input v-model="form.email" :placeholder="$t('login.email')" size="large" type="email" />
       </el-form-item>
     </el-form>
     <div v-else class="sent-hint">
