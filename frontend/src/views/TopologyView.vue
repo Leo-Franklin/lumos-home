@@ -487,8 +487,9 @@ onMounted(loadTopology)
           <div
             v-if="activeTypes.length > 0"
             class="legend-item legend-clear"
+            <!-- prettier-ignore-attribute -->
             @click="
-              activeTypes = []
+              activeTypes = [];
               updateNodeOpacity()
             "
           >

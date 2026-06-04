@@ -317,8 +317,9 @@ onMounted(() => {
         <el-button @click="detailDialog = false">{{ $t('common.close') }}</el-button>
         <el-button
           type="primary"
+          <!-- prettier-ignore-attribute -->
           @click="
-            detailDialog = false
+            detailDialog = false;
             openEdit(detailDevice)
           "
           >{{ $t('common.edit') }}</el-button
