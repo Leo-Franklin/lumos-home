@@ -1,8 +1,11 @@
 export default {
-  // System status
   title: '系统设置',
+  subtitle: '管理账号、通知偏好与系统状态',
+  headerHealthy: '各项服务运行正常',
+  headerDegraded: '部分服务异常，请查看系统状态',
   refresh: '刷新',
-  healthStatus: '系统健康状态',
+  healthStatus: '系统健康',
+  systemDesc: '后端服务、存储与实时连接状态',
   overallStatus: '整体状态',
   uptime: '运行时长',
   uptimeFormat: '{h} 小时 {m} 分钟',
@@ -10,10 +13,44 @@ export default {
   systemUnhealthy: '运行异常',
   checkHealth: '健康检查',
   loading: '加载中...',
+  realtimeLink: '实时连接',
+  checkOk: '正常',
+  checkFail: '异常',
 
-  // User info section
+  checks: {
+    database: '数据库',
+    ffmpeg: 'FFmpeg',
+    nas_writable: 'NAS 存储',
+  },
+
+  nav: {
+    account: '账号',
+    preferences: '偏好',
+    system: '系统',
+    data: '数据',
+  },
+
+  groups: {
+    security: '安全',
+    securityDesc: '局域网陌生设备告警',
+    camera: '摄像头与录像',
+    cameraDesc: '摄像头连接与录像任务',
+    member: '成员',
+    memberDesc: '成员到家 / 离开',
+    system: '系统任务',
+    systemDesc: '后台扫描完成通知',
+  },
+
+  quickLinks: {
+    title: '快捷入口',
+    devices: '扫描与管理网络设备',
+    schedule: '录像计划与自动化',
+    analytics: '网络活动与设备洞察',
+  },
+
   user: {
-    title: '用户信息',
+    title: '账号',
+    accountDesc: '当前登录用户与安全操作',
     username: '用户名',
     role: '角色',
     roleAdmin: '管理员',
@@ -32,18 +69,19 @@ export default {
     passwordTooShort: '新密码至少 8 个字符',
   },
 
-  // Preferences section
   preferences: {
     title: '偏好设置',
+    panelDesc: '语言与通知行为，修改后立即生效',
     language: '语言',
-    languageDesc: '界面显示语言，保存到服务器并同步到所有设备',
-    notifications: '通知偏好',
-    notificationsDesc: '选择需要弹出提示的事件类型',
+    languageDesc: '同步到账号，多设备一致',
+    notifications: '通知',
+    notificationsDesc: '选择需要弹出 Toast 的事件',
     notificationChannel: '通知方式',
     notifyToasts: '应用内 Toast',
-    notifySound: '声音提醒',
+    notifySound: '声音',
     theme: '主题',
     themeDesc: '当前为深色主题，更多主题即将推出',
+    themeNote: '当前仅支持深色主题，浅色模式已在规划中。',
     themeLight: '浅色',
     themeDark: '深色',
     themeAuto: '跟随系统',
@@ -52,7 +90,6 @@ export default {
     saveFailed: '保存失败',
   },
 
-  // Notification event types
   notificationEvents: {
     unknown_device_detected: '陌生设备出现',
     camera_online: '摄像头恢复上线',
@@ -64,18 +101,21 @@ export default {
     scan_completed: '扫描完成',
   },
 
-  // Data management section
   data: {
-    title: '数据管理',
+    title: '数据与版本',
+    panelDesc: '导出 CSV 备份与管理本地浏览器数据',
     exportTitle: '数据导出',
     exportDesc: '将关键数据导出为 CSV 文件，便于备份或分析',
     exportDevices: '导出设备列表',
+    exportDevicesDesc: 'MAC、别名、类型、IP、厂商、在线状态',
     exportRecordings: '导出录像索引',
+    exportRecordingsDesc: '录像索引，含摄像头、时间与状态',
     exporting: '正在生成 CSV…',
     exportSuccess: '导出成功：{name}',
     exportFailed: '导出失败',
+    dangerZone: '危险操作',
     cacheTitle: '本地缓存',
-    cacheDesc: '清理浏览器本地存储的 token、用户名、设置等数据',
+    cacheDesc: '清理 token、用户名与本地偏好，将退出登录',
     clearCache: '清理本地缓存',
     cacheCleared: '本地缓存已清理',
     cacheWarning: '清理后将退出登录并跳转到登录页，是否继续？',

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ElNotification } from 'element-plus'
+import { isNotifyEventEnabled } from '@/composables/useNotificationPreferences'
 import { useDevicesStore } from './devices'
 import { useCamerasStore } from './cameras'
 import { useMembersStore } from './members'
@@ -45,6 +46,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
         devicesStore.fetchDevices()
         break
       case 'unknown_device_detected': {
+        if (!isNotifyEventEnabled('unknown_device_detected')) {
+          _scheduleDeviceRefresh()
+          break
+        }
         const d = msg.data || {}
         const label = d.hostname || d.vendor || d.mac || '未知设备'
         ElNotification({
@@ -59,6 +64,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       case 'camera_offline': {
         const mac = msg.data?.mac
         camerasStore.onCameraOffline(mac)
+        if (!isNotifyEventEnabled('camera_offline')) break
         ElNotification({
           title: '摄像头掉线',
           message: `摄像头 ${mac || ''} 已离线，请检查设备连接`,
@@ -70,6 +76,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       case 'camera_online': {
         const mac = msg.data?.mac
         camerasStore.onCameraOnline(mac)
+        if (!isNotifyEventEnabled('camera_online')) break
         ElNotification({
           title: '摄像头恢复',
           message: `摄像头 ${mac || ''} 已重新上线`,

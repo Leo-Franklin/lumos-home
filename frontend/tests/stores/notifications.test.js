@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { ElNotification } from 'element-plus'
 import { useNotificationsStore } from '@/stores/notifications'
+import { saveNotifyEvents, DEFAULT_NOTIFY_EVENTS } from '@/composables/useNotificationPreferences'
 
 vi.mock('element-plus', () => ({
   ElNotification: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock('@/stores/dlna', () => ({
 describe('useNotificationsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.clear()
     vi.clearAllMocks()
   })
 
@@ -79,6 +82,13 @@ describe('useNotificationsStore', () => {
     expect(store.lastRecordingEvent.camera_mac).toBe('AA:BB:CC:DD:EE:FF')
     expect(store.lastRecordingEvent.duration).toBe(120)
     expect(store.lastRecordingEvent._t).toBeTruthy()
+  })
+
+  it('skips camera toast when preference is disabled', () => {
+    saveNotifyEvents({ ...DEFAULT_NOTIFY_EVENTS, camera_offline: false })
+    const store = useNotificationsStore()
+    store.handle({ event: 'camera_offline', data: { mac: 'AA:BB:CC:DD:EE:FF' } })
+    expect(ElNotification).not.toHaveBeenCalled()
   })
 
   it('handle stores lastRecordingEvent for recording_failed', () => {

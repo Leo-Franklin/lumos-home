@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -8,17 +8,13 @@ import {
   User,
   Lock,
   Setting,
-  Download,
-  Delete,
-  Sunny,
-  Moon,
-  Cellphone,
-  ChatLineRound,
-  VideoCamera,
-  Camera as CameraIcon,
-  Film,
+  Bell,
+  FolderOpened,
+  Monitor,
+  ArrowRight,
+  DataAnalysis,
+  Calendar,
   Connection,
-  Failed,
 } from '@element-plus/icons-vue'
 import api from '@/api/index'
 import { changePassword } from '@/api/auth'
@@ -27,6 +23,19 @@ import { useLocaleStore } from '@/stores/locale'
 import { useDevicesStore } from '@/stores/devices'
 import { useApiError } from '@/composables/useApiError'
 import { exportCsv } from '@/composables/useCsvExport'
+import { useConnectionStatus } from '@/composables/useConnectionStatus'
+import {
+  loadNotifyEvents,
+  loadNotifySound,
+  saveNotifyEvents,
+  saveNotifySound,
+} from '@/composables/useNotificationPreferences'
+import SettingsNav from '@/components/settings/SettingsNav.vue'
+import SettingsSection from '@/components/settings/SettingsSection.vue'
+import SettingsHealthPanel from '@/components/settings/SettingsHealthPanel.vue'
+import SettingsPreferencesPanel from '@/components/settings/SettingsPreferencesPanel.vue'
+import SettingsDataPanel from '@/components/settings/SettingsDataPanel.vue'
+import { pickAppVersion } from '@/constants/appMeta'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -34,8 +43,44 @@ const auth = useAuthStore()
 const localeStore = useLocaleStore()
 const devicesStore = useDevicesStore()
 const handleError = useApiError()
+const { connected } = useConnectionStatus()
 
-// ── Section 1: System status ─────────────────────────────────────
+// ── Navigation ───────────────────────────────────────────────────
+const NAV_ITEMS = computed(() => [
+  { id: 'account', label: t('settings.nav.account'), icon: User },
+  { id: 'preferences', label: t('settings.nav.preferences'), icon: Bell },
+  { id: 'system', label: t('settings.nav.system'), icon: Monitor },
+  { id: 'data', label: t('settings.nav.data'), icon: FolderOpened },
+])
+
+const activeSection = ref('account')
+let sectionObserver = null
+
+function scrollToSection(id) {
+  const el = document.getElementById(id)
+  if (!el) return
+  activeSection.value = id
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function setupSectionObserver() {
+  const ids = NAV_ITEMS.value.map((item) => item.id)
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((e) => e.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+      if (visible.length) activeSection.value = visible[0].target.id
+    },
+    { rootMargin: '-20% 0px -55% 0px', threshold: [0.15, 0.4, 0.6] },
+  )
+  ids.forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) sectionObserver.observe(el)
+  })
+}
+
+// ── System health ────────────────────────────────────────────────
 const health = ref(null)
 const healthLoading = ref(false)
 const healthError = ref('')
@@ -46,20 +91,24 @@ async function fetchHealth() {
   try {
     const { data } = await api.get('/health')
     health.value = data
+    backendVersion.value = pickAppVersion(data)
   } catch (e) {
-    healthError.value = e?.response?.data?.detail || e?.message || t('common.operationFailed')
+    const payload = e?.response?.data
+    if (payload && typeof payload === 'object' && payload.checks) {
+      health.value = payload
+      backendVersion.value = pickAppVersion(payload)
+    } else {
+      healthError.value =
+        (typeof payload?.detail === 'string' ? payload.detail : null) ||
+        e?.message ||
+        t('common.operationFailed')
+    }
   } finally {
     healthLoading.value = false
   }
 }
 
-function formatUptime(s) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  return t('settings.uptimeFormat', { h, m })
-}
-
-// ── Section 2: User info ────────────────────────────────────────
+// ── User account ─────────────────────────────────────────────────
 const loginTime = ref(null)
 
 function readLoginTime() {
@@ -67,6 +116,8 @@ function readLoginTime() {
   if (v) loginTime.value = new Date(v)
 }
 readLoginTime()
+
+const isAdmin = computed(() => auth.username === 'admin')
 
 const changePasswordDialog = ref(false)
 const passwordForm = ref({ current: '', next: '', confirm: '' })
@@ -134,65 +185,29 @@ async function handleLogout() {
   router.push('/login')
 }
 
-// ── Section 3: Preferences ──────────────────────────────────────
+// ── Preferences (auto-persist) ───────────────────────────────────
 const prefLanguage = ref(localeStore.locale)
-const prefEvents = ref({
-  unknown_device_detected: true,
-  camera_online: true,
-  camera_offline: true,
-  recording_completed: true,
-  recording_failed: true,
-  member_arrived: false,
-  member_left: false,
-  scan_completed: false,
-})
-const prefSound = ref(false)
+const prefEvents = ref(loadNotifyEvents())
+const prefSound = ref(loadNotifySound())
 
-const NOTIFY_EVENT_ICONS = {
-  unknown_device_detected: Connection,
-  camera_online: CameraIcon,
-  camera_offline: CameraIcon,
-  recording_completed: Film,
-  recording_failed: Failed,
-  member_arrived: User,
-  member_left: User,
-  scan_completed: Refresh,
+function persistLanguage(lang) {
+  prefLanguage.value = lang
+  if (lang !== localeStore.locale) localeStore.setLocale(lang)
 }
 
-const NOTIFY_EVENT_KEYS = [
-  'unknown_device_detected',
-  'camera_online',
-  'camera_offline',
-  'recording_completed',
-  'recording_failed',
-  'member_arrived',
-  'member_left',
-  'scan_completed',
-]
-
-function loadPreferences() {
-  try {
-    const raw = localStorage.getItem('pref:notify-events')
-    if (raw) Object.assign(prefEvents.value, JSON.parse(raw))
-    prefSound.value = localStorage.getItem('pref:notify-sound') === '1'
-  } catch {
-    /* ignore */
-  }
-  prefLanguage.value = localeStore.locale
+function persistEvents(events) {
+  prefEvents.value = events
+  saveNotifyEvents(events)
 }
 
-function persistPreferences() {
-  localStorage.setItem('pref:notify-events', JSON.stringify(prefEvents.value))
-  localStorage.setItem('pref:notify-sound', prefSound.value ? '1' : '0')
-  // 立即应用语言切换
-  if (prefLanguage.value !== localeStore.locale) {
-    localeStore.setLocale(prefLanguage.value)
-  }
-  ElMessage.success(t('settings.preferences.saved'))
+function persistSound(value) {
+  prefSound.value = value
+  saveNotifySound(value)
 }
 
-// ── Section 4: Data management ──────────────────────────────────
+// ── Data export / cache ──────────────────────────────────────────
 const exporting = ref({ devices: false, recordings: false })
+const backendVersion = ref('')
 
 async function doExportDevices() {
   exporting.value.devices = true
@@ -228,7 +243,6 @@ async function doExportDevices() {
 async function doExportRecordings() {
   exporting.value.recordings = true
   try {
-    // 拉取所有页（最多 1000 条以避免阻塞 UI）
     const { data } = await api.get('/recordings', { params: { page: 1, page_size: 1000 } })
     const items = data.items || []
     const headers = [
@@ -266,7 +280,6 @@ async function clearCache() {
   } catch {
     return
   }
-  // 保留 app-locale 但清掉其它键
   const keepLocale = localStorage.getItem('app-locale')
   localStorage.clear()
   if (keepLocale) localStorage.setItem('app-locale', keepLocale)
@@ -275,261 +288,199 @@ async function clearCache() {
   router.push('/login')
 }
 
-// 版本信息
-const FRONTEND_VERSION = '0.0.0'
-const backendVersion = ref('')
-const backendVersionLoading = ref(false)
+const QUICK_LINKS = computed(() => [
+  {
+    to: '/devices',
+    label: t('layout.devices'),
+    desc: t('settings.quickLinks.devices'),
+    icon: Connection,
+  },
+  {
+    to: '/schedule',
+    label: t('layout.schedule'),
+    desc: t('settings.quickLinks.schedule'),
+    icon: Calendar,
+  },
+  {
+    to: '/analytics',
+    label: t('layout.analytics'),
+    desc: t('settings.quickLinks.analytics'),
+    icon: DataAnalysis,
+  },
+])
 
-async function fetchBackendVersion() {
-  backendVersionLoading.value = true
-  try {
-    const { data } = await api.get('/health')
-    backendVersion.value = data?.version || data?.app_version || ''
-  } catch {
-    backendVersion.value = ''
-  } finally {
-    backendVersionLoading.value = false
-  }
-}
+const headerSummary = computed(() => {
+  if (health.value?.status === 'healthy') return t('settings.headerHealthy')
+  if (health.value) return t('settings.headerDegraded')
+  return t('settings.subtitle')
+})
 
 onMounted(() => {
   fetchHealth()
-  fetchBackendVersion()
-  loadPreferences()
+  requestAnimationFrame(() => setupSectionObserver())
 })
+
+onUnmounted(() => {
+  if (sectionObserver) sectionObserver.disconnect()
+})
+
+watch(
+  () => localeStore.locale,
+  (lang) => {
+    prefLanguage.value = lang
+  },
+)
 </script>
 
 <template>
-  <div>
+  <div class="settings-page">
     <div class="page-header">
       <div>
         <h2 class="page-title">{{ $t('settings.title') }}</h2>
-        <span class="page-sub">{{ auth.username || $t('settings.user.username') }}</span>
+        <span class="page-sub">{{ headerSummary }}</span>
+      </div>
+      <div class="header-actions">
+        <span
+          class="status-chip"
+          :class="connected ? 'status-chip--live' : 'status-chip--warn'"
+          role="status"
+        >
+          <span class="status-dot" />
+          {{ connected ? $t('layout.connected') : $t('layout.disconnected') }}
+        </span>
+        <el-button :icon="Refresh" :loading="healthLoading" @click="fetchHealth">
+          {{ $t('settings.refresh') }}
+        </el-button>
       </div>
     </div>
 
-    <!-- Section 1: System status -->
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><Setting /></el-icon>
-          <span class="section-title">{{ $t('settings.healthStatus') }}</span>
-          <el-button
-            size="small"
-            :icon="Refresh"
+    <div class="settings-layout">
+      <aside class="settings-sidebar">
+        <SettingsNav :items="NAV_ITEMS" :active-id="activeSection" @navigate="scrollToSection" />
+      </aside>
+
+      <div class="settings-content">
+        <!-- Account -->
+        <SettingsSection
+          id="account"
+          :title="$t('settings.user.title')"
+          :description="$t('settings.user.accountDesc')"
+        >
+          <template #icon>
+            <el-icon><User /></el-icon>
+          </template>
+
+          <div class="account-card">
+            <div class="account-avatar" aria-hidden="true">
+              {{ (auth.username || '?').charAt(0).toUpperCase() }}
+            </div>
+            <div class="account-info">
+              <div class="account-name-row">
+                <h4 class="account-name">{{ auth.username || '—' }}</h4>
+                <span class="role-badge" :class="{ 'role-badge--admin': isAdmin }">
+                  {{ isAdmin ? $t('settings.user.roleAdmin') : $t('settings.user.roleUser') }}
+                </span>
+              </div>
+              <p class="account-meta">
+                {{ $t('settings.user.loginTime') }}：
+                {{ loginTime ? loginTime.toLocaleString() : '—' }}
+              </p>
+            </div>
+            <div class="account-actions">
+              <el-button :icon="Lock" @click="openChangePassword">
+                {{ $t('settings.user.changePassword') }}
+              </el-button>
+              <el-button type="danger" plain @click="handleLogout">
+                {{ $t('settings.user.logout') }}
+              </el-button>
+            </div>
+          </div>
+        </SettingsSection>
+
+        <!-- Preferences -->
+        <SettingsSection
+          id="preferences"
+          :title="$t('settings.preferences.title')"
+          :description="$t('settings.preferences.panelDesc')"
+        >
+          <template #icon>
+            <el-icon><Bell /></el-icon>
+          </template>
+          <SettingsPreferencesPanel
+            :language="prefLanguage"
+            :sound="prefSound"
+            :events="prefEvents"
+            @update:language="persistLanguage"
+            @update:sound="persistSound"
+            @update:events="persistEvents"
+          />
+        </SettingsSection>
+
+        <!-- System -->
+        <SettingsSection
+          id="system"
+          :title="$t('settings.healthStatus')"
+          :description="$t('settings.systemDesc')"
+        >
+          <template #icon>
+            <el-icon><Setting /></el-icon>
+          </template>
+          <SettingsHealthPanel
+            :health="health"
             :loading="healthLoading"
-            @click="fetchHealth"
-            class="section-action"
-          >
-            {{ $t('settings.refresh') }}
-          </el-button>
-        </div>
-      </template>
+            :error="healthError"
+            :connected="connected"
+            :version="backendVersion"
+          />
 
-      <el-alert
-        v-if="healthError"
-        :title="healthError"
-        type="error"
-        show-icon
-        :closable="false"
-        class="mb"
-      />
+          <div class="quick-links">
+            <h4 class="quick-links-title">{{ $t('settings.quickLinks.title') }}</h4>
+            <div class="quick-links-grid">
+              <router-link
+                v-for="link in QUICK_LINKS"
+                :key="link.to"
+                :to="link.to"
+                class="quick-link"
+              >
+                <span class="quick-link-icon">
+                  <el-icon><component :is="link.icon" /></el-icon>
+                </span>
+                <span class="quick-link-body">
+                  <span class="quick-link-label">{{ link.label }}</span>
+                  <span class="quick-link-desc">{{ link.desc }}</span>
+                </span>
+                <el-icon class="quick-link-arrow"><ArrowRight /></el-icon>
+              </router-link>
+            </div>
+          </div>
+        </SettingsSection>
 
-      <el-skeleton v-else-if="healthLoading && !health" :rows="3" animated />
-
-      <el-descriptions v-else-if="health" :column="2" border>
-        <el-descriptions-item :label="$t('settings.overallStatus')">
-          <el-tag :type="health.status === 'healthy' ? 'success' : 'danger'" size="small">
-            {{
-              health.status === 'healthy'
-                ? $t('settings.systemHealthy')
-                : $t('settings.systemUnhealthy')
-            }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.uptime')">
-          {{ formatUptime(health.uptime_seconds) }}
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-card>
-
-    <!-- Section 2: User info -->
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><User /></el-icon>
-          <span class="section-title">{{ $t('settings.user.title') }}</span>
-        </div>
-      </template>
-
-      <el-descriptions :column="2" border>
-        <el-descriptions-item :label="$t('settings.user.username')">
-          {{ auth.username || '—' }}
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.user.role')">
-          {{
-            auth.username === 'admin' ? $t('settings.user.roleAdmin') : $t('settings.user.roleUser')
-          }}
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.user.loginTime')">
-          {{ loginTime ? loginTime.toLocaleString() : '—' }}
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.user.changePassword')">
-          <el-button size="small" :icon="Lock" @click="openChangePassword">
-            {{ $t('settings.user.changePassword') }}
-          </el-button>
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <div class="section-actions">
-        <el-button type="danger" plain :icon="Delete" @click="handleLogout">
-          {{ $t('settings.user.logout') }}
-        </el-button>
+        <!-- Data -->
+        <SettingsSection
+          id="data"
+          :title="$t('settings.data.title')"
+          :description="$t('settings.data.panelDesc')"
+        >
+          <template #icon>
+            <el-icon><FolderOpened /></el-icon>
+          </template>
+          <SettingsDataPanel
+            :exporting-devices="exporting.devices"
+            :exporting-recordings="exporting.recordings"
+            :backend-version="backendVersion"
+            @export-devices="doExportDevices"
+            @export-recordings="doExportRecordings"
+            @clear-cache="clearCache"
+          />
+        </SettingsSection>
       </div>
-    </el-card>
+    </div>
 
-    <!-- Section 3: Preferences -->
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><Setting /></el-icon>
-          <span class="section-title">{{ $t('settings.preferences.title') }}</span>
-        </div>
-      </template>
-
-      <div class="pref-row">
-        <div class="pref-label">
-          <span class="pref-name">{{ $t('settings.preferences.language') }}</span>
-          <span class="pref-desc">{{ $t('settings.preferences.languageDesc') }}</span>
-        </div>
-        <el-select v-model="prefLanguage" style="width: 180px">
-          <el-option value="zh-CN" :label="t('login.langChinese')" />
-          <el-option value="en" :label="t('login.langEnglish')" />
-        </el-select>
-      </div>
-
-      <el-divider />
-
-      <div class="pref-row">
-        <div class="pref-label">
-          <span class="pref-name">{{ $t('settings.preferences.notifications') }}</span>
-          <span class="pref-desc">{{ $t('settings.preferences.notificationsDesc') }}</span>
-        </div>
-        <el-switch v-model="prefSound" />
-      </div>
-
-      <div class="pref-row sub">
-        <div class="pref-label">
-          <span class="pref-name">{{ $t('settings.preferences.notifyToasts') }}</span>
-        </div>
-        <div class="pref-event-grid">
-          <el-checkbox
-            v-for="key in NOTIFY_EVENT_KEYS"
-            :key="key"
-            v-model="prefEvents[key]"
-            class="pref-event"
-          >
-            <el-icon class="pref-event-icon">
-              <component :is="NOTIFY_EVENT_ICONS[key]" />
-            </el-icon>
-            <span>{{ $t(`settings.notificationEvents.${key}`) }}</span>
-          </el-checkbox>
-        </div>
-      </div>
-
-      <el-divider />
-
-      <div class="pref-row">
-        <div class="pref-label">
-          <span class="pref-name">{{ $t('settings.preferences.theme') }}</span>
-          <span class="pref-desc">{{ $t('settings.preferences.themeDesc') }}</span>
-        </div>
-        <el-radio-group disabled>
-          <el-tooltip :content="$t('settings.preferences.themeComingSoon')">
-            <el-radio-button value="dark">
-              <el-icon><Moon /></el-icon>
-              {{ $t('settings.preferences.themeDark') }}
-            </el-radio-button>
-          </el-tooltip>
-          <el-tooltip :content="$t('settings.preferences.themeComingSoon')">
-            <el-radio-button value="light">
-              <el-icon><Sunny /></el-icon>
-              {{ $t('settings.preferences.themeLight') }}
-            </el-radio-button>
-          </el-tooltip>
-        </el-radio-group>
-      </div>
-
-      <div class="section-actions">
-        <el-button type="primary" @click="persistPreferences">
-          {{ $t('common.save') }}
-        </el-button>
-      </div>
-    </el-card>
-
-    <!-- Section 4: Data management -->
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><Download /></el-icon>
-          <span class="section-title">{{ $t('settings.data.exportTitle') }}</span>
-        </div>
-      </template>
-
-      <p class="section-desc">{{ $t('settings.data.exportDesc') }}</p>
-
-      <div class="action-row">
-        <el-button :loading="exporting.devices" :icon="Cellphone" @click="doExportDevices">
-          {{ $t('settings.data.exportDevices') }}
-        </el-button>
-        <el-button :loading="exporting.recordings" :icon="VideoCamera" @click="doExportRecordings">
-          {{ $t('settings.data.exportRecordings') }}
-        </el-button>
-      </div>
-    </el-card>
-
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><Delete /></el-icon>
-          <span class="section-title">{{ $t('settings.data.cacheTitle') }}</span>
-        </div>
-      </template>
-
-      <p class="section-desc">{{ $t('settings.data.cacheDesc') }}</p>
-
-      <el-button type="danger" plain :icon="Delete" @click="clearCache">
-        {{ $t('settings.data.clearCache') }}
-      </el-button>
-    </el-card>
-
-    <el-card class="settings-section" shadow="never">
-      <template #header>
-        <div class="section-header">
-          <el-icon class="section-icon"><ChatLineRound /></el-icon>
-          <span class="section-title">{{ $t('settings.data.versionsTitle') }}</span>
-        </div>
-      </template>
-
-      <el-descriptions :column="1" border>
-        <el-descriptions-item :label="$t('settings.data.frontendVersion')">
-          <span class="mono">v{{ FRONTEND_VERSION }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item :label="$t('settings.data.backendVersion')">
-          <span v-if="backendVersionLoading" class="text-muted">
-            {{ $t('settings.data.loadingBackendVersion') }}
-          </span>
-          <span v-else-if="backendVersion" class="mono">v{{ backendVersion }}</span>
-          <span v-else class="text-muted">—</span>
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-card>
-
-    <!-- Change password dialog -->
     <el-dialog
       v-model="changePasswordDialog"
       :title="$t('settings.user.changePasswordTitle')"
       width="440px"
+      destroy-on-close
     >
       <el-form
         ref="passwordFormRef"
@@ -559,106 +510,259 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.settings-section {
-  margin-bottom: var(--space-6);
-  background-color: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-lg) !important;
-}
-.settings-section :deep(.el-card__header) {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-.section-header {
+.settings-page {
   display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.section-icon {
-  font-size: 16px;
-  color: var(--color-primary);
-}
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  flex: 1;
-}
-.section-action {
-  margin-left: auto;
-}
-.section-desc {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin: 0 0 var(--space-4);
-  line-height: 1.5;
-}
-.section-actions {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-subtle);
-  display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: var(--space-2);
 }
 
-.pref-row {
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.settings-sidebar {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.status-chip--live {
+  border-color: color-mix(in srgb, var(--color-online) 35%, transparent);
+  background: color-mix(in srgb, var(--color-online) 10%, transparent);
+  color: var(--color-online);
+}
+
+.status-chip--warn {
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.account-card {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
-  padding: var(--space-2) 0;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
 }
-.pref-row.sub {
-  align-items: flex-start;
-  padding-left: 0;
+
+.account-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  flex-shrink: 0;
 }
-.pref-label {
+
+.account-info {
+  flex: 1;
+  min-width: 180px;
+}
+
+.account-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.account-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.role-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.role-badge--admin {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.account-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.account-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.quick-links {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.quick-links-title {
+  margin: 0 0 var(--space-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.quick-links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.quick-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-snap);
+}
+
+.quick-link:hover {
+  border-color: var(--color-primary-border);
+  transform: translateX(2px);
+}
+
+.quick-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.quick-link-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.quick-link-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.pref-name {
+
+.quick-link-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
-.pref-desc {
-  font-size: 12px;
+
+.quick-link-desc {
+  font-size: 11px;
   color: var(--color-text-muted);
-  line-height: 1.4;
+  line-height: 1.35;
 }
-.pref-event-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
-  gap: 8px 16px;
-  flex: 2;
-}
-.pref-event {
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-}
-.pref-event-icon {
-  margin-right: 6px;
-  color: var(--color-primary);
-  font-size: 14px;
-}
-.action-row {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-.mb {
-  margin-bottom: var(--space-4);
-}
-.mono {
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.text-muted {
+
+.quick-link-arrow {
   color: var(--color-text-muted);
-  font-size: 12px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: static;
+  }
+
+  .settings-sidebar :deep(.settings-nav) {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-sidebar :deep(.nav-item) {
+    flex-shrink: 0;
+  }
+
+  .quick-links-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-actions {
+    flex-direction: column;
+  }
+
+  .account-actions .el-button {
+    width: 100%;
+  }
 }
 </style>
