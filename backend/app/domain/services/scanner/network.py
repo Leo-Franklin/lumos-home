@@ -195,7 +195,9 @@ def detect_default_gateway_ips() -> frozenset[str]:
                     except ValueError:
                         continue
         else:
-            out = subprocess.check_output(['ip', '-4', 'route', 'show', 'default'], timeout=5)
+            out = subprocess.check_output(
+                ['ip', '-4', 'route', 'show', 'default'], text=True, timeout=5
+            )
             for line in out.splitlines():
                 parts = line.split()
                 if 'via' in parts:
