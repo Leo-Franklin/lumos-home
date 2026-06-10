@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useApiError } from '@/composables/useApiError'
+import { useCamerasStore } from '@/stores/cameras'
 import {
   createCamera,
   updateCamera,
@@ -120,25 +121,59 @@ export function useCameraActions() {
   const probeDialog = ref(false)
   const probeResult = ref(null)
   const probeLoading = ref(false)
+  const probeApplying = ref(false)
+  const probeCam = ref(null)
 
   async function openProbeDialog(cam) {
+    probeCam.value = cam
     probeLoading.value = true
     probeResult.value = null
     probeDialog.value = true
     try {
       const { data } = await probeCamera(cam.device_mac)
       probeResult.value = data
+      if (data.auto_set_rtsp_url) {
+        await useCamerasStore().fetchCameras()
+        const refreshed = useCamerasStore().items.find((c) => c.device_mac === cam.device_mac)
+        if (refreshed) probeCam.value = refreshed
+      }
     } catch (e) {
       handleError(e, 'cameras.onvifProbeFailed')
       probeDialog.value = false
+      probeCam.value = null
     } finally {
       probeLoading.value = false
+    }
+  }
+
+  async function applyProbeStream(selection) {
+    if (!probeCam.value) return false
+    probeApplying.value = true
+    try {
+      await updateCamera(probeCam.value.device_mac, {
+        rtsp_url: selection.rtsp_url,
+        stream_profile: selection.stream_profile,
+      })
+      ElMessage.success(
+        t('cameras.probeStreamApplied', {
+          stream: selection.stream_label || selection.stream_profile,
+        }),
+      )
+      await useCamerasStore().fetchCameras()
+      closeProbeDialog()
+      return true
+    } catch (e) {
+      handleError(e, 'cameras.saveFailed')
+      return false
+    } finally {
+      probeApplying.value = false
     }
   }
 
   function closeProbeDialog() {
     probeDialog.value = false
     probeResult.value = null
+    probeCam.value = null
   }
 
   // ── Live (MJPEG) ────────────────────────────────────────────────
@@ -431,8 +466,11 @@ export function useCameraActions() {
     probeDialog,
     probeResult,
     probeLoading,
+    probeApplying,
+    probeCam,
     openProbeDialog,
     closeProbeDialog,
+    applyProbeStream,
     // live (mjpeg)
     liveDialog,
     liveUrl,

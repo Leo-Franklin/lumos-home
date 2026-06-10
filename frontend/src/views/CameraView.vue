@@ -28,8 +28,11 @@ const {
   probeDialog,
   probeResult,
   probeLoading,
+  probeApplying,
+  probeCam,
   openProbeDialog,
   closeProbeDialog,
+  applyProbeStream,
   liveDialog,
   liveUrl,
   liveTitle,
@@ -76,6 +79,10 @@ async function refreshAfterMutation() {
   await camerasStore.fetchCameras()
 }
 
+function handleProbeApply(selection) {
+  applyProbeStream(selection)
+}
+
 function handlePreviewCommand(cmd, row) {
   if (cmd === 'live') openLive(row)
   else if (cmd === 'snapshot') takeSnapshotAction(row)
@@ -83,7 +90,9 @@ function handlePreviewCommand(cmd, row) {
 }
 
 function handleMoreCommand(cmd, row) {
-  if (cmd === 'probe') openProbeDialog(row)
+  if (cmd === 'snapshot') takeSnapshotAction(row)
+  else if (cmd === 'hls') openHlsLive(row)
+  else if (cmd === 'probe') openProbeDialog(row)
   else if (cmd === 'presets') openPresets(row)
   else if (cmd === 'delete')
     deleteCameraAction(row)
@@ -166,7 +175,10 @@ onUnmounted(() => {
       v-if="probeDialog"
       v-model="probeDialog"
       :loading="probeLoading"
+      :applying="probeApplying"
       :result="probeResult"
+      :current-rtsp-url="probeCam?.rtsp_url || ''"
+      @apply="handleProbeApply"
     />
 
     <el-dialog
