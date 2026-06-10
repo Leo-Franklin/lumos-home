@@ -132,6 +132,17 @@ async def _add_log(mem_db, member_id: int, event: str, occurred_at: datetime):
         return log.id
 
 
+async def _create_device(mem_db, mac: str, *, is_online: bool = False):
+    from app.domain.models.device import Device
+
+    async with mem_db() as db:
+        dev = Device(mac=mac, is_online=is_online, device_type='phone')
+        db.add(dev)
+        await db.commit()
+        await db.refresh(dev)
+        return dev.mac
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/members
 # ---------------------------------------------------------------------------
@@ -151,6 +162,23 @@ async def test_list_members_returns_created(client, mem_db):
     assert resp.status_code == 200
     ids = [m['id'] for m in resp.json()]
     assert mid in ids
+
+
+@pytest.mark.asyncio
+async def test_list_members_includes_device_summary(client, mem_db):
+    mid, _ = await _create_member(mem_db)
+    mac_online = 'AA:AA:AA:AA:AA:01'
+    mac_offline = 'BB:BB:BB:BB:BB:02'
+    await _create_device(mem_db, mac_online, is_online=True)
+    await _create_device(mem_db, mac_offline, is_online=False)
+    await _bind_device(mem_db, mid, mac_online)
+    await _bind_device(mem_db, mid, mac_offline)
+
+    resp = await client.get('/api/v1/members')
+    assert resp.status_code == 200
+    row = next(m for m in resp.json() if m['id'] == mid)
+    assert row['device_count'] == 2
+    assert row['devices_online'] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +213,26 @@ async def test_create_member_full(client):
     assert data['avatar_url'] == payload['avatar_url']
     assert data['webhook_url'] == payload['webhook_url']
     assert data['auto_record_cameras'] == ['AA:BB:CC:DD:EE:01']
+    assert data['device_count'] == 0
+    assert data['devices_online'] == 0
+
+
+@pytest.mark.asyncio
+async def test_create_member_rejects_insecure_webhook(client):
+    resp = await client.post(
+        '/api/v1/members',
+        json={'name': _unique_name(), 'webhook_url': 'http://hooks.example.com/notify'},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_member_rejects_private_webhook(client):
+    resp = await client.post(
+        '/api/v1/members',
+        json={'name': _unique_name(), 'webhook_url': 'https://192.168.0.1/hook'},
+    )
+    assert resp.status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +372,18 @@ async def test_bind_device_duplicate_returns_409(client, mem_db):
 
     resp = await client.post(f'/api/v1/members/{mid}/devices', json={'mac': mac})
     assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_bind_device_already_bound_to_other_member_returns_409(client, mem_db):
+    mid_a, _ = await _create_member(mem_db, name=_unique_name('alice'))
+    mid_b, _ = await _create_member(mem_db, name=_unique_name('bob'))
+    mac = 'DD:DD:DD:DD:DD:01'
+    await _bind_device(mem_db, mid_a, mac)
+
+    resp = await client.post(f'/api/v1/members/{mid_b}/devices', json={'mac': mac})
+    assert resp.status_code == 409
+    assert '其他成员' in resp.json()['error']['message']
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,6 @@
 import asyncio
-import ipaddress
 import sys
 from datetime import datetime
-from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -10,37 +8,10 @@ from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.domain.services._bg import spawn_bg
+from app.domain.services.webhook_validation import validate_webhook_url
 from app.models.device import Device
 from app.models.member import Member, MemberDevice, PresenceLog
 from app.services.ws_manager import ws_manager
-
-_PRIVATE_NETWORKS = [
-    ipaddress.ip_network('10.0.0.0/8'),
-    ipaddress.ip_network('172.16.0.0/12'),
-    ipaddress.ip_network('192.168.0.0/16'),
-    ipaddress.ip_network('127.0.0.0/8'),
-    ipaddress.ip_network('169.254.0.0/16'),
-    ipaddress.ip_network('::1/128'),
-    ipaddress.ip_network('fc00::/7'),
-]
-
-
-def _validate_webhook_url(url: str) -> None:
-    parsed = urlparse(url)
-    if parsed.scheme != 'https':
-        raise ValueError(f'Webhook URL 必须使用 https 协议: {url}')
-    hostname = parsed.hostname
-    if not hostname:
-        raise ValueError(f'Webhook URL 无效: {url}')
-    try:
-        addr = ipaddress.ip_address(hostname)
-    except ValueError:
-        # hostname is a domain name, not an IP literal — allow it
-        # Note: DNS rebinding attacks are a known limitation; IP literals only are checked here
-        return
-    for net in _PRIVATE_NETWORKS:
-        if addr in net:
-            raise ValueError(f'Webhook URL 不能指向内网地址: {hostname}')
 
 
 class PresenceService:
@@ -260,7 +231,7 @@ class PresenceService:
         self, url: str, event: str, member: Member, triggered_mac: str | None, ts: datetime
     ):
         try:
-            _validate_webhook_url(url)
+            validate_webhook_url(url)
         except ValueError as e:
             logger.warning(f'Webhook URL 不合法，跳过: {e}')
             return

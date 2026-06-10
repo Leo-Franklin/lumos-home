@@ -104,4 +104,24 @@ describe('useNotificationsStore', () => {
     expect(store.lastRecordingEvent.error).toBe('disk full')
     expect(store.lastRecordingEvent._t).toBeTruthy()
   })
+
+  it('shows toast for member_arrived when preference enabled', () => {
+    saveNotifyEvents({ ...DEFAULT_NOTIFY_EVENTS, member_arrived: true })
+    const store = useNotificationsStore()
+    store.handle({ event: 'member_arrived', data: { member_id: 1, name: '张三' } })
+    expect(ElNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '成员到家',
+        message: expect.stringContaining('张三'),
+        type: 'success',
+      }),
+    )
+  })
+
+  it('skips member_left toast when preference is disabled', () => {
+    saveNotifyEvents({ ...DEFAULT_NOTIFY_EVENTS, member_left: false })
+    const store = useNotificationsStore()
+    store.handle({ event: 'member_left', data: { member_id: 1, name: '李四' } })
+    expect(ElNotification).not.toHaveBeenCalled()
+  })
 })

@@ -1,8 +1,15 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from app.domain.services.webhook_validation import validate_webhook_url
 from app.schemas.device import DeviceOut
+
+
+def _check_webhook(v: str | None) -> str | None:
+    if v:
+        validate_webhook_url(v)
+    return v
 
 
 class MemberCreate(BaseModel):
@@ -11,12 +18,22 @@ class MemberCreate(BaseModel):
     webhook_url: str | None = None
     auto_record_cameras: list[str] = []
 
+    @field_validator('webhook_url')
+    @classmethod
+    def validate_webhook(cls, v: str | None) -> str | None:
+        return _check_webhook(v)
+
 
 class MemberUpdate(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
     webhook_url: str | None = None
     auto_record_cameras: list[str] | None = None
+
+    @field_validator('webhook_url')
+    @classmethod
+    def validate_webhook(cls, v: str | None) -> str | None:
+        return _check_webhook(v)
 
 
 class MemberOut(BaseModel):
@@ -29,8 +46,8 @@ class MemberOut(BaseModel):
     last_left_at: datetime | None
     auto_record_cameras: list[str]
     created_at: datetime
-
-    model_config = {'from_attributes': True}
+    device_count: int = 0
+    devices_online: int = 0
 
 
 class MemberDeviceCreate(BaseModel):

@@ -21,8 +21,8 @@ describe('useMembersStore', () => {
 
   it('fetchMembers sets items', async () => {
     const mockMembers = [
-      { id: 1, name: 'Alice', is_home: false },
-      { id: 2, name: 'Bob', is_home: true },
+      { id: 1, name: 'Alice', is_home: false, device_count: 1, devices_online: 0 },
+      { id: 2, name: 'Bob', is_home: true, device_count: 2, devices_online: 1 },
     ]
     api.get.mockResolvedValue({ data: mockMembers })
 

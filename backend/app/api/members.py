@@ -1,8 +1,10 @@
 import math
 from datetime import datetime, timedelta
+from typing import NoReturn
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import CurrentUser, DBDep
 from app.models.device import Device
@@ -23,14 +25,72 @@ from app.schemas.member import (
 router = APIRouter(prefix='/members', tags=['members'])
 
 
-def _not_found():
+def _not_found() -> NoReturn:
     raise HTTPException(status_code=404, detail='成员不存在')
+
+
+async def _device_summary_by_member(
+    db: AsyncSession, member_ids: list[int]
+) -> dict[int, tuple[int, int]]:
+    if not member_ids:
+        return {}
+    bound_result = await db.execute(
+        select(MemberDevice.member_id, MemberDevice.mac).where(
+            MemberDevice.member_id.in_(member_ids)
+        )
+    )
+    macs_by_member: dict[int, list[str]] = {}
+    all_macs: set[str] = set()
+    for member_id, mac in bound_result.all():
+        macs_by_member.setdefault(member_id, []).append(mac)
+        all_macs.add(mac)
+
+    online_macs: set[str] = set()
+    if all_macs:
+        online_result = await db.execute(
+            select(Device.mac).where(Device.mac.in_(all_macs), Device.is_online.is_(True))
+        )
+        online_macs = set(online_result.scalars().all())
+
+    return {
+        mid: (len(macs), sum(1 for mac in macs if mac in online_macs))
+        for mid, macs in macs_by_member.items()
+    }
+
+
+def _to_member_out(member: Member, summary: dict[int, tuple[int, int]]) -> MemberOut:
+    device_count, devices_online = summary.get(member.id, (0, 0))
+    return MemberOut(
+        id=member.id,
+        name=member.name,
+        avatar_url=member.avatar_url,
+        webhook_url=member.webhook_url,
+        is_home=member.is_home,
+        last_arrived_at=member.last_arrived_at,
+        last_left_at=member.last_left_at,
+        auto_record_cameras=member.auto_record_cameras or [],
+        created_at=member.created_at,
+        device_count=device_count,
+        devices_online=devices_online,
+    )
+
+
+async def _member_out(db: AsyncSession, member: Member) -> MemberOut:
+    summary = await _device_summary_by_member(db, [member.id])
+    return _to_member_out(member, summary)
+
+
+async def _members_out(db: AsyncSession, members: list[Member]) -> list[MemberOut]:
+    if not members:
+        return []
+    summary = await _device_summary_by_member(db, [m.id for m in members])
+    return [_to_member_out(m, summary) for m in members]
 
 
 @router.get('', response_model=list[MemberOut])
 async def list_members(db: DBDep, _: CurrentUser):
     result = await db.execute(select(Member).order_by(Member.id))
-    return result.scalars().all()
+    return await _members_out(db, list(result.scalars().all()))
 
 
 @router.post('', response_model=MemberOut, status_code=status.HTTP_201_CREATED)
@@ -39,7 +99,7 @@ async def create_member(body: MemberCreate, db: DBDep, _: CurrentUser):
     db.add(member)
     await db.commit()
     await db.refresh(member)
-    return member
+    return await _member_out(db, member)
 
 
 @router.get('/{member_id}', response_model=MemberOut)
@@ -47,7 +107,7 @@ async def get_member(member_id: int, db: DBDep, _: CurrentUser):
     member = (await db.execute(select(Member).where(Member.id == member_id))).scalar_one_or_none()
     if not member:
         _not_found()
-    return member
+    return await _member_out(db, member)
 
 
 @router.patch('/{member_id}', response_model=MemberOut)
@@ -59,7 +119,7 @@ async def update_member(member_id: int, body: MemberUpdate, db: DBDep, _: Curren
         setattr(member, field, value)
     await db.commit()
     await db.refresh(member)
-    return member
+    return await _member_out(db, member)
 
 
 @router.delete('/{member_id}', status_code=status.HTTP_204_NO_CONTENT)
@@ -117,6 +177,16 @@ async def bind_device(member_id: int, body: MemberDeviceCreate, db: DBDep, _: Cu
     ).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail='该设备已绑定到此成员')
+
+    other_member = (
+        await db.execute(
+            select(MemberDevice).where(
+                MemberDevice.mac == body.mac, MemberDevice.member_id != member_id
+            )
+        )
+    ).scalar_one_or_none()
+    if other_member:
+        raise HTTPException(status_code=409, detail='该设备已绑定到其他成员')
 
     md = MemberDevice(member_id=member_id, mac=body.mac, label=body.label)
     db.add(md)

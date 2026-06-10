@@ -94,9 +94,19 @@ export const useNotificationsStore = defineStore('notifications', () => {
         lastRecordingEvent.value = { event: msg.event, ...msg.data, _t: Date.now() }
         break
       case 'member_arrived':
-      case 'member_left':
+      case 'member_left': {
         membersStore.onPresenceEvent(msg.data?.member_id, msg.event)
+        if (!isNotifyEventEnabled(msg.event)) break
+        const memberName = msg.data?.name || '成员'
+        const arrived = msg.event === 'member_arrived'
+        ElNotification({
+          title: arrived ? '成员到家' : '成员离家',
+          message: arrived ? `${memberName} 已回到家` : `${memberName} 已离开家`,
+          type: arrived ? 'success' : 'info',
+          duration: 5000,
+        })
         break
+      }
       case 'dlna_discover_completed':
         dlnaStore.onDiscoverCompleted()
         break
