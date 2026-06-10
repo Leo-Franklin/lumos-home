@@ -22,6 +22,7 @@ class DeviceOut(BaseModel):
     device_type: str
     alias: str | None
     open_ports: str | None  # JSON string: "[80,443]"
+    scan_metadata: str | None  # JSON string: enrichment fingerprints and type signals
     response_time_ms: float | None
     is_online: bool
     last_seen: datetime | None

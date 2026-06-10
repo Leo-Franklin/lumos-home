@@ -74,6 +74,41 @@ async def ssdp_search(timeout: float = 5.0) -> list[str]:
     return await loop.run_in_executor(None, _ssdp_search_sync, timeout)
 
 
+async def fetch_upnp_basic_info(location_url: str) -> dict | None:
+    """Fetch UPnP device description XML and extract identity fields (any device type)."""
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(location_url)
+            resp.raise_for_status()
+    except Exception as e:  # noqa: BLE001 — HTTP/timeout/connect are all treated as unavailable
+        logger.debug(f'获取 UPnP 描述失败 {location_url}: {e}')
+        return None
+
+    try:
+        xml_text = re.sub(r'^(<\s*root)\s+xmlns(?::[^=]+)?="[^"]+"', r'\1', resp.text)
+        root = safe_fromstring(xml_text)
+        device = root.find('.//{urn:schemas-upnp-org:device-1-0}device')
+        if device is None:
+            return None
+
+        parsed = urlparse(location_url)
+        ns = 'urn:schemas-upnp-org:device-1-0'
+        return {
+            'udn': (device.findtext(f'{{{ns}}}UDN') or '').strip(),
+            'friendly_name': device.findtext(f'{{{ns}}}friendlyName'),
+            'device_type': device.findtext(f'{{{ns}}}deviceType'),
+            'manufacturer': device.findtext(f'{{{ns}}}manufacturer'),
+            'model_name': device.findtext(f'{{{ns}}}modelName'),
+            'model_number': device.findtext(f'{{{ns}}}modelNumber'),
+            'serial_number': device.findtext(f'{{{ns}}}serialNumber'),
+            'ip': parsed.hostname,
+            'location_url': location_url,
+        }
+    except Exception as e:  # noqa: BLE001 — malformed XML/encoding → treat as unavailable
+        logger.debug(f'解析 UPnP 描述 XML 失败 {location_url}: {e}')
+        return None
+
+
 async def fetch_device_info(location_url: str) -> dict | None:
     """Fetch UPnP device description XML and extract service control URLs.
 

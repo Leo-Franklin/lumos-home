@@ -96,6 +96,8 @@ async def get_topology(db: DBDep, _: CurrentUser):
                 'vendor': d.vendor,
                 'device_type': d.device_type or 'unknown',
                 'alias': d.alias,
+                'open_ports': d.open_ports,
+                'scan_metadata': d.scan_metadata,
                 'response_time_ms': d.response_time_ms,
                 'is_online': d.is_online,
                 'last_seen': d.last_seen.isoformat() if d.last_seen else None,

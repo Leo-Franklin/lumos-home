@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import {
   VideoCameraFilled,
   Monitor,
@@ -15,7 +16,7 @@ import {
   Watch,
 } from '@element-plus/icons-vue'
 
-defineProps({
+const props = defineProps({
   device: { type: Object, required: true },
 })
 defineEmits(['edit', 'delete', 'detail'])
@@ -63,6 +64,31 @@ function typeBadgeStyle(t) {
   const cfg = TYPE_CONFIG[t] || TYPE_CONFIG.unknown
   return { color: cfg.hex, background: `color-mix(in srgb, ${cfg.hex} 10%, transparent)` }
 }
+
+function parseScanMetadata(raw) {
+  if (!raw) return null
+  try {
+    const meta = JSON.parse(raw)
+    return meta && typeof meta === 'object' ? meta : null
+  } catch {
+    return null
+  }
+}
+
+const typeConfidence = computed(() => {
+  const confidence = parseScanMetadata(props.device.scan_metadata)?.type_confidence
+  if (confidence === undefined || confidence === null) return null
+  const value = Number(confidence)
+  return Number.isFinite(value) ? Math.round(value * 100) : null
+})
+
+const confidenceLevel = computed(() => {
+  const pct = typeConfidence.value
+  if (pct === null) return null
+  if (pct >= 80) return 'high'
+  if (pct >= 50) return 'medium'
+  return 'low'
+})
 </script>
 
 <template>
@@ -94,10 +120,20 @@ function typeBadgeStyle(t) {
     <!-- IP 地址 mono -->
     <span class="device-ip">{{ device.ip || '—' }}</span>
 
-    <!-- 类型徽章 -->
-    <span class="type-badge" :style="typeBadgeStyle(device.device_type)">
-      {{ $t(`common.deviceTypes.${device.device_type}`) }}
-    </span>
+    <!-- 类型徽章 + 置信度 -->
+    <div class="type-block">
+      <span class="type-badge" :style="typeBadgeStyle(device.device_type)">
+        {{ $t(`common.deviceTypes.${device.device_type}`) }}
+      </span>
+      <span
+        v-if="typeConfidence !== null"
+        class="confidence-badge"
+        :class="`confidence-badge--${confidenceLevel}`"
+        :title="$t('devices.typeConfidence')"
+      >
+        {{ typeConfidence }}%
+      </span>
+    </div>
 
     <!-- 操作按钮 -->
     <div class="row-actions">
@@ -215,16 +251,42 @@ function typeBadgeStyle(t) {
   font-variant-numeric: tabular-nums;
 }
 
-/* 类型徽章 */
+/* 类型徽章 + 置信度 */
+.type-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
 .type-badge {
   font-size: 11px;
   font-weight: 500;
   padding: 2px 10px;
   border-radius: var(--radius-full);
   letter-spacing: 0.01em;
-  flex-shrink: 0;
-  min-width: 80px;
   text-align: center;
+}
+
+.confidence-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.confidence-badge--high {
+  color: var(--color-online);
+}
+
+.confidence-badge--medium {
+  color: var(--color-text-secondary);
+}
+
+.confidence-badge--low {
+  color: var(--color-text-muted);
 }
 
 /* 操作按钮：触屏设备始终可见，鼠标设备悬停显示 */
@@ -258,7 +320,7 @@ function typeBadgeStyle(t) {
   }
 
   .device-ip,
-  .type-badge {
+  .type-block {
     display: none;
   }
 

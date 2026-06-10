@@ -129,6 +129,42 @@ const detailTypeLabel = computed(() => {
   return type ? t(`common.deviceTypes.${type}`) : '—'
 })
 
+function parseJsonField(raw, fallback = null) {
+  if (!raw) return fallback
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
+
+const detailOpenPorts = computed(() => {
+  const ports = parseJsonField(detailDevice.value?.open_ports, [])
+  return Array.isArray(ports) ? ports : []
+})
+
+const detailScanMeta = computed(() => {
+  const meta = parseJsonField(detailDevice.value?.scan_metadata, null)
+  return meta && typeof meta === 'object' ? meta : null
+})
+
+const detailServicesLabel = computed(() => {
+  const services = detailScanMeta.value?.services
+  if (!Array.isArray(services) || services.length === 0) return '—'
+  return services.map((s) => `${s.port}/${s.name}`).join(', ')
+})
+
+const detailTypeConfidence = computed(() => {
+  const confidence = detailScanMeta.value?.type_confidence
+  if (confidence === undefined || confidence === null) return '—'
+  return `${Math.round(confidence * 100)}%`
+})
+
+const detailTypeSignals = computed(() => {
+  const signals = detailScanMeta.value?.type_signals
+  return Array.isArray(signals) ? signals : []
+})
+
 // ── 其他 ─────────────────────────────────────────────
 const deviceTypeOptions = [
   'camera',
@@ -310,7 +346,12 @@ const filterOptions = deviceTypeOptions.map((value) => ({
         <div class="detail-grid">
           <div class="detail-row">
             <span class="detail-label">{{ $t('devices.deviceType') }}</span>
-            <span class="detail-value">{{ detailTypeLabel }}</span>
+            <span class="detail-value">
+              {{ detailTypeLabel }}
+              <template v-if="detailTypeConfidence !== '—'">
+                · {{ detailTypeConfidence }}
+              </template>
+            </span>
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ $t('devices.mac') }}</span>
@@ -324,7 +365,72 @@ const filterOptions = deviceTypeOptions.map((value) => ({
             <span class="detail-label">{{ $t('devices.vendor') }}</span>
             <span class="detail-value">{{ detailDevice.vendor || '—' }}</span>
           </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.hostname') }}</span>
+            <span class="detail-value">{{ detailDevice.hostname || '—' }}</span>
+          </div>
         </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">{{ $t('devices.networkInfo') }}</div>
+        <div class="detail-grid">
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.responseTime') }}</span>
+            <span class="detail-value">
+              {{
+                detailDevice.response_time_ms != null
+                  ? `${detailDevice.response_time_ms} ${$t('devices.ms')}`
+                  : '—'
+              }}
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.openPorts') }}</span>
+            <span class="detail-value mono">
+              {{ detailOpenPorts.length ? detailOpenPorts.join(', ') : '—' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">{{ $t('devices.scanInfo') }}</div>
+        <div v-if="detailScanMeta" class="detail-grid">
+          <div class="detail-row" v-if="detailScanMeta.netbios_name">
+            <span class="detail-label">{{ $t('devices.netbiosName') }}</span>
+            <span class="detail-value">{{ detailScanMeta.netbios_name }}</span>
+          </div>
+          <div class="detail-row" v-if="detailScanMeta.os_hint">
+            <span class="detail-label">{{ $t('devices.osHint') }}</span>
+            <span class="detail-value">{{ detailScanMeta.os_hint }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ $t('devices.typeConfidence') }}</span>
+            <span class="detail-value">{{ detailTypeConfidence }}</span>
+          </div>
+          <div class="detail-row" v-if="detailTypeSignals.length">
+            <span class="detail-label">{{ $t('devices.typeSignals') }}</span>
+            <span class="detail-value">
+              <span v-for="(signal, idx) in detailTypeSignals" :key="idx" class="signal-chip">
+                {{ signal.source }}: {{ signal.reason }}
+              </span>
+            </span>
+          </div>
+          <div class="detail-row" v-if="detailScanMeta.upnp?.friendly_name">
+            <span class="detail-label">{{ $t('devices.upnpName') }}</span>
+            <span class="detail-value">{{ detailScanMeta.upnp.friendly_name }}</span>
+          </div>
+          <div class="detail-row" v-if="detailScanMeta.upnp?.model_name">
+            <span class="detail-label">{{ $t('devices.upnpModel') }}</span>
+            <span class="detail-value">{{ detailScanMeta.upnp.model_name }}</span>
+          </div>
+          <div class="detail-row" v-if="detailServicesLabel !== '—'">
+            <span class="detail-label">{{ $t('devices.services') }}</span>
+            <span class="detail-value mono">{{ detailServicesLabel }}</span>
+          </div>
+        </div>
+        <div v-else class="detail-notes">{{ $t('devices.noScanInfo') }}</div>
       </div>
 
       <div class="detail-section">
@@ -497,5 +603,13 @@ const filterOptions = deviceTypeOptions.map((value) => ({
   color: var(--color-text-secondary);
   white-space: pre-wrap;
   line-height: 1.6;
+}
+
+.signal-chip {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 </style>

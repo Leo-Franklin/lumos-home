@@ -69,6 +69,7 @@ async def init_db() -> None:
             'ALTER TABLE cameras ADD COLUMN rtsp_url TEXT',
             'ALTER TABLE devices ADD COLUMN hostname TEXT',
             'ALTER TABLE devices ADD COLUMN open_ports TEXT',
+            'ALTER TABLE devices ADD COLUMN scan_metadata TEXT',
             'ALTER TABLE devices ADD COLUMN response_time_ms REAL',
             "ALTER TABLE members ADD COLUMN auto_record_cameras JSON DEFAULT '[]'",
             'ALTER TABLE cameras ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT 1',

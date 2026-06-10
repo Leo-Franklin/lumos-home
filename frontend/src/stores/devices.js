@@ -118,6 +118,10 @@ export const useDevicesStore = defineStore('devices', () => {
     scanningStage.value = ''
   }
 
+  function onScanStarted(subnet) {
+    if (subnet) scanningStage.value = subnet
+  }
+
   function onScanCompleted() {
     clearTimeout(scanTimeoutId)
     clearInterval(scanProgressTimer)
@@ -147,6 +151,7 @@ export const useDevicesStore = defineStore('devices', () => {
     clearSearch,
     scan,
     cancelScan,
+    onScanStarted,
     onScanCompleted,
   }
 })

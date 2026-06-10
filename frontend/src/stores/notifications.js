@@ -30,6 +30,9 @@ export const useNotificationsStore = defineStore('notifications', () => {
     const dlnaStore = useDLNAStore()
 
     switch (msg.event) {
+      case 'scan_started':
+        devicesStore.onScanStarted(msg.data?.subnet)
+        break
       case 'scan_completed':
         if (_scanRefreshTimer) {
           clearTimeout(_scanRefreshTimer)

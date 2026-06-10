@@ -1,5 +1,6 @@
 import asyncio
 import ipaddress
+import json
 import re
 import socket
 import struct
@@ -7,7 +8,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -16,6 +17,11 @@ if TYPE_CHECKING:
 
 from app.domain.models.camera import Camera
 from app.domain.models.device import Device
+from app.domain.services.device_type_inference import (
+    guess_device_type_detailed,
+    infer_display_vendor,
+    resolve_persisted_device_type,
+)
 
 # Dedicated executor for blocking I/O (hostname resolution + ping).
 # 128 workers = 64 semaphore × 2 concurrent blocking ops per device, no queuing.
@@ -37,10 +43,200 @@ except ImportError:
     AsyncMacLookup = None
     _MAC_LOOKUP_AVAILABLE = False
 
+# Well-known TCP ports probed on the local LAN (home-admin scope only).
+_PORT_SERVICES: dict[int, str] = {
+    22: 'ssh',
+    80: 'http',
+    443: 'https',
+    445: 'smb',
+    548: 'afp',
+    554: 'rtsp',
+    8554: 'rtsp_alt',
+    10554: 'rtsp_alt2',
+    631: 'ipp',
+    1883: 'mqtt',
+    2020: 'onvif',
+    37777: 'dahua',
+    34567: 'camera_sdk',
+    8899: 'camera_web',
+    9000: 'camera_web_alt',
+    3389: 'rdp',
+    5000: 'synology',
+    5001: 'synology_https',
+    8000: 'http_alt',
+    8008: 'chromecast',
+    8009: 'chromecast_tls',
+    8080: 'http_proxy',
+    8443: 'https_alt',
+    9100: 'jetdirect',
+    32400: 'plex',
+    515: 'lpd',
+}
+
+
+def _extract_mac_oui(mac: str) -> str:
+    normalized = mac.replace('-', ':').upper()
+    parts = normalized.split(':')
+    return ':'.join(parts[:3]) if len(parts) >= 3 else normalized
+
+
+def _map_ports_to_services(open_ports: list[int]) -> list[dict[str, int | str]]:
+    return [
+        {'port': port, 'name': _PORT_SERVICES[port]}
+        for port in sorted(open_ports)
+        if port in _PORT_SERVICES
+    ]
+
+
+def _guess_os_from_ttl(ttl: int | None) -> str | None:
+    if ttl is None:
+        return None
+    if ttl >= 250:
+        return 'network_device'
+    if ttl >= 120:
+        return 'windows'
+    if ttl >= 60:
+        return 'unix'
+    if ttl >= 30:
+        return 'embedded'
+    return None
+
+
+def _detect_by_upnp(upnp: dict[str, Any] | None) -> tuple[str | None, str | None]:
+    if not upnp:
+        return None, None
+    device_type = (upnp.get('device_type') or '').lower()
+    if 'mediarenderer' in device_type or 'dial' in device_type:
+        return 'tv', 'upnp MediaRenderer'
+    if 'mediaserver' in device_type:
+        return 'nas', 'upnp MediaServer'
+    if 'internetgatewaydevice' in device_type or 'wandevice' in device_type:
+        return 'router', 'upnp InternetGatewayDevice'
+    friendly = (upnp.get('friendly_name') or '').lower()
+    if any(kw in friendly for kw in ('tv', 'roku', 'fire', 'chromecast', 'apple tv')):
+        return 'tv', f'upnp friendlyName: {upnp.get("friendly_name")}'
+    return None, None
+
+
+def _detect_by_netbios(netbios_name: str | None) -> tuple[str | None, str | None]:
+    if not netbios_name:
+        return None, None
+    name = netbios_name.lower()
+    if name.startswith(('desktop-', 'laptop-', 'pc-', 'workstation')):
+        return 'computer', f'netbios name: {netbios_name}'
+    if name.startswith(('brw', 'printer', 'print')) or 'printer' in name:
+        return 'printer', f'netbios name: {netbios_name}'
+    if name.startswith('nas') or 'synology' in name or 'qnap' in name:
+        return 'nas', f'netbios name: {netbios_name}'
+    return None, None
+
+
+def _build_scan_metadata(
+    *,
+    mac: str,
+    open_ports: list[int],
+    latency: float | None,
+    ttl: int | None,
+    netbios_name: str | None,
+    http_banners: dict[int, dict[str, str | None]],
+    upnp: dict[str, Any] | None,
+    type_confidence: float,
+    type_signals: list[dict[str, str]],
+    discovery_source: str,
+) -> dict[str, Any]:
+    return {
+        'scanned_at': datetime.now().isoformat(),  # noqa: DTZ005 - stored as naive local time
+        'mac_oui': _extract_mac_oui(mac),
+        'discovery_source': discovery_source,
+        'ttl': ttl,
+        'os_hint': _guess_os_from_ttl(ttl),
+        'latency_ms': latency,
+        'netbios_name': netbios_name,
+        'services': _map_ports_to_services(open_ports),
+        'http_banners': {str(port): banner for port, banner in http_banners.items()},
+        'upnp': upnp,
+        'type_confidence': round(type_confidence, 2),
+        'type_signals': type_signals,
+    }
+
+
+def _persist_scan_fields(device: Device, data: dict[str, Any]) -> None:
+    """Apply scan enrichment fields onto a Device ORM row."""
+    device.ip = data['ip']
+    device.vendor = data['vendor']
+    device.hostname = data['hostname']
+    device.response_time_ms = data['latency']
+    ports = data.get('open_ports')
+    if ports is not None:
+        device.open_ports = json.dumps(sorted(ports))
+    meta = data.get('scan_metadata')
+    if meta is not None:
+        device.scan_metadata = json.dumps(meta, ensure_ascii=False)
+
+
+_PRIVATE_NETWORKS = (
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+)
+_INVALID_ROUTE_MASKS = (0xFFFFFFFF, 0x00000000, 0x0)
+
+
+def _is_private_ipv4(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in net for net in _PRIVATE_NETWORKS)
+
+
+def _local_ipv4_addresses() -> list[str]:
+    """Collect private IPv4 addresses from all active interfaces."""
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _add(ip: str) -> None:
+        if ip and ip not in seen and _is_private_ipv4(ip):
+            seen.add(ip)
+            found.append(ip)
+
+    if _SCAPY_AVAILABLE:
+        try:
+            from scapy.all import conf, get_if_addr
+
+            for iface_name in conf.ifaces:
+                _add(get_if_addr(iface_name))
+        except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+            logger.debug(f'scapy 接口枚举失败: {e}')
+
+    try:
+        if sys.platform == 'win32':
+            raw = subprocess.check_output(['ipconfig'], timeout=5)
+            out = raw.decode('gbk', errors='replace')
+            for match in re.finditer(r'\b(\d{1,3}(?:\.\d{1,3}){3})\b', out):
+                _add(match.group(1))
+        else:
+            out = subprocess.check_output(['ip', '-4', 'addr'], text=True, timeout=5)
+            for match in re.finditer(r'\binet\s+(\d{1,3}(?:\.\d{1,3}){3})\b', out):
+                _add(match.group(1))
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.debug(f'平台命令枚举本机 IP 失败: {e}')
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(('8.8.8.8', 80))
+            _add(s.getsockname()[0])
+    except OSError as e:
+        logger.debug(f'默认路由本机 IP 探测失败: {e}')
+
+    return found
+
 
 def _detect_prefix_length(local_ip: str) -> int:
     """Detect the real prefix length for the interface that holds local_ip."""
-    # Method 1: scapy routing table (already a dependency, most reliable)
+    addr = ipaddress.ip_address(local_ip)
+
+    # Method 1: scapy routing table — match by subnet membership, not only src IP
     if _SCAPY_AVAILABLE:
         try:
             from scapy.all import conf
@@ -48,50 +244,149 @@ def _detect_prefix_length(local_ip: str) -> int:
             # routes: (net_int, mask_int, gw, iface, src_ip, metric)
             for entry in conf.route.routes:
                 net_int, mask_int, _gw, _iface, src, _metric = entry
-                if src == local_ip and mask_int not in (0xFFFFFFFF, 0x00000000, 0x0):
+                if mask_int in _INVALID_ROUTE_MASKS:
+                    continue
+                if src == local_ip:
                     netmask_str = socket.inet_ntoa(struct.pack('>I', mask_int))
                     return ipaddress.IPv4Network(f'0.0.0.0/{netmask_str}').prefixlen
+                try:
+                    route_net = ipaddress.IPv4Network((net_int, mask_int))
+                except ValueError:
+                    continue
+                if addr in route_net:
+                    return route_net.prefixlen
         except Exception as e:  # noqa: BLE001 - scapy third-party boundary
             logger.debug(f'scapy 路由表前缀解析失败 {local_ip}: {e}')
 
     # Method 2: platform commands
     try:
         if sys.platform == 'win32':
-            raw = subprocess.check_output(['ipconfig'], timeout=5)
+            raw = subprocess.check_output(['ipconfig', '/all'], timeout=5)
             out = raw.decode('gbk', errors='replace')
-            lines = out.splitlines()
-            for i, line in enumerate(lines):
-                if local_ip in line:
-                    # Subnet mask appears near the IP line
-                    for near in lines[max(0, i - 3) : i + 4]:
-                        m = re.search(r'\b(255\.\d+\.\d+\.\d+)\b', near)
-                        if m:
-                            return ipaddress.IPv4Network(f'0.0.0.0/{m.group(1)}').prefixlen
+            blocks = re.split(r'\n(?=\S)', out)
+            for block in blocks:
+                if local_ip not in block:
+                    continue
+                mask_match = re.search(
+                    r'(?:Subnet Mask|子网掩码)\s*[:.．]*\s*(255\.\d+\.\d+\.\d+)',
+                    block,
+                    re.IGNORECASE,
+                )
+                if mask_match:
+                    return ipaddress.IPv4Network(f'0.0.0.0/{mask_match.group(1)}').prefixlen
         else:
             out = subprocess.check_output(['ip', 'addr'], text=True, timeout=5)
             for line in out.splitlines():
-                m = re.search(rf'\b{re.escape(local_ip)}/(\d+)\b', line)
-                if m:
-                    return int(m.group(1))
+                match = re.search(rf'\b{re.escape(local_ip)}/(\d+)\b', line)
+                if match:
+                    return int(match.group(1))
     except (OSError, subprocess.SubprocessError) as e:
         logger.debug(f'平台命令解析前缀长度失败 {local_ip}: {e}')
 
-    return 24  # safe fallback
+    return 24  # safe fallback for typical home /24 LANs
+
+
+def detect_local_networks() -> list[str]:
+    """Derive all private IPv4 subnets from active interfaces."""
+    networks: list[str] = []
+    seen: set[str] = set()
+    for local_ip in _local_ipv4_addresses():
+        prefix_len = _detect_prefix_length(local_ip)
+        network = ipaddress.ip_network(f'{local_ip}/{prefix_len}', strict=False)
+        net_str = str(network)
+        if net_str not in seen:
+            seen.add(net_str)
+            networks.append(net_str)
+    if networks:
+        logger.info(f'自动检测网段: {networks}')
+        return networks
+    logger.warning('网段自动检测失败，回退到 192.168.1.0/24')
+    return ['192.168.1.0/24']
 
 
 def detect_local_network() -> str:
-    """Use the default-route interface IP and its actual subnet mask to derive the network."""
+    """Primary subnet for backward compatibility."""
+    return detect_local_networks()[0]
+
+
+def detect_default_gateway_ips() -> frozenset[str]:
+    """Collect default gateway IPs from the OS routing table (not x.x.x.1 heuristics)."""
+    gateways: set[str] = set()
+    scapy_ran = False
+
+    if _SCAPY_AVAILABLE:
+        try:
+            from scapy.all import conf
+
+            scapy_ran = True
+            for net_int, mask_int, gw_int, _iface, _src, _metric in conf.route.routes:
+                if gw_int in (0,):
+                    continue
+                # Default route: destination 0.0.0.0/0 (mask 0 is valid here).
+                if net_int == 0 and mask_int in (0, 0x00000000):
+                    gw = socket.inet_ntoa(struct.pack('>I', gw_int))
+                else:
+                    if mask_int in _INVALID_ROUTE_MASKS:
+                        continue
+                    if (net_int & mask_int) != 0:
+                        continue
+                    gw = socket.inet_ntoa(struct.pack('>I', gw_int))
+                try:
+                    if ipaddress.ip_address(gw).is_private:
+                        gateways.add(gw)
+                except ValueError:
+                    continue
+        except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+            logger.debug(f'scapy 默认网关解析失败: {e}')
+
+    if scapy_ran:
+        if gateways:
+            logger.debug(f'检测到默认网关: {sorted(gateways)}')
+        return frozenset(gateways)
+
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(('8.8.8.8', 80))
-            local_ip = s.getsockname()[0]
-        prefix_len = _detect_prefix_length(local_ip)
-        network = ipaddress.ip_network(f'{local_ip}/{prefix_len}', strict=False)
-        logger.info(f'自动检测网段: {network} (本机 IP: {local_ip}, 掩码 /{prefix_len})')
-        return str(network)
-    except OSError as e:
-        logger.warning(f'网段自动检测失败，回退到 192.168.1.0/24: {e}')
-        return '192.168.1.0/24'
+        if sys.platform == 'win32':
+            raw = subprocess.check_output(['route', 'print', '0.0.0.0'], timeout=5)
+            out = raw.decode('gbk', errors='replace')
+            for line in out.splitlines():
+                if '0.0.0.0' not in line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 3 and parts[0] == '0.0.0.0' and parts[1] == '0.0.0.0':
+                    gw = parts[2]
+                    try:
+                        if ipaddress.ip_address(gw).is_private:
+                            gateways.add(gw)
+                    except ValueError:
+                        continue
+        else:
+            out = subprocess.check_output(['ip', '-4', 'route', 'show', 'default'], timeout=5)
+            for line in out.splitlines():
+                parts = line.split()
+                if 'via' in parts:
+                    gw = parts[parts.index('via') + 1]
+                    try:
+                        if ipaddress.ip_address(gw).is_private:
+                            gateways.add(gw)
+                    except ValueError:
+                        continue
+    except (OSError, subprocess.SubprocessError, ValueError) as e:
+        logger.debug(f'平台命令解析默认网关失败: {e}')
+
+    if gateways:
+        logger.debug(f'检测到默认网关: {sorted(gateways)}')
+    return frozenset(gateways)
+
+
+def _ip_in_scan_networks(
+    ip: str,
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network],
+) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in net for net in networks)
 
 
 class Scanner:
@@ -99,9 +394,13 @@ class Scanner:
     # Device-type detection keyword constants
     # ---------------------------------------------------------------------------
 
-    # Port-based detection
-    _CAMERA_PORTS: frozenset[int] = frozenset({554, 2020, 8000})
+    # Port-based detection (used by device_type_inference weighted fusion)
+    _CAMERA_PORTS: frozenset[int] = frozenset({554, 2020})
     _PRINTER_PORTS: frozenset[int] = frozenset({631, 9100, 515})
+    _NAS_PORTS: frozenset[int] = frozenset({5000, 5001, 548, 32400})
+    _TV_PORTS: frozenset[int] = frozenset({8008, 8009})
+    _IOT_PORTS: frozenset[int] = frozenset({1883})
+    _COMPUTER_PORTS: frozenset[int] = frozenset({3389, 445})
 
     # Hostname-based detection keywords
     _PHONE_HOSTNAME_KW: tuple[str, ...] = (
@@ -111,6 +410,14 @@ class Scanner:
         'galaxy',
         'redmi',
         'pixel',
+        'honor',
+        'magic',
+        'hinova',
+        'huawei',
+        'oppo',
+        'vivo',
+        'oneplus',
+        'realme',
     )
     _COMPUTER_HOSTNAME_KW: tuple[str, ...] = (
         'macbook',
@@ -189,6 +496,9 @@ class Scanner:
         'comfast',
         'wavlink',
         'eero',
+        'zte',
+        'zte corporation',
+        '中兴',
     )
     _NAS_VENDOR_KW: tuple[str, ...] = ('synology', 'qnap', 'buffalo')
     _PHONE_VENDOR_KW: tuple[str, ...] = (
@@ -197,6 +507,8 @@ class Scanner:
         'xiaomi',
         'huawei',
         'honor',
+        'honor device',
+        'hinova',
         'oppo',
         'vivo',
         'oneplus',
@@ -205,7 +517,6 @@ class Scanner:
         'nokia',
         'sony mobile',
         'google',
-        'zte',
         'meizu',
         'transsion',
         'tecno',
@@ -213,6 +524,7 @@ class Scanner:
         'nothing',
         'fairphone',
     )
+    _ROUTER_SERVICE_PORTS: frozenset[int] = frozenset({80, 443, 8080, 8443})
     _COMPUTER_VENDOR_KW: tuple[str, ...] = (
         'intel',
         'realtek',
@@ -339,40 +651,51 @@ class Scanner:
     )
 
     def __init__(self, network: str):
-        self.network = detect_local_network() if network.strip().lower() == 'auto' else network
+        normalized = network.strip()
+        if normalized.lower() == 'auto':
+            self.networks = detect_local_networks()
+        elif ',' in normalized:
+            self.networks = [part.strip() for part in normalized.split(',') if part.strip()]
+        else:
+            self.networks = [normalized]
+        self.network = self.networks[0]
         self._mac_lookup = AsyncMacLookup() if AsyncMacLookup is not None else None
 
     async def arp_scan(self) -> list[dict]:
         loop = asyncio.get_running_loop()
         seen: dict[str, dict] = {}  # mac -> entry
+        scan_nets = [ipaddress.ip_network(net, strict=False) for net in self.networks]
 
-        logger.info(f'开始网络扫描: {self.network}')
+        logger.info(f'开始网络扫描: {self.networks}')
 
-        if _SCAPY_AVAILABLE:
-            # Primary path: ARP broadcast — O(3s) regardless of subnet size, no subprocess spam
-            try:
-                for d in await loop.run_in_executor(None, self._arp_scan_sync):
-                    seen[d['mac']] = d
-                logger.info(f'Scapy ARP broadcast 发现 {len(seen)} 台设备')
-            except Exception as e:  # noqa: BLE001 - scapy third-party boundary
-                logger.warning(f'Scapy ARP 失败，回退 ping sweep: {e}')
+        for net_str in self.networks:
+            self.network = net_str
+            if _SCAPY_AVAILABLE:
+                try:
+                    for d in await loop.run_in_executor(None, self._arp_scan_sync):
+                        seen[d['mac']] = d
+                    logger.info(f'Scapy ARP broadcast ({net_str}) 累计 {len(seen)} 台设备')
+                except Exception as e:  # noqa: BLE001 - scapy third-party boundary
+                    logger.warning(f'Scapy ARP 失败 ({net_str}): {e}')
 
-        if not seen:
-            # Fallback: ping sweep to populate ARP cache, then read it
+            # Always ping sweep: some hosts reply to ICMP but not ARP broadcast.
             await loop.run_in_executor(None, self._ping_sweep_sync)
 
-        # Always supplement from OS ARP cache (catches hosts that replied to ping but not ARP broadcast)
+        self.network = self.networks[0]
+
+        # Supplement from OS ARP cache (hosts reached via ping sweep above).
         for d in await loop.run_in_executor(None, self._arp_table_scan_sync):
             seen.setdefault(d['mac'], d)
         logger.debug(f'ARP 缓存补充后共 {len(seen)} 台设备')
 
-        # Local machine never appears in its own ARP table — add it explicitly
         local_entry = await loop.run_in_executor(None, self._get_local_machine_entry)
         if local_entry:
             seen.setdefault(local_entry['mac'], local_entry)
 
-        net = ipaddress.ip_network(self.network, strict=False)
-        result = [d for d in seen.values() if ipaddress.ip_address(d['ip']) in net]
+        result = [d for d in seen.values() if _ip_in_scan_networks(d['ip'], scan_nets)]
+        dropped = [d['ip'] for d in seen.values() if not _ip_in_scan_networks(d['ip'], scan_nets)]
+        if dropped:
+            logger.info(f'网段过滤排除 {len(dropped)} 台设备: {dropped}')
         logger.info(f'网络扫描完成，发现 {len(result)} 台设备')
         return result
 
@@ -508,25 +831,127 @@ class Scanner:
             return None
 
     async def measure_latency(self, ip: str) -> float | None:
+        latency, _ = await self.measure_latency_with_ttl(ip)
+        return latency
+
+    async def measure_latency_with_ttl(self, ip: str) -> tuple[float | None, int | None]:
         return await asyncio.get_running_loop().run_in_executor(
-            _IO_EXECUTOR, self._measure_latency_sync, ip
+            _IO_EXECUTOR, self._measure_latency_with_ttl_sync, ip
         )
 
-    def _measure_latency_sync(self, ip: str) -> float | None:
+    def _measure_latency_with_ttl_sync(self, ip: str) -> tuple[float | None, int | None]:
         try:
             if sys.platform == 'win32':
                 cmd = ['ping', '-n', '1', '-w', '300', str(ip)]
-                pattern = r'(?:平均|Average)\s*[=<]\s*(\d+)\s*ms'
+                latency_pattern = r'(?:平均|Average)\s*[=<]\s*(\d+)\s*ms'
+                ttl_pattern = r'\bTTL[=<](\d+)'
             else:
                 cmd = ['ping', '-c', '1', '-W', '1', str(ip)]
-                pattern = r'time=(\d+\.?\d*) ms'
+                latency_pattern = r'time=(\d+\.?\d*) ms'
+                ttl_pattern = r'\bttl=(\d+)'
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
-            m = re.search(pattern, result.stdout, re.IGNORECASE)
-            if m:
-                return float(m.group(1))
+            latency = None
+            ttl = None
+            latency_match = re.search(latency_pattern, result.stdout, re.IGNORECASE)
+            if latency_match:
+                latency = float(latency_match.group(1))
+            ttl_match = re.search(ttl_pattern, result.stdout, re.IGNORECASE)
+            if ttl_match:
+                ttl = int(ttl_match.group(1))
+            return latency, ttl
         except (OSError, subprocess.SubprocessError) as e:
             logger.debug(f'ping 延迟测量失败 {ip}: {e}')
+        return None, None
+
+    async def probe_netbios_name(self, ip: str) -> str | None:
+        return await asyncio.get_running_loop().run_in_executor(
+            _IO_EXECUTOR, self._probe_netbios_name_sync, ip
+        )
+
+    def _probe_netbios_name_sync(self, ip: str) -> str | None:
+        if sys.platform == 'win32':
+            try:
+                out = subprocess.check_output(
+                    ['nbtstat', '-A', ip],
+                    text=True,
+                    timeout=3,
+                    errors='replace',
+                )
+                for line in out.splitlines():
+                    match = re.search(r'^\s+(\S+)\s+<00>\s+UNIQUE', line, re.IGNORECASE)
+                    if match:
+                        return match.group(1).strip()
+            except (OSError, subprocess.SubprocessError) as e:
+                logger.debug(f'nbtstat 查询失败 {ip}: {e}')
+            return None
+
+        try:
+            payload = self._build_netbios_status_packet()
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(1.5)
+                sock.sendto(payload, (ip, 137))
+                data, _ = sock.recvfrom(4096)
+            return self._parse_netbios_status_response(data)
+        except OSError as e:
+            logger.debug(f'NetBIOS UDP 查询失败 {ip}: {e}')
+            return None
+
+    @staticmethod
+    def _build_netbios_status_packet() -> bytes:
+        name = b'\x20CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\x00\x00\x21\x00\x01'
+        return b'\x12\x34\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00' + name
+
+    @staticmethod
+    def _parse_netbios_status_response(data: bytes) -> str | None:
+        if len(data) < 57:
+            return None
+        name_count = data[56]
+        offset = 57
+        for _ in range(name_count):
+            if offset + 18 > len(data):
+                break
+            raw_name = data[offset : offset + 15]
+            suffix = data[offset + 15]
+            offset += 18
+            if suffix != 0:
+                continue
+            name = raw_name.decode('ascii', errors='ignore').strip().rstrip('\x00').strip()
+            if name and name != '*':
+                return name
         return None
+
+    async def probe_http_banners(
+        self, ip: str, open_ports: list[int]
+    ) -> dict[int, dict[str, str | None]]:
+        import httpx
+
+        ports = [p for p in open_ports if p in self._HTTP_BANNER_PORTS]
+        if not ports:
+            return {}
+
+        async def _fetch(port: int) -> tuple[int, dict[str, str | None] | None]:
+            scheme = 'https' if port in (443, 8443, 8009) else 'http'
+            url = f'{scheme}://{ip}:{port}/'
+            try:
+                async with httpx.AsyncClient(
+                    timeout=2.0, verify=False, follow_redirects=True
+                ) as client:
+                    resp = await client.get(url)
+                title_match = re.search(
+                    r'<title[^>]*>([^<]+)</title>',
+                    resp.text[:4096],
+                    re.IGNORECASE,
+                )
+                return port, {
+                    'server': resp.headers.get('Server'),
+                    'title': title_match.group(1).strip() if title_match else None,
+                }
+            except Exception as e:  # noqa: BLE001 - httpx boundary per port
+                logger.debug(f'HTTP 指纹采集失败 {url}: {e}')
+                return port, None
+
+        results = await asyncio.gather(*[_fetch(port) for port in ports])
+        return {port: banner for port, banner in results if banner}
 
     async def lookup_vendor(self, mac: str) -> str:
         if self._mac_lookup is None:
@@ -536,9 +961,35 @@ class Scanner:
         except Exception:  # noqa: BLE001 - mac_vendor_lookup third-party boundary
             return 'Unknown'
 
-    # Camera-relevant ports: RTSP(554), ONVIF-standard(2020), Hikvision/Dahua HTTP(80,8080),
-    # Dahua ONVIF alt(8000), HTTPS(443/8443)
-    _PROBE_PORTS = [554, 2020, 8000, 80, 8080, 443, 8443]
+    # Home-LAN service ports: cameras, printers, NAS, casting, remote access, IoT.
+    _PROBE_PORTS = [
+        22,
+        80,
+        443,
+        445,
+        548,
+        554,
+        8554,
+        10554,
+        631,
+        1883,
+        2020,
+        3389,
+        34567,
+        37777,
+        5000,
+        5001,
+        8000,
+        8008,
+        8009,
+        8080,
+        8443,
+        8899,
+        9000,
+        9100,
+        32400,
+    ]
+    _HTTP_BANNER_PORTS = (80, 8080, 8000, 443, 8443, 8008, 8009)
 
     async def probe_ports_async(self, ip: str, timeout: float = 0.8) -> list[int]:
         """Fast async socket-based port probe. No subprocess overhead."""
@@ -614,7 +1065,16 @@ class Scanner:
         return None
 
     @staticmethod
-    def _detect_by_vendor(vendor: str, hostname: str | None = None) -> str | None:
+    def _has_router_service_ports(open_ports: list[int] | None) -> bool:
+        return bool(frozenset(open_ports or []) & Scanner._ROUTER_SERVICE_PORTS)
+
+    @staticmethod
+    def _detect_by_vendor(
+        vendor: str,
+        hostname: str | None = None,
+        *,
+        open_ports: list[int] | None = None,
+    ) -> str | None:
         """Detect device type by vendor OUI name. Returns None if no match."""
         v = vendor.lower()
         h = (hostname or '').lower()
@@ -622,6 +1082,11 @@ class Scanner:
         # NAS (before router, since some NAS vendors appear in router list)
         if any(kw in v for kw in Scanner._NAS_VENDOR_KW):
             return 'nas'
+        # Phone OEM before router — Honor/Huawei phone OUIs overlap with router ICT division
+        if any(kw in v for kw in ('honor', 'honor device', 'hinova')):
+            return 'phone'
+        if 'huawei' in v and not Scanner._has_router_service_ports(open_ports):
+            return 'phone'
         # Router / Network equipment
         if any(kw in v for kw in Scanner._ROUTER_VENDOR_KW):
             return 'router'
@@ -661,18 +1126,23 @@ class Scanner:
         return None
 
     @staticmethod
-    def guess_device_type(vendor: str, open_ports: list[int], hostname: str | None = None) -> str:
-        """Infer device type from vendor OUI name, open ports, and hostname.
-
-        Detection priority: ports > hostname > vendor.
-        """
-        if (result := Scanner._detect_by_ports(open_ports)) is not None:
-            return result
-        if (result := Scanner._detect_by_hostname(hostname)) is not None:
-            return result
-        if (result := Scanner._detect_by_vendor(vendor, hostname)) is not None:
-            return result
-        return 'unknown'
+    def guess_device_type(
+        vendor: str,
+        open_ports: list[int],
+        hostname: str | None = None,
+        *,
+        upnp: dict[str, Any] | None = None,
+        netbios_name: str | None = None,
+    ) -> str:
+        """Infer device type from vendor OUI name, open ports, and hostname."""
+        device_type, _, _ = guess_device_type_detailed(
+            vendor,
+            open_ports,
+            hostname,
+            upnp=upnp,
+            netbios_name=netbios_name,
+        )
+        return device_type
 
 
 # ---------------------------------------------------------------------------
@@ -680,13 +1150,54 @@ class Scanner:
 # ---------------------------------------------------------------------------
 
 
-async def _enrich_device(scanner: Scanner, d: dict) -> dict:
-    """Concurrently resolve vendor/hostname/latency/open_ports for one device."""
+async def _fetch_upnp_for_ip(ip: str, upnp_cache: dict[str, dict[str, Any]] | None) -> dict | None:
+    if not upnp_cache:
+        return None
+    return upnp_cache.get(ip)
+
+
+async def _build_upnp_cache(timeout: float = 2.0) -> dict[str, dict[str, Any]]:
+    from app.domain.services.dlna_service import fetch_upnp_basic_info, ssdp_search
+
+    cache: dict[str, dict[str, Any]] = {}
+    try:
+        locations = await ssdp_search(timeout)
+        for location in locations:
+            info = await fetch_upnp_basic_info(location)
+            if info and info.get('ip') and info['ip'] not in cache:
+                cache[info['ip']] = info
+    except Exception as e:  # noqa: BLE001 - SSDP/UPnP is best-effort enrichment
+        logger.debug(f'UPnP 缓存构建失败: {e}')
+    return cache
+
+
+async def _enrich_device(
+    scanner: Scanner,
+    d: dict,
+    upnp_cache: dict[str, dict[str, Any]] | None = None,
+    gateway_ips: frozenset[str] | None = None,
+) -> dict:
+    """Concurrently resolve vendor/hostname/latency/open_ports/fingerprints for one device."""
+    discovery_source = d.get('discovery_source', 'arp')
     if d.get('is_local'):
-        vendor, hostname, latency = await asyncio.gather(
+        discovery_source = 'local'
+        vendor, hostname, latency_ttl = await asyncio.gather(
             scanner.lookup_vendor(d['mac']),
             scanner.resolve_hostname(d['ip']),
-            scanner.measure_latency(d['ip']),
+            scanner.measure_latency_with_ttl(d['ip']),
+        )
+        latency, ttl = latency_ttl
+        scan_metadata = _build_scan_metadata(
+            mac=d['mac'],
+            open_ports=[],
+            latency=latency,
+            ttl=ttl,
+            netbios_name=None,
+            http_banners={},
+            upnp=None,
+            type_confidence=1.0,
+            type_signals=[{'source': 'local', 'type': 'computer', 'reason': 'local machine'}],
+            discovery_source=discovery_source,
         )
         return {
             'mac': d['mac'],
@@ -694,22 +1205,63 @@ async def _enrich_device(scanner: Scanner, d: dict) -> dict:
             'vendor': vendor or 'Unknown',
             'hostname': hostname,
             'latency': latency,
+            'open_ports': [],
+            'scan_metadata': scan_metadata,
             'device_type': 'computer',
         }
-    vendor, hostname, latency, open_ports = await asyncio.gather(
+
+    vendor, hostname, latency_ttl, open_ports, netbios_name, upnp = await asyncio.gather(
         scanner.lookup_vendor(d['mac']),
         scanner.resolve_hostname(d['ip']),
-        scanner.measure_latency(d['ip']),
+        scanner.measure_latency_with_ttl(d['ip']),
         scanner.probe_ports_async(d['ip']),
+        scanner.probe_netbios_name(d['ip']),
+        _fetch_upnp_for_ip(d['ip'], upnp_cache),
     )
-    return {
+    latency, ttl = latency_ttl
+    http_banners = await scanner.probe_http_banners(d['ip'], open_ports)
+    is_gateway = d['ip'] in (gateway_ips or frozenset())
+    device_type, type_confidence, type_signals = guess_device_type_detailed(
+        vendor or '',
+        open_ports,
+        hostname,
+        is_gateway=is_gateway,
+        mac=d['mac'],
+        upnp=upnp,
+        netbios_name=netbios_name,
+        http_banners=http_banners,
+        ttl=ttl,
+    )
+    display_vendor = infer_display_vendor(
+        vendor or 'Unknown',
+        upnp=upnp,
+        http_banners=http_banners,
+        hostname=hostname,
+    )
+    scan_metadata = _build_scan_metadata(
+        mac=d['mac'],
+        open_ports=open_ports,
+        latency=latency,
+        ttl=ttl,
+        netbios_name=netbios_name,
+        http_banners=http_banners,
+        upnp=upnp,
+        type_confidence=type_confidence,
+        type_signals=type_signals,
+        discovery_source=discovery_source,
+    )
+    enriched = {
         'mac': d['mac'],
         'ip': d['ip'],
-        'vendor': vendor or 'Unknown',
+        'vendor': display_vendor,
         'hostname': hostname,
         'latency': latency,
-        'device_type': scanner.guess_device_type(vendor or '', open_ports, hostname),
+        'open_ports': open_ports,
+        'scan_metadata': scan_metadata,
+        'device_type': device_type,
     }
+    enriched['device_type'] = resolve_persisted_device_type(enriched)
+    return enriched
 
 
 def _find_unknown_devices(
@@ -788,16 +1340,18 @@ async def _run_scan(network_range: str):
 
     loop = asyncio.get_running_loop()
     scanner = await loop.run_in_executor(None, Scanner, network_range)
-    await ws_manager.broadcast('scan_started', {})
+    await ws_manager.broadcast('scan_started', {'subnet': ', '.join(scanner.networks)})
     try:
         devices = await scanner.arp_scan()
+        upnp_cache = await _build_upnp_cache()
+        gateway_ips = await loop.run_in_executor(None, detect_default_gateway_ips)
         results = {'found': len(devices), 'new': 0, 'offline': 0}
 
         sem = asyncio.Semaphore(64)
 
         async def enrich_with_sem(d: dict) -> dict:
             async with sem:
-                return await _enrich_device(scanner, d)
+                return await _enrich_device(scanner, d, upnp_cache, gateway_ips)
 
         enriched = await asyncio.gather(*[enrich_with_sem(d) for d in devices])
 
@@ -830,43 +1384,25 @@ async def _run_scan(network_range: str):
                     continue
                 existing = existing_map.get(mac)
                 if existing:
-                    existing.ip = data['ip']
-                    existing.vendor = data['vendor']
-                    existing.hostname = data['hostname']
-                    existing.response_time_ms = data['latency']
+                    _persist_scan_fields(existing, data)
                     existing.is_online = True
                     existing.last_seen = now
-                    new_type = data['device_type']
-                    # Only update device_type for non-camera devices.
-                    # Cameras must be added via the camera management API, never auto-detected.
-                    # Skip device_type update if the device has a corresponding Camera record
-                    # (camera_macs); leave its type unchanged so it doesn't become 'camera'
-                    # from passive scanning. Devices in camera_macs should have device_type
-                    # set only by explicit camera registration, not by scan detection.
-                    if mac not in camera_macs and new_type != 'camera':
+                    # Registered cameras keep type from camera API; others use scan inference.
+                    if mac not in camera_macs:
+                        new_type = data['device_type']
                         if existing.device_type in ('unknown', None) or new_type != 'unknown':
                             existing.device_type = new_type
                 else:
                     results['new'] += 1
-                    # Never auto-classify a new device as 'camera' — cameras must
-                    # be added explicitly via the camera management API.  Port
-                    # detection (554/2020/8000) can produce false positives for
-                    # NVRs, routers, and other devices that expose RTSP/ONVIF ports.
                     device_type = data['device_type']
-                    if device_type == 'camera':
-                        device_type = 'unknown'
-                    db.add(
-                        Device(
-                            mac=mac,
-                            ip=data['ip'],
-                            vendor=data['vendor'],
-                            hostname=data['hostname'],
-                            response_time_ms=data['latency'],
-                            device_type=device_type,
-                            is_online=True,
-                            last_seen=now,
-                        )
+                    new_device = Device(
+                        mac=mac,
+                        device_type=device_type,
+                        is_online=True,
+                        last_seen=now,
                     )
+                    _persist_scan_fields(new_device, data)
+                    db.add(new_device)
             await db.commit()
 
             if macs:
@@ -891,6 +1427,8 @@ async def _run_scan(network_range: str):
                             'ip': u['ip'],
                             'vendor': u.get('vendor'),
                             'hostname': u.get('hostname'),
+                            'device_type': u.get('device_type'),
+                            'open_ports': u.get('open_ports'),
                             'first_seen': now.isoformat(),
                         },
                     )

@@ -17,6 +17,9 @@ class Device(Base):
     device_type: Mapped[str] = mapped_column(String(32), default='unknown')
     alias: Mapped[str | None] = mapped_column(String(128))
     open_ports: Mapped[str | None] = mapped_column(Text)  # JSON array, e.g. "[80,443]"
+    scan_metadata: Mapped[str | None] = mapped_column(
+        Text
+    )  # JSON object: fingerprints, signals, etc.
     response_time_ms: Mapped[float | None] = mapped_column(Float)
     is_online: Mapped[bool] = mapped_column(Boolean, default=False)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
