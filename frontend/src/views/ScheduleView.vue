@@ -1,19 +1,30 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '@/api/schedules'
 import { listCameras } from '@/api/cameras'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Clock, Calendar } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Clock } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import CronSelector from '@/components/CronSelector.vue'
 import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import RecordingPresetPicker from '@/components/recording/RecordingPresetPicker.vue'
+import RecordingParamOverrides from '@/components/recording/RecordingParamOverrides.vue'
 import { useCamerasStore } from '@/stores/cameras'
 import { useApiError } from '@/composables/useApiError'
+import { useRecordingParams } from '@/composables/useRecordingParams'
+import {
+  emptyOverrides,
+  normalizeOverrides,
+  buildOverridesPayload,
+  SEGMENT_MIN,
+  SEGMENT_MAX,
+} from '@/constants/recordingParams'
 
 const { t } = useI18n()
 const handleError = useApiError()
 const camerasStore = useCamerasStore()
+const { segmentQuickOptions } = useRecordingParams()
 
 const schedules = ref([])
 const cameras = ref([])
@@ -29,12 +40,26 @@ const form = ref({
   segment_duration: 1800,
   enabled: true,
   preset_id: null,
-  overrides: {},
+  overrides: emptyOverrides(),
 })
 const editId = ref(null)
-const showOverrides = ref(false)
+const overridesExpanded = ref(false)
 const dialogTitle = ref('')
 const submitText = ref('')
+
+const currentPresets = computed(() => {
+  const mac = form.value.camera_mac
+  return mac ? camerasStore.presets[mac] || [] : []
+})
+
+const formHint = computed(() =>
+  isEdit.value ? t('schedule.formHintEdit') : t('schedule.formHintNew'),
+)
+
+function cameraLabel(c) {
+  const host = c.onvif_host || c.device_mac
+  return host === c.device_mac ? host : `${host} · ${c.device_mac}`
+}
 
 onMounted(async () => {
   const { data } = await listCameras()
@@ -49,8 +74,8 @@ watch(
       const mac = newMac
       try {
         await camerasStore.loadPresets(mac)
-      } catch (e) {
-        console.warn('Failed to load presets for camera:', mac, e.message)
+      } catch {
+        // Presets are optional; the form remains usable without them.
       }
       const presets = camerasStore.presets[mac] || []
       if (presets.length > 0) {
@@ -63,8 +88,17 @@ watch(
     } else {
       form.value.preset_id = null
     }
-    form.value.overrides = {}
-    showOverrides.value = false
+    form.value.overrides = emptyOverrides()
+    overridesExpanded.value = false
+  },
+)
+
+watch(
+  () => form.value.preset_id,
+  (id) => {
+    if (!id) return
+    const preset = currentPresets.value.find((p) => p.id === id)
+    if (preset) form.value.segment_duration = preset.segment_duration
   },
 )
 
@@ -81,6 +115,7 @@ async function fetch() {
 function openAdd() {
   isEdit.value = false
   editId.value = null
+  const defaultCameraMac = cameras.value.length === 1 ? cameras.value[0].device_mac : ''
   form.value = {
     camera_mac: '',
     name: '',
@@ -88,12 +123,15 @@ function openAdd() {
     segment_duration: 1800,
     enabled: true,
     preset_id: null,
-    overrides: {},
+    overrides: emptyOverrides(),
   }
-  showOverrides.value = false
+  overridesExpanded.value = false
   dialogTitle.value = t('schedule.newSchedule')
   submitText.value = t('common.create')
   dialog.value = true
+  if (defaultCameraMac) {
+    form.value.camera_mac = defaultCameraMac
+  }
 }
 
 async function openEdit(row) {
@@ -101,8 +139,8 @@ async function openEdit(row) {
   editId.value = row.id
   try {
     await camerasStore.loadPresets(row.camera_mac)
-  } catch (e) {
-    console.warn('Failed to load presets for camera:', row.camera_mac, e.message)
+  } catch {
+    // Presets are optional; keep the saved preset_id when the list cannot be loaded.
   }
   form.value = {
     camera_mac: row.camera_mac,
@@ -111,9 +149,9 @@ async function openEdit(row) {
     segment_duration: row.segment_duration,
     enabled: row.enabled,
     preset_id: row.preset_id || null,
-    overrides: row.overrides || {},
+    overrides: normalizeOverrides(row.overrides),
   }
-  showOverrides.value = !!(row.overrides && Object.keys(row.overrides).length > 0)
+  overridesExpanded.value = !!(row.overrides && Object.keys(row.overrides).length > 0)
   dialogTitle.value = t('schedule.editSchedule')
   submitText.value = t('common.save')
   dialog.value = true
@@ -125,7 +163,9 @@ async function handleSubmit() {
   try {
     const payload = { ...form.value }
     if (!payload.preset_id) delete payload.preset_id
-    if (!payload.overrides || Object.keys(payload.overrides).length === 0) delete payload.overrides
+    const overrides = buildOverridesPayload(payload.overrides, { target: 'schedule' })
+    if (Object.keys(overrides).length) payload.overrides = overrides
+    else delete payload.overrides
     if (isEdit.value) {
       await updateSchedule(editId.value, payload)
       ElMessage.success(t('schedule.updated'))
@@ -243,18 +283,22 @@ async function handleDelete(row) {
 
     <el-dialog
       v-model="dialog"
-      :title="dialogTitle"
-      width="720px"
+      width="640px"
       class="schedule-dialog"
       :close-on-click-modal="false"
+      align-center
+      destroy-on-close
     >
-      <el-form :model="form" label-position="top" class="schedule-form">
-        <div class="form-section">
-          <div class="section-title">
-            <Calendar />
-            {{ $t('schedule.basicInfo') }}
-          </div>
-          <el-form-item :label="$t('schedule.cameraMac')">
+      <template #header>
+        <div class="dialog-header">
+          <span class="dialog-title">{{ dialogTitle }}</span>
+          <span class="dialog-hint">{{ formHint }}</span>
+        </div>
+      </template>
+
+      <el-form :model="form" label-position="top" class="schedule-form" @submit.prevent>
+        <div class="form-row">
+          <el-form-item :label="$t('schedule.cameraLabel')" class="form-row__item">
             <el-select
               v-model="form.camera_mac"
               :placeholder="$t('schedule.selectCamera')"
@@ -263,114 +307,88 @@ async function handleDelete(row) {
               <el-option
                 v-for="c in cameras"
                 :key="c.device_mac"
-                :label="c.onvif_host || c.device_mac"
+                :label="cameraLabel(c)"
                 :value="c.device_mac"
               />
             </el-select>
           </el-form-item>
-          <el-form-item :label="$t('schedule.scheduleName')">
+          <el-form-item :label="$t('schedule.scheduleName')" class="form-row__item">
             <el-input v-model="form.name" :placeholder="$t('schedule.namePlaceholder')" />
           </el-form-item>
         </div>
 
-        <div class="form-section">
-          <div class="section-title">
-            <Clock />
-            {{ $t('schedule.scheduleTiming') }}
-          </div>
-          <el-form-item :label="$t('schedule.triggerTime')" class="cron-field">
-            <CronSelector v-model="form.cron_expr" />
-          </el-form-item>
-          <el-form-item :label="$t('schedule.segmentLabel')">
+        <el-divider content-position="left">{{ $t('schedule.scheduleTiming') }}</el-divider>
+
+        <el-form-item :label="$t('schedule.triggerTime')" class="cron-field">
+          <CronSelector v-model="form.cron_expr" />
+        </el-form-item>
+
+        <el-divider content-position="left">{{ $t('schedule.recordingSettings') }}</el-divider>
+
+        <div v-if="!form.camera_mac" class="recording-placeholder">
+          {{ $t('recording.selectCameraFirst') }}
+        </div>
+        <template v-else>
+          <RecordingPresetPicker
+            v-model="form.preset_id"
+            :presets="currentPresets"
+            :mode="currentPresets.length ? 'cards' : 'select'"
+            :clearable="true"
+            :show-cards-hint="false"
+            :hint="currentPresets.length ? '' : $t('recording.noPresetsAvailable')"
+          />
+
+          <el-form-item v-if="!form.preset_id" class="segment-field">
+            <template #label>
+              <span class="field-label-with-hint">
+                {{ $t('schedule.segmentLabel') }}
+                <span class="field-hint">{{ $t('schedule.segmentFallbackHint') }}</span>
+              </span>
+            </template>
+            <div class="segment-picks">
+              <el-button
+                v-for="opt in segmentQuickOptions"
+                :key="opt.value"
+                size="small"
+                :type="form.segment_duration === opt.value ? 'primary' : 'default'"
+                :plain="form.segment_duration !== opt.value"
+                @click="form.segment_duration = opt.value"
+              >
+                {{ opt.label }}
+              </el-button>
+            </div>
             <el-input-number
               v-model="form.segment_duration"
-              :min="60"
-              :step="300"
-              style="width: 100%"
+              :min="SEGMENT_MIN"
+              :max="SEGMENT_MAX"
+              :step="60"
+              controls-position="right"
+              class="segment-input"
             />
           </el-form-item>
-        </div>
 
-        <div class="form-section">
-          <div class="section-title">{{ $t('schedule.preset') }}</div>
-          <el-form-item :label="$t('schedule.preset')">
-            <el-select
-              v-model="form.preset_id"
-              :placeholder="$t('schedule.selectPreset')"
-              style="width: 100%"
-              clearable
-            >
-              <el-option
-                v-for="p in camerasStore.presets[form.camera_mac] || []"
-                :key="p.id"
-                :label="p.name"
-                :value="p.id"
-              />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <div class="form-section">
-          <el-form-item class="override-toggle">
-            <el-button text type="primary" @click="showOverrides = !showOverrides">
-              {{ showOverrides ? $t('schedule.hideOverrides') : $t('schedule.showOverrides') }}
-              <span class="toggle-arrow" :class="{ open: showOverrides }" aria-hidden="true">
-                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M4 6l4 4 4-4"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-            </el-button>
-          </el-form-item>
-          <template v-if="showOverrides">
-            <div class="override-grid">
-              <el-form-item :label="$t('schedule.resolution')">
-                <el-select v-model="form.overrides.resolution" style="width: 100%" clearable>
-                  <el-option value="1920x1080" :label="$t('schedule.res1920x1080')" />
-                  <el-option value="1280x720" :label="$t('schedule.res1280x720')" />
-                  <el-option value="640x360" :label="$t('schedule.res640x360')" />
-                </el-select>
-              </el-form-item>
-              <el-form-item :label="$t('schedule.bitrate')">
-                <el-input-number
-                  v-model="form.overrides.bitrate"
-                  :min="256"
-                  :max="20000"
-                  :step="256"
-                  style="width: 100%"
-                  clearable
-                  :placeholder="$t('schedule.bitratePlaceholder')"
-                />
-              </el-form-item>
-              <el-form-item :label="$t('schedule.frameRate')">
-                <el-input-number
-                  v-model="form.overrides.frame_rate"
-                  :min="5"
-                  :max="60"
-                  style="width: 100%"
-                  clearable
-                  :placeholder="$t('schedule.frameRatePlaceholder')"
-                />
-              </el-form-item>
-            </div>
-          </template>
-        </div>
-
-        <el-form-item :label="$t('schedule.enabled')" class="enabled-row">
-          <el-switch v-model="form.enabled" />
-        </el-form-item>
+          <RecordingParamOverrides
+            v-model="form.overrides"
+            collapsible
+            :show-segment="false"
+            label-position="top"
+            :default-expanded="overridesExpanded"
+          />
+        </template>
       </el-form>
+
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialog = false">{{ $t('schedule.cancel') }}</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
-            submitText
-          }}</el-button>
+          <div class="footer-left">
+            <span class="enabled-label">{{ $t('schedule.enabled') }}</span>
+            <el-switch v-model="form.enabled" />
+          </div>
+          <div class="footer-actions">
+            <el-button @click="dialog = false">{{ $t('schedule.cancel') }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">
+              {{ submitText }}
+            </el-button>
+          </div>
         </div>
       </template>
     </el-dialog>
@@ -565,43 +583,68 @@ async function handleDelete(row) {
   border-radius: var(--radius-lg) !important;
 }
 
+.dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 24px;
+}
+
+.dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.dialog-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.recording-placeholder {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 8px 0 4px;
+}
+
+.schedule-form :deep(.picker-cards) {
+  margin-bottom: 12px;
+}
+
 /* ── Form ───────────────────────────────────── */
 .schedule-form {
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding-right: 8px;
 }
 
-.form-section {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.form-section:last-of-type {
-  border-bottom: none;
+.form-row__item {
+  min-width: 0;
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.schedule-form :deep(.el-divider) {
+  margin: 4px 0 16px;
+}
+
+.schedule-form :deep(.el-divider__text) {
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
-}
-
-.section-title svg,
-.section-title .el-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--color-primary);
+  background: var(--color-surface-overlay);
+  padding: 0 8px;
 }
 
 :deep(.el-form-item) {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 :deep(.el-form-item:last-child) {
@@ -613,53 +656,59 @@ async function handleDelete(row) {
   font-weight: 500;
   color: var(--color-text-secondary);
   margin-bottom: 6px;
+  line-height: 1.4;
 }
 
-:deep(.el-select .el-input__wrapper) {
-  border-radius: var(--radius-sm);
+.cron-field :deep(.el-form-item__content) {
+  line-height: 1;
 }
 
-/* Override section */
-.override-toggle {
-  margin-bottom: 12px;
+.field-label-with-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.toggle-arrow {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  transition: transform var(--transition-fast);
+.field-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
 }
 
-.toggle-arrow svg {
-  width: 14px;
-  height: 14px;
+.segment-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
-.toggle-arrow.open {
-  transform: rotate(180deg);
+.segment-input {
+  width: 160px;
 }
 
-.override-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 16px;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  animation: fade-up 200ms ease both;
-}
-
-/* Enabled row */
-.enabled-row {
+.dialog-footer {
   display: flex;
   align-items: center;
-  padding-top: 8px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.enabled-row :deep(.el-form-item__content) {
-  justify-content: flex-end;
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.enabled-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* ── Dialog transitions ──────────────────────── */

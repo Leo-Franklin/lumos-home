@@ -67,4 +67,9 @@ export default {
   emptyDesc: '创建你的第一个录制计划吧',
   basicInfo: '基本信息',
   scheduleTiming: '计划时间',
+  recordingSettings: '录制参数',
+  cameraLabel: '摄像头',
+  formHintNew: '设置触发时间与录制参数',
+  formHintEdit: '修改触发时间与录制参数',
+  segmentFallbackHint: '未选预设时，每次触发的录像分段时长',
 }

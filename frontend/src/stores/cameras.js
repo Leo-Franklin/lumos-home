@@ -27,26 +27,21 @@ export const useCamerasStore = defineStore('cameras', () => {
 
   async function loadPresets(mac) {
     try {
-      const [presetsRes, camRes] = await Promise.all([listPresets(mac), getCamera(mac)])
+      const presetsRes = await listPresets(mac)
       presets.value[mac] = presetsRes.data || []
-      defaultPresetId.value[mac] = camRes.data.default_preset_id
     } catch (e) {
       if (e.response?.status === 404) {
-        try {
-          const presetsRes = await listPresets(mac)
-          presets.value[mac] = presetsRes.data || []
-          delete defaultPresetId.value[mac]
-        } catch (presetsErr) {
-          if (presetsErr.response?.status === 404) {
-            presets.value[mac] = []
-            delete defaultPresetId.value[mac]
-          } else {
-            throw presetsErr
-          }
-        }
+        presets.value[mac] = []
       } else {
         throw e
       }
+    }
+
+    try {
+      const camRes = await getCamera(mac)
+      defaultPresetId.value[mac] = camRes.data.default_preset_id
+    } catch {
+      delete defaultPresetId.value[mac]
     }
   }
 

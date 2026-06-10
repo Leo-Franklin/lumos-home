@@ -172,7 +172,7 @@ function isRecordDisabled(row) {
                         <el-icon aria-hidden="true"><VideoCamera /></el-icon>
                         {{ $t('cameras.hlsLive') }}
                       </el-dropdown-item>
-                      <el-dropdown-item command="presets" divided :disabled="!isMediaReady(row)">
+                      <el-dropdown-item command="presets" :disabled="!isMediaReady(row)">
                         <el-icon aria-hidden="true"><Setting /></el-icon>
                         {{ $t('cameras.managePresets') }}
                       </el-dropdown-item>

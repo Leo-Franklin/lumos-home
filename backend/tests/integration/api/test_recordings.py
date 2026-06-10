@@ -352,6 +352,108 @@ async def test_recording_stats_invalid_range(client):
     assert resp.status_code == 422
 
 
+@pytest.mark.asyncio
+async def test_recording_stats_filter_by_camera_mac(client, mem_db):
+    from datetime import UTC, timedelta
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    other_mac = 'BB:CC:DD:EE:FF:02'
+
+    async with mem_db() as db:
+        from app.domain.models.camera import Camera
+        from app.models.device import Device
+
+        db.add(Device(mac=_MAC, device_type='camera', is_online=True))
+        db.add(Device(mac=other_mac, device_type='camera', is_online=True))
+        await db.commit()
+        db.add(Camera(device_mac=_MAC, onvif_host='192.168.1.10', rtsp_url='rtsp://a'))
+        db.add(Camera(device_mac=other_mac, onvif_host='192.168.1.11', rtsp_url='rtsp://b'))
+        await db.commit()
+
+    await _seed_recording(mem_db, duration=120, file_size=1024, started_at=now - timedelta(days=1))
+    await _seed_recording(
+        mem_db,
+        camera_mac=other_mac,
+        duration=60,
+        file_size=512,
+        file_path='/data/r2.mp4',
+        started_at=now - timedelta(days=1),
+    )
+
+    resp = await client.get(f'/api/v1/recordings/stats?range=7d&camera_mac={_MAC}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['count'] == 1
+    assert data['total_duration'] == 120
+    assert data['total_size'] == 1024
+
+
+@pytest.mark.asyncio
+async def test_recording_stats_filter_by_date(client, mem_db):
+    await _seed_camera_and_device(mem_db)
+    await _seed_recording(
+        mem_db,
+        duration=120,
+        file_size=1024,
+        started_at=datetime(2025, 1, 15, 10, 0, 0),
+    )
+    await _seed_recording(
+        mem_db,
+        duration=60,
+        file_size=512,
+        file_path='/data/r2.mp4',
+        started_at=datetime(2025, 1, 16, 10, 0, 0),
+    )
+
+    resp = await client.get('/api/v1/recordings/stats?date=2025-01-15')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['count'] == 1
+    assert data['total_duration'] == 120
+    assert data['total_size'] == 1024
+    assert data['date'] == '2025-01-15'
+
+
+@pytest.mark.asyncio
+async def test_recording_stats_filter_by_camera_and_date(client, mem_db):
+    other_mac = 'BB:CC:DD:EE:FF:02'
+
+    async with mem_db() as db:
+        from app.domain.models.camera import Camera
+        from app.models.device import Device
+
+        db.add(Device(mac=_MAC, device_type='camera', is_online=True))
+        db.add(Device(mac=other_mac, device_type='camera', is_online=True))
+        await db.commit()
+        db.add(Camera(device_mac=_MAC, onvif_host='192.168.1.10', rtsp_url='rtsp://a'))
+        db.add(Camera(device_mac=other_mac, onvif_host='192.168.1.11', rtsp_url='rtsp://b'))
+        await db.commit()
+
+    await _seed_recording(
+        mem_db,
+        duration=120,
+        file_size=1024,
+        started_at=datetime(2025, 1, 15, 10, 0, 0),
+    )
+    await _seed_recording(
+        mem_db,
+        camera_mac=other_mac,
+        duration=60,
+        file_size=512,
+        file_path='/data/r2.mp4',
+        started_at=datetime(2025, 1, 15, 11, 0, 0),
+    )
+
+    resp = await client.get(
+        f'/api/v1/recordings/stats?date=2025-01-15&camera_mac={_MAC}',
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['count'] == 1
+    assert data['total_duration'] == 120
+    assert data['total_size'] == 1024
+
+
 # ===========================================================================
 # Integration tests: GET /api/v1/recordings/{id}
 # ===========================================================================

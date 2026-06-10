@@ -124,19 +124,31 @@ async def get_recording_stats(
     db: DBDep,
     _: CurrentUser,
     range: str = Query('7d', pattern=r'^\d+d$'),
+    camera_mac: str | None = None,
+    date: str | None = None,
 ):
-    days = int(range[:-1])
-    since = datetime.now(UTC) - timedelta(days=days)
+    conditions = []
+    if date:
+        conditions.append(func.date(Recording.started_at) == date)
+    else:
+        days = int(range[:-1])
+        since = datetime.now(UTC) - timedelta(days=days)
+        conditions.append(Recording.started_at >= since)
+
+    if camera_mac:
+        conditions.append(Recording.camera_mac == camera_mac)
 
     total_result = await db.execute(
         select(func.count(), func.sum(Recording.duration), func.sum(Recording.file_size)).where(
-            Recording.started_at >= since
+            *conditions
         )
     )
     count, total_duration, total_size = total_result.one()
 
     return {
         'range': range,
+        'date': date,
+        'camera_mac': camera_mac,
         'count': count or 0,
         'total_duration': total_duration or 0,
         'total_size': total_size or 0,

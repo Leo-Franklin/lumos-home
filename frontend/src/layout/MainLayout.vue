@@ -674,7 +674,9 @@ watch(isTabletOrBelow, (v) => {
 /* ── Content ───────────────────────────── */
 .app-content {
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--color-bg);
   padding: var(--space-6);
   min-width: 0;

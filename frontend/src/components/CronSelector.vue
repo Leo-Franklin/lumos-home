@@ -117,80 +117,86 @@ const description = computed(() => cronDescription(props.modelValue))
 const CRON_RE =
   /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/
 const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
+const showPreview = computed(() => activeTab.value === 'advanced' || !valid.value)
 </script>
 
 <template>
   <div class="cron-selector">
-    <div class="tab-bar">
+    <div class="tab-bar" role="tablist">
       <button
         v-for="tab in TABS"
         :key="tab.key"
+        type="button"
         class="tab-btn"
         :class="{ active: activeTab === tab.key }"
+        role="tab"
+        :aria-selected="activeTab === tab.key"
         @click="switchTab(tab.key)"
       >
         {{ $t(tab.labelKey) }}
       </button>
     </div>
 
-    <div v-if="activeTab === 'preset'" class="preset-grid">
-      <div
-        v-for="p in PRESETS"
-        :key="p.cron"
-        class="preset-card"
-        :class="{ selected: modelValue === p.cron }"
-        @click="selectPreset(p.cron)"
-      >
-        <div class="preset-label">{{ $t(p.labelKey) }}</div>
-        <div class="preset-cron">{{ p.cron }}</div>
+    <div class="tab-panel">
+      <div v-if="activeTab === 'preset'" class="preset-grid">
+        <button
+          v-for="p in PRESETS"
+          :key="p.cron"
+          type="button"
+          class="preset-card"
+          :class="{ selected: modelValue === p.cron }"
+          @click="selectPreset(p.cron)"
+        >
+          <span class="preset-label">{{ $t(p.labelKey) }}</span>
+          <span v-if="modelValue === p.cron" class="preset-check" aria-hidden="true">✓</span>
+        </button>
       </div>
-    </div>
 
-    <div v-else-if="activeTab === 'custom'" class="custom-panel">
-      <div class="custom-row">
-        <div class="custom-field">
-          <div class="field-label">{{ $t('schedule.triggerTime') }}</div>
-          <el-time-picker
-            v-model="customTime"
-            format="HH:mm"
-            value-format="HH:mm"
-            :clearable="false"
-            style="width: 130px"
-            @change="onTimeChange"
-          />
+      <div v-else-if="activeTab === 'custom'" class="custom-panel">
+        <div class="custom-row">
+          <div class="custom-field">
+            <div class="field-label">{{ $t('schedule.triggerTime') }}</div>
+            <el-time-picker
+              v-model="customTime"
+              format="HH:mm"
+              value-format="HH:mm"
+              :clearable="false"
+              style="width: 100%"
+              @change="onTimeChange"
+            />
+          </div>
         </div>
-      </div>
-      <div class="day-section">
-        <div class="field-label">{{ $t('schedule.weekday') }}</div>
-        <div class="day-buttons">
-          <button
-            v-for="d in DAYS"
-            :key="d.value"
-            class="day-btn"
-            :class="{ active: customDays.includes(d.value) }"
-            @click="toggleDay(d.value)"
-          >
-            {{ $t(d.labelKey) }}
-          </button>
+        <div class="day-section">
+          <div class="field-label">{{ $t('schedule.weekday') }}</div>
+          <div class="day-buttons">
+            <button
+              v-for="d in DAYS"
+              :key="d.value"
+              type="button"
+              class="day-btn"
+              :class="{ active: customDays.includes(d.value) }"
+              @click="toggleDay(d.value)"
+            >
+              {{ $t(d.labelKey) }}
+            </button>
+          </div>
         </div>
+        <div class="custom-summary">{{ description }}</div>
+      </div>
+
+      <div v-else class="advanced-panel">
+        <el-input
+          :model-value="modelValue"
+          :placeholder="$t('schedule.advPlaceholder')"
+          @input="onAdvancedInput"
+        />
+        <div class="adv-hint">{{ $t('schedule.advHint') }}</div>
       </div>
     </div>
 
-    <div v-else class="advanced-panel">
-      <el-input
-        :model-value="modelValue"
-        :placeholder="$t('schedule.advPlaceholder')"
-        @input="onAdvancedInput"
-      />
-      <div class="adv-hint">{{ $t('schedule.advHint') }}</div>
-    </div>
-
-    <div class="preview-bar" :class="valid ? 'valid' : 'invalid'">
+    <div v-if="showPreview" class="preview-bar" :class="valid ? 'valid' : 'invalid'">
       <span class="preview-icon">{{ valid ? '✓' : '✗' }}</span>
-      <span class="preview-text">
-        {{ description }}
-        <span class="preview-cron">({{ modelValue }})</span>
-      </span>
+      <span class="preview-text">{{ description }}</span>
     </div>
   </div>
 </template>
@@ -199,78 +205,97 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 .cron-selector {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   box-sizing: border-box;
 }
 
 .tab-bar {
-  display: flex;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 3px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md, 8px);
 }
 
 .tab-btn {
-  flex: 1;
-  padding: 8px 4px;
+  padding: 6px 12px;
   background: transparent;
   border: none;
-  border-right: 1px solid var(--color-border);
+  border-radius: calc(var(--radius-md, 8px) - 2px);
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   font-family: var(--font-sans);
+  white-space: nowrap;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--duration-fast, 0.15s),
+    color var(--duration-fast, 0.15s);
 }
-.tab-btn:last-child {
-  border-right: none;
-}
+
 .tab-btn.active {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-text-inverse);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
+
 .tab-btn:not(.active):hover {
-  background: var(--color-surface-raised);
   color: var(--color-text-primary);
+}
+
+.tab-panel {
+  min-height: 120px;
 }
 
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
 .preset-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 10px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 12px;
   cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
   transition:
-    border-color 0.15s,
-    background 0.15s;
+    border-color var(--duration-fast, 0.15s),
+    background var(--duration-fast, 0.15s);
 }
+
 .preset-card:hover {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  background: var(--color-surface-overlay);
 }
+
 .preset-card.selected {
   background: var(--color-primary-subtle);
   border-color: var(--color-primary);
 }
 
 .preset-label {
-  font-size: 12px;
-  font-weight: 600;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
 }
-.preset-cron {
-  display: none; /* Hide technical cron syntax from regular users */
+
+.preset-check {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
 .custom-panel {
@@ -278,81 +303,101 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
   flex-direction: column;
   gap: 14px;
 }
+
 .custom-row {
   display: flex;
   gap: 12px;
 }
+
 .custom-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  max-width: 180px;
 }
 
 .field-label {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .day-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
+
 .day-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .day-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: var(--color-surface-raised);
   color: var(--color-text-muted);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   font-family: var(--font-sans);
   transition:
-    background 0.15s,
-    color 0.15s,
-    border-color 0.15s;
+    background var(--duration-fast, 0.15s),
+    color var(--duration-fast, 0.15s),
+    border-color var(--duration-fast, 0.15s);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
 }
+
 .day-btn.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--color-text-inverse);
+}
+
+.custom-summary {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 8px 10px;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .advanced-panel {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
+
 .adv-hint {
   font-size: 11px;
   color: var(--color-text-muted);
+  line-height: 1.45;
 }
 
 .preview-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 6px);
   border: 1px solid;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.45;
 }
+
 .preview-bar.valid {
-  background: var(--color-primary-subtle);
-  border-color: var(--color-primary-border);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
 }
+
 .preview-bar.invalid {
   background: rgba(239, 68, 68, 0.06);
   border-color: rgba(239, 68, 68, 0.2);
@@ -360,22 +405,16 @@ const valid = computed(() => CRON_RE.test(props.modelValue?.trim() ?? ''))
 
 .preview-icon {
   flex-shrink: 0;
-}
-.preview-bar.valid .preview-icon {
-  color: var(--color-online);
-}
-.preview-bar.invalid .preview-icon {
-  color: var(--color-error);
+  font-weight: 700;
 }
 
+.preview-bar.valid .preview-icon,
 .preview-bar.valid .preview-text {
   color: var(--color-online);
 }
+
+.preview-bar.invalid .preview-icon,
 .preview-bar.invalid .preview-text {
   color: var(--color-error);
-}
-
-.preview-cron {
-  display: none; /* Hide technical cron syntax from regular users */
 }
 </style>

@@ -392,45 +392,75 @@ body {
 }
 
 /* ── El Dialog ───────────────────────────── */
+/* Prevent overlay wrapper scroll (EP default: overflow:auto → double scrollbar) */
+.el-overlay-dialog {
+  overflow: hidden !important;
+}
+
 .el-dialog {
   background-color: var(--color-surface-overlay) !important;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-lg);
+  margin: auto !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+
+.el-dialog:not(.is-fullscreen) {
+  max-height: calc(100vh - 40px);
+}
+
+.el-dialog.is-fullscreen {
+  max-height: none;
+  margin: 0 !important;
+}
+
 .el-dialog__header {
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
   margin: 0;
-  /* P2-10: header 在 body 长内容滚动时保持可见 */
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex-shrink: 0;
   background-color: var(--color-surface-overlay);
 }
+
 .el-dialog__title {
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
+
 .el-dialog__body {
   padding: 20px 24px;
   color: var(--color-text-primary);
-  /* P2-10: 长 dialog 滚动只在 body 区域发生，header/footer 保持固定 */
-  max-height: calc(85vh - 140px); /* ≈ header(57) + footer(57) + 边距 */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
+
+/* Split-layout dialogs (e.g. list + form): scroll inside child panels only */
+.el-dialog__body.dialog-body--split {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .el-dialog__footer {
   padding: 12px 24px;
   border-top: 1px solid var(--color-border);
-  /* P2-10: footer 也保持底部固定 */
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  flex-shrink: 0;
   background-color: var(--color-surface-overlay);
 }
+
 .el-overlay {
   background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Lock nested app scroll containers when Element Plus popup is open */
+body.el-popup-parent--hidden .app-content,
+body.el-popup-parent--hidden .app-sidebar {
+  overflow: hidden;
 }
 
 /* ── El Input ────────────────────────────── */

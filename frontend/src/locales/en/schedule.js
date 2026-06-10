@@ -62,4 +62,9 @@ export default {
   emptyDesc: 'Create your first schedule to get started',
   basicInfo: 'Basic Info',
   scheduleTiming: 'Schedule Timing',
+  recordingSettings: 'Recording Parameters',
+  cameraLabel: 'Camera',
+  formHintNew: 'Set trigger time and recording parameters.',
+  formHintEdit: 'Update trigger time and recording parameters.',
+  segmentFallbackHint: 'Segment length per trigger when no preset is selected',
 }

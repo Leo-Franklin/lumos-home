@@ -15,7 +15,7 @@ const elLocale = computed(() => (locale.value === 'zh-CN' ? zhCn : en))
 </script>
 
 <template>
-  <el-config-provider :locale="elLocale">
+  <el-config-provider :locale="elLocale" :dialog="{ alignCenter: true }">
     <router-view />
   </el-config-provider>
 </template>

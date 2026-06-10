@@ -20,6 +20,7 @@ import {
   setDefaultPreset,
   mjpegStreamUrl,
 } from '@/api/cameras'
+import { emptyPresetForm, emptyOverrides, buildOverridesPayload } from '@/constants/recordingParams'
 
 /**
  * Composable encapsulating all Camera view actions + transient dialog state.
@@ -293,18 +294,8 @@ export function useCameraActions() {
   const presetList = ref([])
   const presetLoading = ref(false)
   const presetSaving = ref(false)
-  const presetForm = ref({
-    name: '',
-    resolution: '1920x1080',
-    segment_duration: 300,
-    bitrate: 4096,
-    fps: 25,
-  })
+  const presetForm = ref(emptyPresetForm())
   const presetEditing = ref(null)
-
-  function emptyPresetForm() {
-    return { name: '', resolution: '1920x1080', segment_duration: 300, bitrate: 4096, fps: 25 }
-  }
 
   async function openPresets(cam) {
     presetCam.value = cam
@@ -399,18 +390,13 @@ export function useCameraActions() {
   const recordCam = ref(null)
   const recordPresets = ref([])
   const recordSelectedPresetId = ref(null)
-  const recordOverrides = ref({
-    segment_duration: null,
-    bitrate: null,
-    fps: null,
-    resolution: null,
-  })
+  const recordOverrides = ref(emptyOverrides())
   const recordSaving = ref(false)
 
   async function openRecordDialog(cam) {
     recordCam.value = cam
     recordSelectedPresetId.value = null
-    recordOverrides.value = { segment_duration: null, bitrate: null, fps: null, resolution: null }
+    recordOverrides.value = emptyOverrides()
     recordDialog.value = true
     try {
       const { data } = await listPresets(cam.device_mac)
@@ -429,12 +415,7 @@ export function useCameraActions() {
     if (!recordCam.value) return false
     recordSaving.value = true
     try {
-      const overrides = {}
-      if (recordOverrides.value.segment_duration)
-        overrides.segment_duration = recordOverrides.value.segment_duration
-      if (recordOverrides.value.bitrate) overrides.bitrate = recordOverrides.value.bitrate
-      if (recordOverrides.value.fps) overrides.fps = recordOverrides.value.fps
-      if (recordOverrides.value.resolution) overrides.resolution = recordOverrides.value.resolution
+      const overrides = buildOverridesPayload(recordOverrides.value, { target: 'camera' })
 
       await startRecord(recordCam.value.device_mac, {
         preset_id: recordSelectedPresetId.value || undefined,
