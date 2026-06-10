@@ -12,6 +12,8 @@ export const useDevicesStore = defineStore('devices', () => {
   const scanningProgress = ref(0)
   const scanningStage = ref('')
   const filterTypes = ref([])
+  /** null = all, true = online only, false = offline only */
+  const filterOnline = ref(null)
   const search = ref('')
   let searchTimeoutId = null
 
@@ -20,6 +22,7 @@ export const useDevicesStore = defineStore('devices', () => {
     try {
       const query = { page: page.value, page_size: pageSize.value, ...params }
       if (filterTypes.value.length > 0) query.device_type = filterTypes.value.join(',')
+      if (filterOnline.value !== null) query.online = filterOnline.value
       if (search.value.trim()) query.search = search.value.trim()
       const { data } = await listDevices(query)
       items.value = data.items
@@ -59,12 +62,26 @@ export const useDevicesStore = defineStore('devices', () => {
   function toggleFilter(type) {
     if (type === '') {
       filterTypes.value = []
-      search.value = ''
     } else {
       const idx = filterTypes.value.indexOf(type)
       filterTypes.value =
         idx === -1 ? [...filterTypes.value, type] : filterTypes.value.filter((t) => t !== type)
     }
+    page.value = 1
+    fetchDevices()
+  }
+
+  function setOnlineFilter(status) {
+    filterOnline.value = status
+    page.value = 1
+    fetchDevices()
+  }
+
+  function clearAllFilters() {
+    filterTypes.value = []
+    filterOnline.value = null
+    search.value = ''
+    clearTimeout(searchTimeoutId)
     page.value = 1
     fetchDevices()
   }
@@ -142,11 +159,14 @@ export const useDevicesStore = defineStore('devices', () => {
     scanningProgress,
     scanningStage,
     filterTypes,
+    filterOnline,
     search,
     fetchDevices,
     changePage,
     changePageSize,
     toggleFilter,
+    setOnlineFilter,
+    clearAllFilters,
     setSearch,
     clearSearch,
     scan,

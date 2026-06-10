@@ -27,6 +27,7 @@ describe('useDevicesStore', () => {
     expect(store.scanningProgress).toBe(0)
     expect(store.scanningStage).toBe('')
     expect(store.filterTypes).toEqual([])
+    expect(store.filterOnline).toBe(null)
     expect(store.search).toBe('')
   })
 
@@ -101,7 +102,7 @@ describe('useDevicesStore', () => {
     expect(store.filterTypes).toEqual(['zigbee'])
   })
 
-  it('toggleFilter with empty string clears all filters', async () => {
+  it('toggleFilter with empty string clears type filters only', async () => {
     api.get.mockResolvedValue({ data: { items: [], total: 0 } })
 
     const store = useDevicesStore()
@@ -110,7 +111,7 @@ describe('useDevicesStore', () => {
     store.toggleFilter('')
 
     expect(store.filterTypes).toEqual([])
-    expect(store.search).toBe('')
+    expect(store.search).toBe('test')
   })
 
   it('scan calls triggerScan API', async () => {
@@ -144,6 +145,46 @@ describe('useDevicesStore', () => {
     const store = useDevicesStore()
     store.onScanCompleted()
 
+    expect(api.get).toHaveBeenCalled()
+  })
+
+  it('fetchDevices passes online filter to API', async () => {
+    api.get.mockResolvedValue({ data: { items: [], total: 0 } })
+
+    const store = useDevicesStore()
+    store.filterOnline = true
+    await store.fetchDevices()
+
+    expect(api.get).toHaveBeenCalledWith('/devices', {
+      params: expect.objectContaining({ online: true }),
+    })
+  })
+
+  it('setOnlineFilter updates filter and fetches', async () => {
+    api.get.mockResolvedValue({ data: { items: [], total: 0 } })
+
+    const store = useDevicesStore()
+    store.setOnlineFilter(false)
+
+    expect(store.filterOnline).toBe(false)
+    expect(store.page).toBe(1)
+    expect(api.get).toHaveBeenCalled()
+  })
+
+  it('clearAllFilters resets search, types, and online filter', async () => {
+    api.get.mockResolvedValue({ data: { items: [], total: 0 } })
+
+    const store = useDevicesStore()
+    store.filterTypes = ['phone']
+    store.filterOnline = true
+    store.search = 'test'
+    store.page = 3
+    store.clearAllFilters()
+
+    expect(store.filterTypes).toEqual([])
+    expect(store.filterOnline).toBe(null)
+    expect(store.search).toBe('')
+    expect(store.page).toBe(1)
     expect(api.get).toHaveBeenCalled()
   })
 })

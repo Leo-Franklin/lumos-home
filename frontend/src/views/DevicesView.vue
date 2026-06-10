@@ -1,12 +1,13 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice } from '@/api/devices'
+import { getDashboard } from '@/api/system'
 import { ElMessage } from 'element-plus'
 import FilterChip from '@/components/FilterChip.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh, Search, Close } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ScanProgress from '@/components/ScanProgress.vue'
 import DeviceCard from '@/components/DeviceCard.vue'
@@ -49,14 +50,88 @@ function onSearchInput(val) {
   }
 }
 
-function onAllClick() {
-  searchInput.value = ''
+function onTypeAllClick() {
   devicesStore.filterTypes = []
+  devicesStore.page = 1
+  devicesStore.fetchDevices()
+}
+
+function clearAllFilters() {
+  searchInput.value = ''
   if (route.query.mac) {
     router.replace({ path: '/devices' })
-    return
   }
-  devicesStore.clearSearch()
+  devicesStore.clearAllFilters()
+}
+
+const stats = ref(null)
+
+async function fetchStats() {
+  try {
+    const { data } = await getDashboard()
+    stats.value = { online: data.devices_online, total: data.devices_total }
+  } catch {
+    stats.value = null
+  }
+}
+
+onMounted(fetchStats)
+
+watch(
+  () => devicesStore.scanning,
+  (scanning, wasScanning) => {
+    if (wasScanning && !scanning) fetchStats()
+  },
+)
+
+const hasActiveFilters = computed(
+  () =>
+    Boolean(devicesStore.search.trim()) ||
+    devicesStore.filterTypes.length > 0 ||
+    devicesStore.filterOnline !== null,
+)
+
+const headerSubtitle = computed(() => {
+  if (hasActiveFilters.value) {
+    return t('devices.filteredCount', { count: devicesStore.total })
+  }
+  if (stats.value) {
+    return t('devices.onlineCount', {
+      online: stats.value.online,
+      total: stats.value.total,
+    })
+  }
+  return t('devices.totalCount', { total: devicesStore.total })
+})
+
+const resultRange = computed(() => {
+  if (devicesStore.total === 0) return ''
+  const from = (devicesStore.page - 1) * devicesStore.pageSize + 1
+  const to = Math.min(devicesStore.page * devicesStore.pageSize, devicesStore.total)
+  return t('devices.resultRange', { from, to, total: devicesStore.total })
+})
+
+const activeFilterLabels = computed(() => {
+  const labels = []
+  if (devicesStore.search.trim()) {
+    labels.push(`"${devicesStore.search.trim()}"`)
+  }
+  if (devicesStore.filterOnline === true) labels.push(t('common.online'))
+  if (devicesStore.filterOnline === false) labels.push(t('common.offline'))
+  for (const type of devicesStore.filterTypes) {
+    labels.push(t(`common.deviceTypes.${type}`))
+  }
+  return labels
+})
+
+async function copyText(text) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(t('devices.copied'))
+  } catch {
+    ElMessage.error(t('devices.copyFailed'))
+  }
 }
 
 // ── 编辑 ──────────────────────────────────────────────
@@ -85,6 +160,7 @@ async function saveEdit() {
     ElMessage.success(t('devices.saveSuccess'))
     editDialog.value = false
     devicesStore.fetchDevices()
+    fetchStats()
   } catch (e) {
     handleError(e, 'devices.saveFailed')
   }
@@ -196,13 +272,9 @@ const filterOptions = deviceTypeOptions.map((value) => ({
     <div class="page-header">
       <div>
         <h2 class="page-title">{{ $t('devices.title') }}</h2>
-        <span class="page-sub">
-          {{
-            $t('devices.onlineCount', {
-              online: devicesStore.items.filter((d) => d.is_online).length,
-              total: devicesStore.total,
-            })
-          }}
+        <span class="page-sub">{{ headerSubtitle }}</span>
+        <span v-if="resultRange && devicesStore.items.length" class="page-sub page-sub--secondary">
+          · {{ resultRange }}
         </span>
       </div>
       <div class="header-actions">
@@ -219,23 +291,47 @@ const filterOptions = deviceTypeOptions.map((value) => ({
     </div>
 
     <div class="filter-bar">
-      <el-input
-        v-model="searchInput"
-        :placeholder="$t('devices.searchPlaceholder')"
-        clearable
-        class="search-input"
-        @input="onSearchInput"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
+      <div class="filter-bar-top">
+        <el-input
+          v-model="searchInput"
+          :placeholder="$t('devices.searchPlaceholder')"
+          clearable
+          class="search-input"
+          @input="onSearchInput"
+          @clear="onSearchInput('')"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+
+      <div class="status-filters">
+        <span class="filter-group-label">{{ $t('devices.statusFilter') }}</span>
+        <FilterChip
+          :label="$t('common.all')"
+          :active="devicesStore.filterOnline === null"
+          @click="devicesStore.setOnlineFilter(null)"
+        />
+        <FilterChip
+          :label="$t('common.online')"
+          :active="devicesStore.filterOnline === true"
+          color="var(--color-online)"
+          @click="devicesStore.setOnlineFilter(true)"
+        />
+        <FilterChip
+          :label="$t('common.offline')"
+          :active="devicesStore.filterOnline === false"
+          color="var(--color-offline)"
+          @click="devicesStore.setOnlineFilter(false)"
+        />
+      </div>
 
       <div class="filter-chips">
         <FilterChip
           :label="$t('common.all')"
           :active="devicesStore.filterTypes.length === 0"
-          @click="onAllClick"
+          @click="onTypeAllClick"
         />
         <FilterChip
           v-for="opt in filterOptions"
@@ -246,19 +342,47 @@ const filterOptions = deviceTypeOptions.map((value) => ({
           @click="devicesStore.toggleFilter(opt.value)"
         />
       </div>
+
+      <div v-if="hasActiveFilters" class="active-filters">
+        <span class="active-filters-label">{{ $t('devices.activeFilters') }}:</span>
+        <span v-for="(label, idx) in activeFilterLabels" :key="idx" class="active-filter-tag">
+          {{ label }}
+        </span>
+        <el-button link type="primary" size="small" @click="clearAllFilters">
+          <el-icon><Close /></el-icon>
+          {{ $t('devices.clearAllFilters') }}
+        </el-button>
+      </div>
     </div>
 
     <div v-if="devicesStore.loading" class="device-list">
-      <el-skeleton :rows="3" animated class="device-list-skeleton" />
+      <div v-for="n in 5" :key="n" class="device-skeleton-row">
+        <el-skeleton animated>
+          <template #template>
+            <div class="skeleton-inner">
+              <el-skeleton-item variant="circle" class="sk-dot" />
+              <el-skeleton-item variant="rect" class="sk-icon" />
+              <div class="sk-text">
+                <el-skeleton-item variant="text" class="sk-name" />
+                <el-skeleton-item variant="text" class="sk-vendor" />
+              </div>
+              <el-skeleton-item variant="text" class="sk-ip" />
+              <el-skeleton-item variant="rect" class="sk-badge" />
+            </div>
+          </template>
+        </el-skeleton>
+      </div>
     </div>
 
     <div v-else-if="devicesStore.items.length === 0" class="empty-container">
       <EmptyState
-        :title="$t('devices.noDevices')"
-        :description="$t('devices.noDevicesHint')"
-        icon="device"
-        :action-label="$t('devices.scan')"
-        @action="devicesStore.scan()"
+        :title="hasActiveFilters ? $t('devices.noFilteredDevices') : $t('devices.noDevices')"
+        :description="
+          hasActiveFilters ? $t('devices.filteredEmptyHint') : $t('devices.noDevicesHint')
+        "
+        :icon="hasActiveFilters ? 'search' : 'device'"
+        :action-label="hasActiveFilters ? $t('devices.clearFilter') : $t('devices.scan')"
+        @action="hasActiveFilters ? clearAllFilters() : devicesStore.scan()"
       />
     </div>
 
@@ -355,11 +479,25 @@ const filterOptions = deviceTypeOptions.map((value) => ({
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ $t('devices.mac') }}</span>
-            <span class="detail-value mono">{{ detailDevice.mac }}</span>
+            <span class="detail-value mono copyable">
+              {{ detailDevice.mac }}
+              <el-button link size="small" @click="copyText(detailDevice.mac)">{{
+                $t('common.copy')
+              }}</el-button>
+            </span>
           </div>
           <div class="detail-row">
             <span class="detail-label">IP</span>
-            <span class="detail-value mono">{{ detailDevice.ip || '—' }}</span>
+            <span class="detail-value mono copyable">
+              {{ detailDevice.ip || '—' }}
+              <el-button
+                v-if="detailDevice.ip"
+                link
+                size="small"
+                @click="copyText(detailDevice.ip)"
+                >{{ $t('common.copy') }}</el-button
+              >
+            </span>
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ $t('devices.vendor') }}</span>
@@ -465,13 +603,65 @@ const filterOptions = deviceTypeOptions.map((value) => ({
 .filter-bar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin-bottom: var(--space-6);
 }
 
+.filter-bar-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .search-input {
-  width: 280px;
+  width: 320px;
   max-width: 100%;
+}
+
+.status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filter-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: var(--space-1);
+  flex-shrink: 0;
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+}
+
+.active-filters-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.active-filter-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--color-text-primary);
+}
+
+.page-sub--secondary {
+  margin-left: 4px;
 }
 
 @media (max-width: 767.98px) {
@@ -519,13 +709,65 @@ const filterOptions = deviceTypeOptions.map((value) => ({
 .device-list-skeleton {
   padding: var(--space-3) var(--space-4);
 }
-.device-list-skeleton :deep(.el-skeleton__item) {
-  height: 52px;
-  margin-bottom: var(--space-3);
-  border-radius: 0;
+
+.device-skeleton-row {
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
-.device-list-skeleton :deep(.el-skeleton__item:last-child) {
-  margin-bottom: 0;
+
+.device-skeleton-row:last-child {
+  border-bottom: 0;
+}
+
+.skeleton-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 52px;
+}
+
+.sk-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.sk-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.sk-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sk-name {
+  width: 140px;
+  height: 14px;
+}
+
+.sk-vendor {
+  width: 80px;
+  height: 10px;
+}
+
+.sk-ip {
+  width: 100px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.sk-badge {
+  width: 64px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
 }
 
 .empty-container {
@@ -597,6 +839,13 @@ const filterOptions = deviceTypeOptions.map((value) => ({
 .detail-value.mono {
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.detail-value.copyable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 .detail-notes {
   font-size: 13px;

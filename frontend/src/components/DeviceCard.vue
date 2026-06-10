@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   VideoCameraFilled,
   Monitor,
@@ -19,7 +20,9 @@ import {
 const props = defineProps({
   device: { type: Object, required: true },
 })
-defineEmits(['edit', 'delete', 'detail'])
+const emit = defineEmits(['edit', 'delete', 'detail'])
+
+const { t } = useI18n()
 
 const TYPE_CONFIG = {
   camera: { label: 'Camera', hex: 'var(--color-type-camera)' },
@@ -89,10 +92,42 @@ const confidenceLevel = computed(() => {
   if (pct >= 50) return 'medium'
   return 'low'
 })
+
+function formatRelativeLastSeen(iso) {
+  if (!iso) return ''
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (diffMin < 1) return t('devices.lastSeenJustNow')
+  if (diffMin < 60) return t('common.minutesAgo', { n: diffMin })
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return t('common.hoursAgo', { n: diffHr })
+  const diffDay = Math.floor(diffHr / 24)
+  return t('common.daysAgo', { n: diffDay })
+}
+
+const relativeLastSeen = computed(() => formatRelativeLastSeen(props.device.last_seen))
+
+function onRowClick(e) {
+  if (e.target.closest('.row-actions')) return
+  emit('detail', props.device)
+}
+
+function onRowKeydown(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    emit('detail', props.device)
+  }
+}
 </script>
 
 <template>
-  <div class="device-row" :class="{ 'device-row--offline': !device.is_online }">
+  <div
+    class="device-row"
+    :class="{ 'device-row--offline': !device.is_online }"
+    role="button"
+    tabindex="0"
+    @click="onRowClick"
+    @keydown="onRowKeydown"
+  >
     <!-- 状态点 -->
     <span
       class="status-dot"
@@ -112,6 +147,12 @@ const confidenceLevel = computed(() => {
     <div class="name-block">
       <div class="device-name">{{ device.alias || device.hostname || $t('devices.unnamed') }}</div>
       <div class="device-vendor" v-if="device.vendor">{{ device.vendor }}</div>
+      <div class="device-meta-mobile">
+        <span v-if="device.ip" class="device-ip-mobile">{{ device.ip }}</span>
+        <span v-if="relativeLastSeen && !device.is_online" class="device-last-seen">{{
+          relativeLastSeen
+        }}</span>
+      </div>
     </div>
 
     <!-- 弹性占位 -->
@@ -137,13 +178,13 @@ const confidenceLevel = computed(() => {
 
     <!-- 操作按钮 -->
     <div class="row-actions">
-      <el-button size="small" link @click="$emit('detail', device)">{{
+      <el-button size="small" link @click.stop="$emit('detail', device)">{{
         $t('common.detail')
       }}</el-button>
-      <el-button size="small" link @click="$emit('edit', device)">{{
+      <el-button size="small" link @click.stop="$emit('edit', device)">{{
         $t('common.edit')
       }}</el-button>
-      <el-button size="small" link type="danger" @click="$emit('delete', device)">{{
+      <el-button size="small" link type="danger" @click.stop="$emit('delete', device)">{{
         $t('common.delete')
       }}</el-button>
     </div>
@@ -160,7 +201,12 @@ const confidenceLevel = computed(() => {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-subtle);
   transition: background var(--duration-fast) var(--easing-standard);
-  cursor: default;
+  cursor: pointer;
+}
+
+.device-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .device-row:hover {
@@ -233,6 +279,29 @@ const confidenceLevel = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
+}
+
+.device-meta-mobile {
+  display: none;
+  gap: var(--space-2);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.2;
+}
+
+.device-ip-mobile {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.device-last-seen {
+  color: var(--color-text-muted);
+}
+
+.device-last-seen::before {
+  content: '·';
+  margin-right: var(--space-2);
+  opacity: 0.5;
 }
 
 /* 弹性占位 */
@@ -328,6 +397,12 @@ const confidenceLevel = computed(() => {
     max-width: none;
     flex: 1;
     min-width: 0;
+  }
+
+  .device-meta-mobile {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
   }
 
   .row-actions {
