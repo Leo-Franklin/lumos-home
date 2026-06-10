@@ -23,106 +23,113 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
 
 <template>
   <div class="table-scroll">
-  <el-table v-loading="loading" :data="cameras" style="width: 100%">
-    <el-table-column :label="$t('cameras.deviceMac')" prop="device_mac" width="160" />
-    <el-table-column :label="$t('cameras.onvifHost')" width="170">
-      <template #default="{ row }">{{ row.onvif_host }}:{{ row.onvif_port }}</template>
-    </el-table-column>
-    <el-table-column :label="$t('cameras.rtspUrl')" min-width="200">
-      <template #default="{ row }">
-        <span class="rtsp-url">{{ row.rtsp_url || '—' }}</span>
-      </template>
-    </el-table-column>
-    <el-table-column :label="$t('cameras.streamProfile')" prop="stream_profile" width="110" />
-    <el-table-column :label="$t('cameras.online')" width="80" align="center">
-      <template #default="{ row }">
-        <el-tag :type="row.is_online ? 'success' : 'info'" size="small">
-          {{ row.is_online ? $t('cameras.online') : $t('cameras.offline') }}
-        </el-tag>
-      </template>
-    </el-table-column>
-    <el-table-column :label="$t('cameras.recording')" width="90" align="center">
-      <template #default="{ row }">
-        <el-tag :type="row.is_recording ? 'danger' : 'info'" size="small">
-          {{ row.is_recording ? $t('cameras.recording') : $t('cameras.idle') }}
-        </el-tag>
-      </template>
-    </el-table-column>
-    <el-table-column :label="$t('cameras.lastProbe')" width="160">
-      <template #default="{ row }">{{ $d(row.last_probe_at, 'short') }}</template>
-    </el-table-column>
-    <el-table-column :label="$t('cameras.actions')" min-width="220" align="center">
-      <template #default="{ row }">
-        <div class="action-group">
-          <el-tooltip :content="$t('cameras.edit')" :show-after="400">
-            <el-button
-              class="action-btn"
-              size="small"
-              :icon="Edit"
-              :aria-label="$t('cameras.edit')"
-              @click="emit('edit', row)"
-            />
-          </el-tooltip>
-          <el-tooltip
-            :content="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')"
-            :show-after="400"
-          >
-            <el-button
-              class="action-btn"
-              :class="row.is_recording ? 'action-btn--recording' : 'action-btn--record'"
-              size="small"
-              :icon="row.is_recording ? VideoPause : VideoCameraFilled"
-              :aria-label="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')"
-              @click="emit('record', row)"
-            />
-          </el-tooltip>
-          <el-dropdown trigger="click" @command="(cmd) => emit('preview', cmd, row)">
-            <el-button
-              class="action-btn action-btn--primary"
-              size="small"
-              :aria-label="$t('cameras.livePreview')"
+    <el-table v-loading="loading" :data="cameras" style="width: 100%">
+      <el-table-column :label="$t('cameras.deviceMac')" prop="device_mac" width="160" />
+      <el-table-column :label="$t('cameras.onvifHost')" width="170">
+        <template #default="{ row }">{{ row.onvif_host }}:{{ row.onvif_port }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('cameras.rtspUrl')" min-width="200">
+        <template #default="{ row }">
+          <span class="rtsp-url">{{ row.rtsp_url || '—' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('cameras.streamProfile')" prop="stream_profile" width="110" />
+      <el-table-column :label="$t('cameras.online')" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.is_online ? 'success' : 'info'" size="small">
+            {{ row.is_online ? $t('cameras.online') : $t('cameras.offline') }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('cameras.recording')" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.is_recording ? 'danger' : 'info'" size="small">
+            {{ row.is_recording ? $t('cameras.recording') : $t('cameras.idle') }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column :label="$t('cameras.lastProbe')" width="160">
+        <template #default="{ row }">{{ $d(row.last_probe_at, 'short') }}</template>
+      </el-table-column>
+      <el-table-column :label="$t('cameras.actions')" min-width="220" align="center">
+        <template #default="{ row }">
+          <div class="action-group">
+            <el-tooltip :content="$t('cameras.edit')" :show-after="400">
+              <el-button
+                class="action-btn"
+                size="small"
+                :icon="Edit"
+                :aria-label="$t('cameras.edit')"
+                @click="emit('edit', row)"
+              />
+            </el-tooltip>
+            <el-tooltip
+              :content="row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')"
+              :show-after="400"
             >
-              <VideoPlay />
-              <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="live">
-                  <el-icon aria-hidden="true"><VideoPlay /></el-icon>{{ $t('cameras.livePreview') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="snapshot">
-                  <el-icon aria-hidden="true"><Camera /></el-icon>{{ $t('cameras.snapshot') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="hls">
-                  <el-icon aria-hidden="true"><VideoCamera /></el-icon>{{ $t('cameras.hlsLive') }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          <el-dropdown trigger="click" @command="(cmd) => emit('more', cmd, row)">
-            <el-button class="action-btn" size="small" :aria-label="$t('cameras.managePresets')">
-              <el-icon aria-hidden="true"><MoreFilled /></el-icon>
-              <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="probe">
-                  <el-icon aria-hidden="true"><Search /></el-icon>{{ $t('cameras.onvifProbe') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="presets">
-                  <el-icon aria-hidden="true"><Setting /></el-icon>{{ $t('cameras.managePresets') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="delete" divided>
-                  <el-icon aria-hidden="true"><Delete /></el-icon>
-                  <span class="text-danger">{{ $t('cameras.delete') }}</span>
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </template>
-    </el-table-column>
-  </el-table>
+              <el-button
+                class="action-btn"
+                :class="row.is_recording ? 'action-btn--recording' : 'action-btn--record'"
+                size="small"
+                :icon="row.is_recording ? VideoPause : VideoCameraFilled"
+                :aria-label="
+                  row.is_recording ? $t('cameras.stopRecord') : $t('cameras.startRecord')
+                "
+                @click="emit('record', row)"
+              />
+            </el-tooltip>
+            <el-dropdown trigger="click" @command="(cmd) => emit('preview', cmd, row)">
+              <el-button
+                class="action-btn action-btn--primary"
+                size="small"
+                :aria-label="$t('cameras.livePreview')"
+              >
+                <VideoPlay />
+                <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="live">
+                    <el-icon aria-hidden="true"><VideoPlay /></el-icon>
+                    {{ $t('cameras.livePreview') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="snapshot">
+                    <el-icon aria-hidden="true"><Camera /></el-icon>
+                    {{ $t('cameras.snapshot') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="hls">
+                    <el-icon aria-hidden="true"><VideoCamera /></el-icon>
+                    {{ $t('cameras.hlsLive') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-dropdown trigger="click" @command="(cmd) => emit('more', cmd, row)">
+              <el-button class="action-btn" size="small" :aria-label="$t('cameras.managePresets')">
+                <el-icon aria-hidden="true"><MoreFilled /></el-icon>
+                <el-icon class="el-icon--right" aria-hidden="true"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="probe">
+                    <el-icon aria-hidden="true"><Search /></el-icon>
+                    {{ $t('cameras.onvifProbe') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="presets">
+                    <el-icon aria-hidden="true"><Setting /></el-icon>
+                    {{ $t('cameras.managePresets') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <el-icon aria-hidden="true"><Delete /></el-icon>
+                    <span class="text-danger">{{ $t('cameras.delete') }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
   </div>
 </template>
 

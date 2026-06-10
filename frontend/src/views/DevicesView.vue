@@ -153,7 +153,6 @@ const filterOptions = deviceTypeOptions.map((value) => ({
   label: value,
   color: `var(--color-type-${value})`,
 }))
-
 </script>
 
 <template>
@@ -310,20 +309,20 @@ const filterOptions = deviceTypeOptions.map((value) => ({
         <div class="detail-section-title">{{ $t('devices.basicInfo') }}</div>
         <div class="detail-grid">
           <div class="detail-row">
-            <span class="detail-label">{{ $t('devices.deviceType') }}</span
-            ><span class="detail-value">{{ detailTypeLabel }}</span>
+            <span class="detail-label">{{ $t('devices.deviceType') }}</span>
+            <span class="detail-value">{{ detailTypeLabel }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">{{ $t('devices.mac') }}</span
-            ><span class="detail-value mono">{{ detailDevice.mac }}</span>
+            <span class="detail-label">{{ $t('devices.mac') }}</span>
+            <span class="detail-value mono">{{ detailDevice.mac }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">IP</span
-            ><span class="detail-value mono">{{ detailDevice.ip || '—' }}</span>
+            <span class="detail-label">IP</span>
+            <span class="detail-value mono">{{ detailDevice.ip || '—' }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">{{ $t('devices.vendor') }}</span
-            ><span class="detail-value">{{ detailDevice.vendor || '—' }}</span>
+            <span class="detail-label">{{ $t('devices.vendor') }}</span>
+            <span class="detail-value">{{ detailDevice.vendor || '—' }}</span>
           </div>
         </div>
       </div>
@@ -332,12 +331,12 @@ const filterOptions = deviceTypeOptions.map((value) => ({
         <div class="detail-section-title">{{ $t('devices.recordInfo') }}</div>
         <div class="detail-grid">
           <div class="detail-row">
-            <span class="detail-label">{{ $t('devices.firstSeen') }}</span
-            ><span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span>
+            <span class="detail-label">{{ $t('devices.firstSeen') }}</span>
+            <span class="detail-value">{{ formatTime(detailDevice.created_at) }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">{{ $t('devices.lastSeen') }}</span
-            ><span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span>
+            <span class="detail-label">{{ $t('devices.lastSeen') }}</span>
+            <span class="detail-value">{{ formatTime(detailDevice.last_seen) }}</span>
           </div>
         </div>
       </div>

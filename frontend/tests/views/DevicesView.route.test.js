@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 /** Mirrors DevicesView route ↔ store sync. */
 function applyRouteMacFilter(mac, { store, searchInput }) {
@@ -43,18 +43,21 @@ describe('DevicesView route mac filter sync', () => {
     watch(routeMac, (mac) => applyRouteMacFilter(mac, { store, searchInput }), { immediate: true })
   })
 
-  it('applies mac filter when route query is set', () => {
+  it('applies mac filter when route query is set', async () => {
     routeMac.value = 'aa:bb:cc:dd:ee:ff'
+    await nextTick()
     expect(searchInput.value).toBe('aa:bb:cc:dd:ee:ff')
     expect(store.search).toBe('aa:bb:cc:dd:ee:ff')
     expect(store.fetchDevices).toHaveBeenCalled()
   })
 
-  it('clears stale store search when route query is removed (browser back)', () => {
+  it('clears stale store search when route query is removed (browser back)', async () => {
     routeMac.value = 'aa:bb:cc:dd:ee:ff'
+    await nextTick()
     vi.clearAllMocks()
 
     routeMac.value = undefined
+    await nextTick()
 
     expect(store.clearSearch).toHaveBeenCalled()
     expect(searchInput.value).toBe('')
