@@ -1,7 +1,14 @@
 // src/locales/zh-CN/topology.js
 export default {
   title: '网络拓扑',
+  subtitle: '可视化局域网设备分布与连接关系',
   onlineCount: '在线 {online} / 共 {total} 台设备',
+  kpiOnline: '在线设备',
+  kpiOffline: '离线设备',
+  kpiTypes: '设备类型',
+  kpiRate: '在线率',
+  canvasHint: '滚轮缩放 · 拖拽平移 · 点击节点查看详情',
+  filterLegend: '按类型筛选',
   scanning: '扫描中…',
   scanNetwork: '扫描网络',
   refresh: '刷新',

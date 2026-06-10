@@ -1,7 +1,14 @@
 // src/locales/en/topology.js
 export default {
   title: 'Network Topology',
+  subtitle: 'Visualize LAN device distribution and connections',
   onlineCount: 'Online {online} / {total} devices',
+  kpiOnline: 'Online',
+  kpiOffline: 'Offline',
+  kpiTypes: 'Device Types',
+  kpiRate: 'Online Rate',
+  canvasHint: 'Scroll to zoom · Drag to pan · Click node for details',
+  filterLegend: 'Filter by type',
   scanning: 'Scanning...',
   scanNetwork: 'Scan Network',
   refresh: 'Refresh',
