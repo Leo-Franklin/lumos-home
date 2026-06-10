@@ -1,6 +1,10 @@
 // src/locales/zh-CN/dashboard.js
 export default {
   title: '仪表板',
+  subtitle: '家庭运行状态一览',
+  pageSummary: '{online}/{total} 台设备在线 · {recording} 台录制中',
+  liveRealtime: '实时更新',
+  livePolling: '轮询刷新',
   refresh: '刷新',
   loadFailed: '加载失败',
   membersHome: '成员在家',

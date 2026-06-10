@@ -1,6 +1,10 @@
 // src/locales/en/dashboard.js
 export default {
   title: 'Dashboard',
+  subtitle: 'Home status at a glance',
+  pageSummary: '{online}/{total} devices online · {recording} recording',
+  liveRealtime: 'Live',
+  livePolling: 'Polling',
   refresh: 'Refresh',
   loadFailed: 'Failed to load',
   membersHome: 'Members Home',

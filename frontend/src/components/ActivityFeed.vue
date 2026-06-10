@@ -111,7 +111,12 @@ defineExpose({
 <template>
   <div class="activity-panel glass-card">
     <div class="activity-header">
-      <span class="activity-title">{{ $t('dashboard.recentActivity') }}</span>
+      <div class="activity-header-left">
+        <span class="activity-title">{{ $t('dashboard.recentActivity') }}</span>
+        <span v-if="renderedItems.length > 0" class="activity-count">{{
+          renderedItems.length
+        }}</span>
+      </div>
       <el-button v-if="showViewAll" link size="small" class="view-all-btn" @click="emit('viewAll')">
         {{ $t('common.viewAll') }}
       </el-button>
@@ -119,7 +124,13 @@ defineExpose({
 
     <div class="activity-list" :style="{ maxHeight: maxHeight + 'px' }">
       <div v-if="renderedItems.length === 0" class="activity-empty">
-        <span>{{ $t('dashboard.noRecentActivity') }}</span>
+        <div class="activity-empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 8v4l3 2" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        </div>
+        <span class="activity-empty-text">{{ $t('dashboard.noRecentActivity') }}</span>
       </div>
       <template v-else>
         <div
@@ -167,6 +178,23 @@ defineExpose({
   justify-content: space-between;
   margin-bottom: var(--space-4);
   flex-shrink: 0;
+}
+
+.activity-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activity-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
 }
 
 .activity-title {
@@ -255,11 +283,36 @@ defineExpose({
 .activity-empty {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-3);
   color: var(--color-text-muted);
   font-size: 13px;
-  padding: var(--space-8) 0;
+  padding: var(--space-10) var(--space-4);
+}
+
+.activity-empty-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.activity-empty-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.activity-empty-text {
+  text-align: center;
+  line-height: 1.5;
 }
 
 .activity-fade {
