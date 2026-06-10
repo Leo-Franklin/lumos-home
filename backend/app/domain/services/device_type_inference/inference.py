@@ -1,312 +1,62 @@
-"""Weighted multi-evidence device type inference for home LAN devices."""
+"""Evidence collection, fusion, and public inference API."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
-# --- Reliability tiers ---
-_WEIGHT_GATEWAY_IP = 0.92
-_WEIGHT_PORT_STRONG = 0.90
-_WEIGHT_VENDOR_STRONG = 0.88
-_WEIGHT_PORT_MEDIUM = 0.85
-_WEIGHT_UPNP_TYPE = 0.85
-_WEIGHT_HTTP_BANNER = 0.82
-_WEIGHT_HOSTNAME_STRONG = 0.82
-_WEIGHT_UPNP_NAME = 0.80
-_WEIGHT_HOSTNAME = 0.78
-_WEIGHT_VENDOR = 0.75
-_WEIGHT_NETBIOS = 0.75
-_WEIGHT_PORT_WEAK = 0.68
-_WEIGHT_RANDOM_MAC = 0.58
-_WEIGHT_TTL_PHONE = 0.48
-_WEIGHT_TTL_OTHER = 0.30
-
-_MIN_CONFIDENCE = 0.35
-_AGREEMENT_BOOST = 1.15
-_AMBIGUITY_RATIO = 0.85
-# Runner-up at or above this tier (e.g. RTSP port) counts as a real cross-type conflict
-# even when agreement boost inflates the winner score.
-_CONFLICT_RUNNER_UP_MIN = 0.80
-
-_ROUTER_SERVICE_PORTS: frozenset[int] = frozenset({80, 443, 8080, 8443})
-# Strong camera/service ports (RTSP, ONVIF, vendor-specific). 8000 excluded — Chromecast conflict.
-_CAMERA_PORTS_STRONG: frozenset[int] = frozenset({554, 8554, 10554, 2020, 37777, 34567, 8899, 9000})
-_CAMERA_PERSIST_MIN_CONFIDENCE = 0.65
-_CAMERA_SIGNAL_SOURCES: frozenset[str] = frozenset({'ports', 'http', 'upnp', 'vendor', 'hostname'})
-_PRINTER_PORTS: frozenset[int] = frozenset({631, 9100, 515})
-_NAS_PORTS: frozenset[int] = frozenset({5000, 5001, 548, 32400})
-_TV_PORTS: frozenset[int] = frozenset({8008, 8009})
-_IOT_PORTS: frozenset[int] = frozenset({1883})
-_COMPUTER_PORTS: frozenset[int] = frozenset({3389, 445})
-
-_ROUTER_HOSTNAME_KW: tuple[str, ...] = (
-    'gateway',
-    'router',
-    'openwrt',
-    'mikrotik',
-    'suishen',
-    'miwifi',
-    'asus',
-    'netgear',
-    'dlink',
-    'd-link',
-    'tenda',
-    'mercury',
-    'phicomm',
-    'cpe',
-    '-ap',
-    'wifi',
+from .constants import (
+    _AGREEMENT_BOOST,
+    _AMBIGUITY_RATIO,
+    _CAMERA_HOSTNAME_KW,
+    _CAMERA_HTTP_KW,
+    _CAMERA_HTTP_VENDOR_LABELS,
+    _CAMERA_PERSIST_MIN_CONFIDENCE,
+    _CAMERA_PORTS_STRONG,
+    _CAMERA_SIGNAL_SOURCES,
+    _CAMERA_VENDOR_KW,
+    _COMPUTER_HOSTNAME_KW,
+    _COMPUTER_PORTS,
+    _COMPUTER_VENDOR_KW,
+    _CONFLICT_RUNNER_UP_MIN,
+    _GAME_CONSOLE_HOSTNAME_KW,
+    _IOT_PORTS,
+    _IOT_VENDOR_KW,
+    _MAC_VENDOR_DISPLAY_LABELS,
+    _MIN_CONFIDENCE,
+    _NAS_PORTS,
+    _NAS_VENDOR_KW,
+    _PHONE_HOSTNAME_KW,
+    _PHONE_VENDOR_KW,
+    _PRINTER_HOSTNAME_KW,
+    _PRINTER_PORTS,
+    _PRINTER_VENDOR_KW,
+    _ROUTER_HOSTNAME_KW,
+    _ROUTER_HTTP_KW,
+    _ROUTER_SERVICE_PORTS,
+    _ROUTER_VENDOR_KW,
+    _SMART_SPEAKER_HOSTNAME_KW,
+    _TABLET_HOSTNAME_KW,
+    _TP_LINK_KW,
+    _TV_HOSTNAME_KW,
+    _TV_PORTS,
+    _TV_VENDOR_KW,
+    _WEIGHT_GATEWAY_IP,
+    _WEIGHT_HOSTNAME,
+    _WEIGHT_HOSTNAME_STRONG,
+    _WEIGHT_HTTP_BANNER,
+    _WEIGHT_NETBIOS,
+    _WEIGHT_PORT_MEDIUM,
+    _WEIGHT_PORT_STRONG,
+    _WEIGHT_PORT_WEAK,
+    _WEIGHT_RANDOM_MAC,
+    _WEIGHT_TTL_OTHER,
+    _WEIGHT_TTL_PHONE,
+    _WEIGHT_UPNP_NAME,
+    _WEIGHT_UPNP_TYPE,
+    _WEIGHT_VENDOR,
+    _WEIGHT_VENDOR_STRONG,
 )
-_PHONE_HOSTNAME_KW: tuple[str, ...] = (
-    'iphone',
-    'ipad',
-    'android',
-    'galaxy',
-    'redmi',
-    'pixel',
-    'honor',
-    'magic',
-    'hinova',
-    'oppo',
-    'vivo',
-    'oneplus',
-    'realme',
-    'sm-',
-    'rmx',
-)
-_COMPUTER_HOSTNAME_KW: tuple[str, ...] = (
-    'macbook',
-    'imac',
-    'desktop',
-    'laptop',
-    'pc-',
-    'workstation',
-)
-_PRINTER_HOSTNAME_KW: tuple[str, ...] = ('printer', 'canon', 'epson', 'brother')
-_TV_HOSTNAME_KW: tuple[str, ...] = (
-    '-tv',
-    'smarttv',
-    'lgwebos',
-    'tizen',
-    'roku',
-    'fire-tv',
-    'appletv',
-    'apple-tv',
-)
-_SMART_SPEAKER_HOSTNAME_KW: tuple[str, ...] = (
-    'echo',
-    'home-mini',
-    'nest-',
-    'homepod',
-    'xiaoai',
-)
-_GAME_CONSOLE_HOSTNAME_KW: tuple[str, ...] = ('switch', 'playstation', 'xbox', 'ps5', 'ps4')
-_TABLET_HOSTNAME_KW: tuple[str, ...] = ('ipad', 'tab-', 'tablet', 'galaxy-tab')
-_CAMERA_HOSTNAME_KW: tuple[str, ...] = (
-    'cam',
-    'ipc',
-    'ipcam',
-    'nvr',
-    'dvr',
-    'hikvision',
-    'dahua',
-    'ezviz',
-    'imou',
-    'reolink',
-    'uniview',
-    'tapo',
-    'kasa',
-    'vigi',
-)
-_TP_LINK_KW: tuple[str, ...] = ('tp-link', 'tplink', 'tp link')
-_ROUTER_HTTP_KW: tuple[str, ...] = (
-    'wireless router',
-    'lte router',
-    'mobile router',
-    'gateway',
-    'archer',
-    'deco',
-    'tl-wr',
-    'tl-mr',
-    'tl-er',
-    'openwrt',
-    'mikrotik',
-    'cpe',
-)
-_CAMERA_VENDOR_KW: tuple[str, ...] = (
-    'hikvision',
-    'dahua',
-    'hangzhou hikvision',
-    'zhejiang dahua',
-    'axis',
-    'reolink',
-    'amcrest',
-    'wyze',
-    'ring',
-    'arlo',
-    'eufy',
-    'imou',
-    'uniview',
-    'tiandy',
-    'ezviz',
-    'foscam',
-    'vivotek',
-    'annke',
-    'lorex',
-    'xiongmai',
-    'goke',
-    'sunell',
-    'kedacom',
-    'yushi',
-    'xm',
-    'tuya smart',
-)
-_CAMERA_HTTP_KW: tuple[str, ...] = (
-    'hikvision',
-    'dahua',
-    'reolink',
-    'amcrest',
-    'wyze',
-    'axis',
-    'uniview',
-    'imou',
-    'tiandy',
-    'ezviz',
-    'yoosee',
-    'xmeye',
-    'annke',
-    'lorex',
-    'foscam',
-    'vivotek',
-    'eufy',
-    'tapo',
-    'kasa',
-    'vigi',
-    'onvif',
-    'ip camera',
-    'network camera',
-    'web service login',  # common Hikvision/Dahua login title
-    'surveillance',
-    'net surveillance',
-    'ipc',
-)
-_CAMERA_HTTP_VENDOR_LABELS: dict[str, str] = {
-    'hikvision': 'Hikvision',
-    'dahua': 'Dahua',
-    'reolink': 'Reolink',
-    'amcrest': 'Amcrest',
-    'wyze': 'Wyze',
-    'axis': 'Axis',
-    'uniview': 'Uniview',
-    'imou': 'Imou',
-    'tiandy': 'Tiandy',
-    'ezviz': 'EZVIZ',
-    'yoosee': 'Yoosee',
-    'xmeye': 'XMEye',
-    'annke': 'Annke',
-    'lorex': 'Lorex',
-    'foscam': 'Foscam',
-    'vivotek': 'Vivotek',
-    'eufy': 'Eufy',
-    'tapo': 'TP-Link Tapo',
-    'kasa': 'TP-Link Kasa',
-    'tplink': 'TP-Link',
-    'tp-link': 'TP-Link',
-}
-
-_MAC_VENDOR_DISPLAY_LABELS: dict[str, str] = {
-    'tp-link': 'TP-Link',
-    'tplink': 'TP-Link',
-    'hangzhou hikvision': 'Hikvision',
-    'zhejiang dahua': 'Dahua',
-    'synology': 'Synology',
-}
-
-_ROUTER_VENDOR_KW: tuple[str, ...] = (
-    'tp-link',
-    'tplink',
-    'tp link',
-    'netgear',
-    'd-link',
-    'dlink',
-    'cisco',
-    'linksys',
-    'ubiquiti',
-    'mikrotik',
-    'zyxel',
-    'tenda',
-    'ruijie',
-    'h3c',
-    'huawei technologies',
-    'aruba',
-    'juniper',
-    'netcore',
-    'mercury',
-    'fast(迅捷)',
-    'fast ',
-    'comfast',
-    'wavlink',
-    'eero',
-    'zte',
-    'zte corporation',
-    '中兴',
-)
-_PHONE_VENDOR_KW: tuple[str, ...] = (
-    'apple',
-    'samsung',
-    'xiaomi',
-    'honor',
-    'honor device',
-    'hinova',
-    'oppo',
-    'vivo',
-    'oneplus',
-    'realme',
-    'motorola',
-    'nokia',
-    'sony mobile',
-    'google',
-    'meizu',
-    'transsion',
-    'tecno',
-    'infinix',
-    'nothing',
-    'fairphone',
-)
-_NAS_VENDOR_KW: tuple[str, ...] = ('synology', 'qnap', 'buffalo')
-_COMPUTER_VENDOR_KW: tuple[str, ...] = (
-    'intel',
-    'realtek',
-    'dell',
-    'lenovo',
-    'hewlett',
-    'hp inc',
-    'acer',
-    'msi',
-    'gigabyte',
-    'asustek',
-    'microsoft',
-    'razer',
-)
-_TV_VENDOR_KW: tuple[str, ...] = (
-    'lg electronics',
-    'tcl',
-    'hisense',
-    'skyworth',
-    'roku',
-    'amazon technologies',
-    'chromecast',
-)
-_IOT_VENDOR_KW: tuple[str, ...] = (
-    'espressif',
-    'tuya',
-    'yeelight',
-    'aqara',
-    'sonoff',
-    'meross',
-)
-_PRINTER_VENDOR_KW: tuple[str, ...] = ('canon', 'epson', 'brother', 'ricoh', 'xerox')
 
 
 @dataclass(frozen=True)
@@ -787,7 +537,14 @@ def _detect_ttl_evidence(
         phone_hostname = _hostname_hits(hostname, _PHONE_HOSTNAME_KW)
         randomized = _is_randomized_mac(mac)
         if not router_context and (phone_vendor or phone_hostname or randomized):
-            return [TypeEvidence('ttl', 'phone', _WEIGHT_TTL_PHONE, f'ttl={ttl} android/unix hint')]
+            return [
+                TypeEvidence(
+                    'ttl',
+                    'phone',
+                    _WEIGHT_TTL_PHONE,
+                    f'ttl={ttl} android/unix hint',
+                )
+            ]
     return []
 
 

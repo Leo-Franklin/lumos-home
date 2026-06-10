@@ -22,7 +22,7 @@ class TestDetectPrefixLengthByNetwork:
             (0x0000A8C0, 0xFFFFFF00, 0x0, 'eth0', '0.0.0.0', 100),  # 192.168.0.0/24
         ]
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             with patch('scapy.all.conf') as mock_conf:
                 mock_conf.route.routes = fake_routes
                 prefix = _detect_prefix_length('192.168.0.100')
@@ -33,10 +33,10 @@ class TestDetectPrefixLengthByNetwork:
 class TestDetectLocalNetworks:
     def test_includes_192_168_0_subnet(self):
         with patch(
-            'app.domain.services.scanner._local_ipv4_addresses',
+            'app.domain.services.scanner.network.local_ipv4_addresses',
             return_value=['192.168.0.100', '192.168.1.50'],
         ):
-            with patch('app.domain.services.scanner._detect_prefix_length', return_value=24):
+            with patch('app.domain.services.scanner.network.detect_prefix_length', return_value=24):
                 networks = detect_local_networks()
 
         assert '192.168.0.0/24' in networks
@@ -60,7 +60,7 @@ class TestDetectDefaultGatewayIps:
             (0x0000A8C0, 0xFFFFFF00, 0x0, 'eth0', '0.0.0.0', 100),
         ]
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             with patch('scapy.all.conf') as mock_conf:
                 mock_conf.route.routes = fake_routes
                 gateways = detect_default_gateway_ips()
@@ -72,7 +72,7 @@ class TestDetectDefaultGatewayIps:
             (0x0000A8C0, 0xFFFFFF00, 0x0A000001, 'eth0', '0.0.0.0', 100),
         ]
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             with patch('scapy.all.conf') as mock_conf:
                 mock_conf.route.routes = fake_routes
                 gateways = detect_default_gateway_ips()
@@ -94,7 +94,7 @@ class TestArpScanDiscovery:
         )
         scanner._get_local_machine_entry = MagicMock(return_value=None)
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             result = await scanner.arp_scan()
 
         scanner._ping_sweep_sync.assert_called_once()
@@ -104,7 +104,7 @@ class TestArpScanDiscovery:
     @pytest.mark.asyncio
     async def test_auto_mode_scans_all_detected_subnets(self):
         with patch(
-            'app.domain.services.scanner.detect_local_networks',
+            'app.domain.services.scanner.probe.detect_local_networks',
             return_value=['192.168.0.0/24', '192.168.1.0/24'],
         ):
             scanner = Scanner('auto')

@@ -24,11 +24,21 @@ import pytest
 
 # Files that historically had S110 violations (per ruff baseline 2026-06-02).
 # Adding a new bare `except: pass` to any of these files will fail this test.
+_SCANNER_FILES = [
+    'app/domain/services/scanner/__init__.py',
+    'app/domain/services/scanner/constants.py',
+    'app/domain/services/scanner/enrichment.py',
+    'app/domain/services/scanner/metadata.py',
+    'app/domain/services/scanner/network.py',
+    'app/domain/services/scanner/pipeline.py',
+    'app/domain/services/scanner/probe.py',
+]
+
 _FILES_UNDER_CONTRACT = [
     'app/database.py',
     'app/domain/services/recorder.py',
     'app/domain/services/recording_domain.py',
-    'app/domain/services/scanner.py',
+    *_SCANNER_FILES,
     'app/domain/services/scheduler_service.py',
 ]
 

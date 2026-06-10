@@ -10,7 +10,11 @@ Fix: Add 0x0 to the exclusion list so default route is skipped and the
 correct LAN interface (192.168.5.45 -> /24) is used instead.
 """
 
+import inspect
 from unittest.mock import MagicMock, patch
+
+import app.domain.services.scanner as scanner_module
+from app.domain.services.scanner import Scanner
 
 
 class TestDetectPrefixLengthDefaultRoute:
@@ -37,7 +41,7 @@ class TestDetectPrefixLengthDefaultRoute:
         mock_ifaces = MagicMock()
         mock_ifaces.items.return_value = [('eth0', mock_iface)]
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             with patch('scapy.all.conf') as mock_conf:
                 mock_conf.route.routes = fake_routes
                 mock_conf.ifaces = mock_ifaces
@@ -63,7 +67,7 @@ class TestDetectPrefixLengthDefaultRoute:
         mock_ifaces = MagicMock()
         mock_ifaces.items.return_value = [('eth0', mock_iface)]
 
-        with patch('app.domain.services.scanner._SCAPY_AVAILABLE', True):
+        with patch('app.domain.services.scanner.constants.SCAPY_AVAILABLE', True):
             with patch('scapy.all.conf') as mock_conf:
                 mock_conf.route.routes = fake_routes
                 mock_conf.ifaces = mock_ifaces
@@ -90,4 +94,60 @@ def test_guess_device_type_unknown():
     assert Scanner.guess_device_type('SomeUnknown', []) == 'unknown'
 
 
-from app.domain.services.scanner import Scanner
+class TestScannerGuessDeviceTypeDelegation:
+    """Scanner.guess_device_type must delegate to device_type_inference, not legacy heuristics."""
+
+    def test_delegates_to_guess_device_type_detailed(self):
+        with patch(
+            'app.domain.services.scanner.probe.guess_device_type_detailed',
+            return_value=('router', 0.9, [{'source': 'gateway', 'type': 'router'}]),
+        ) as mock_detailed:
+            result = Scanner.guess_device_type(
+                'ZTE',
+                [80, 443],
+                'gateway',
+                upnp={'device_type': 'InternetGatewayDevice'},
+                netbios_name='GW',
+            )
+
+        assert result == 'router'
+        mock_detailed.assert_called_once_with(
+            'ZTE',
+            [80, 443],
+            'gateway',
+            upnp={'device_type': 'InternetGatewayDevice'},
+            netbios_name='GW',
+        )
+
+
+class TestScannerLegacyDetectionRemoved:
+    """Legacy inline type detection was superseded by device_type_inference."""
+
+    def test_scanner_has_no_legacy_detect_helpers(self):
+        legacy = (
+            '_detect_by_ports',
+            '_detect_by_hostname',
+            '_detect_by_vendor',
+            '_has_router_service_ports',
+        )
+        for name in legacy:
+            assert not hasattr(Scanner, name), f'Scanner.{name} should be removed'
+
+    def test_module_has_no_legacy_upnp_netbios_helpers(self):
+        for name in ('_detect_by_upnp', '_detect_by_netbios'):
+            assert name not in vars(scanner_module), f'scanner.{name} should be removed'
+
+    def test_scanner_has_no_type_keyword_constants(self):
+        type_constants = [
+            name
+            for name, value in vars(Scanner).items()
+            if name.startswith('_')
+            and isinstance(value, (tuple, frozenset))
+            and name.endswith('_KW')
+        ]
+        assert type_constants == [], f'remove legacy keyword constants: {type_constants}'
+
+    def test_scanner_class_is_compact(self):
+        """After cleanup Scanner should only contain network probing, not type dictionaries."""
+        source_lines = len(inspect.getsourcelines(Scanner)[0])
+        assert source_lines < 700, f'Scanner class still too large ({source_lines} lines)'

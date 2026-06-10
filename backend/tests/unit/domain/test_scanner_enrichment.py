@@ -181,7 +181,7 @@ async def test_enrich_device_returns_open_ports_and_metadata():
     scanner.probe_http_banners = AsyncMock(return_value={80: {'server': 'httpd', 'title': 'Admin'}})
 
     with patch(
-        'app.domain.services.scanner._fetch_upnp_for_ip',
+        'app.domain.services.scanner.enrichment.fetch_upnp_for_ip',
         new=AsyncMock(return_value=None),
     ):
         result = await _enrich_device(scanner, {'ip': '192.168.1.1', 'mac': 'AA:BB:CC:DD:EE:01'})
