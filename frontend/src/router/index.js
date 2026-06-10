@@ -16,16 +16,56 @@ const routes = [
     component: MainLayout,
     redirect: '/dashboard',
     children: [
-      { path: 'dashboard', component: () => import('@/views/DashboardView.vue') },
-      { path: 'devices', component: () => import('@/views/DevicesView.vue') },
-      { path: 'analytics', component: () => import('@/views/AnalyticsView.vue') },
-      { path: 'topology', component: () => import('@/views/TopologyView.vue') },
-      { path: 'cameras', component: () => import('@/views/CameraView.vue') },
-      { path: 'recordings', component: () => import('@/views/RecordingsView.vue') },
-      { path: 'schedule', component: () => import('@/views/ScheduleView.vue') },
-      { path: 'members', component: () => import('@/views/MembersView.vue') },
-      { path: 'dlna', component: () => import('@/views/DLNAView.vue') },
-      { path: 'settings', component: () => import('@/views/SettingsView.vue') },
+      {
+        path: 'dashboard',
+        component: () => import('@/views/DashboardView.vue'),
+        meta: { titleKey: 'layout.dashboard' },
+      },
+      {
+        path: 'devices',
+        component: () => import('@/views/DevicesView.vue'),
+        meta: { titleKey: 'layout.devices' },
+      },
+      {
+        path: 'analytics',
+        component: () => import('@/views/AnalyticsView.vue'),
+        meta: { titleKey: 'layout.analytics' },
+      },
+      {
+        path: 'topology',
+        component: () => import('@/views/TopologyView.vue'),
+        meta: { titleKey: 'layout.topology' },
+      },
+      {
+        path: 'cameras',
+        component: () => import('@/views/CameraView.vue'),
+        meta: { titleKey: 'layout.cameras' },
+      },
+      {
+        path: 'recordings',
+        component: () => import('@/views/RecordingsView.vue'),
+        meta: { titleKey: 'layout.recordings' },
+      },
+      {
+        path: 'schedule',
+        component: () => import('@/views/ScheduleView.vue'),
+        meta: { titleKey: 'layout.schedule' },
+      },
+      {
+        path: 'members',
+        component: () => import('@/views/MembersView.vue'),
+        meta: { titleKey: 'layout.members' },
+      },
+      {
+        path: 'dlna',
+        component: () => import('@/views/DLNAView.vue'),
+        meta: { titleKey: 'layout.dlna' },
+      },
+      {
+        path: 'settings',
+        component: () => import('@/views/SettingsView.vue'),
+        meta: { titleKey: 'layout.settings' },
+      },
     ],
   },
   // Catch-all 404 route - must be registered LAST

@@ -50,7 +50,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await auth.login(form.value.email, form.value.password)
-    router.push('/devices')
+    router.push('/dashboard')
   } catch (e) {
     handleError(e, 'login.loginFailed')
   } finally {
@@ -146,14 +146,16 @@ async function handleLogin() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
   background: var(--color-bg);
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 .lang-bar {
-  width: 380px;
+  width: 100%;
+  max-width: 380px;
   display: flex;
   justify-content: flex-end;
   margin-bottom: 8px;
@@ -176,8 +178,9 @@ async function handleLogin() {
 }
 
 .login-box {
-  width: 380px;
-  padding: 36px 40px 40px;
+  width: 100%;
+  max-width: 380px;
+  padding: 32px 28px 36px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);

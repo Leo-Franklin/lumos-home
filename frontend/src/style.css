@@ -221,10 +221,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-4);
   margin-bottom: 20px;
 }
 .page-title {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
@@ -238,11 +240,41 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 .pagination-bar {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+/* ── Responsive layout utilities ─────────── */
+@media (max-width: 767.98px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .pagination-bar {
+    justify-content: center;
+  }
+
+  .pagination-bar .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: var(--space-2);
+  }
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Page transition ─────────────────────── */

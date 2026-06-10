@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
@@ -13,6 +13,7 @@ const { t } = useI18n()
 const localeStore = useLocaleStore()
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 
@@ -49,6 +50,12 @@ const staleMessage = computed(() => {
   if (!isStale.value) return ''
   const base = t('layout.wsDisconnected')
   return `${base}，${t('layout.wsStale', { seconds: staleSeconds.value })}`
+})
+
+const showBreadcrumb = computed(() => route.path !== '/dashboard')
+const currentPageTitle = computed(() => {
+  const key = route.meta.titleKey
+  return typeof key === 'string' ? t(key) : ''
 })
 
 function switchLang(lang) {
@@ -129,7 +136,14 @@ watch(isTabletOrBelow, (v) => {
         >
           {{ $t('layout.switchLang') }}
         </button>
-        <el-dropdown @command="(cmd) => cmd === 'logout' && logout()">
+        <el-dropdown
+          @command="
+            (cmd) => {
+              if (cmd === 'logout') logout()
+              else if (cmd === 'settings') router.push('/settings')
+            }
+          "
+        >
           <div
             class="user-trigger"
             :class="{ 'user-trigger--icon-only': isMobile }"
@@ -140,7 +154,8 @@ watch(isTabletOrBelow, (v) => {
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">{{ $t('layout.logout') }}</el-dropdown-item>
+              <el-dropdown-item command="settings">{{ $t('layout.settings') }}</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>{{ $t('layout.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -358,15 +373,17 @@ watch(isTabletOrBelow, (v) => {
             <span class="stale-banner-text">{{ staleMessage }}</span>
           </div>
         </Transition>
-        <div class="content-header">
+        <div v-if="showBreadcrumb" class="content-header">
           <el-breadcrumb separator="/">
             <el-breadcrumb-item to="/dashboard">{{ $t('layout.dashboard') }}</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="$route.meta.title">{{
-              $route.meta.title
-            }}</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="currentPageTitle">{{ currentPageTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </router-view>
       </main>
     </div>
   </div>
@@ -451,6 +468,20 @@ watch(isTabletOrBelow, (v) => {
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+@media (max-width: 767.98px) {
+  .app-header {
+    padding: 0 12px;
+  }
+
+  .header-right {
+    gap: 10px;
+  }
+
+  .brand-name {
+    font-size: 14px;
+  }
 }
 
 .ws-status {

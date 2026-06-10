@@ -13,6 +13,7 @@ export default {
   langChinese: '中文',
   langEnglish: 'English',
   goToRegister: '没有账号？去注册',
+  goToLogin: '已有账号？去登录',
   forgotPassword: '忘记密码？',
   forgotPasswordTitle: '找回密码',
   forgotPasswordDesc: '输入注册邮箱，我们会发送重置链接到您的邮箱。',

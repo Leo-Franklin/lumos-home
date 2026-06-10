@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useDevicesStore } from '@/stores/devices'
 import { updateDevice, deleteDevice } from '@/api/devices'
 import { ElMessage } from 'element-plus'
@@ -15,13 +15,47 @@ import { scheduleUndo } from '@/composables/useUndo'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const devicesStore = useDevicesStore()
 const searchInput = ref('')
 const handleError = useApiError()
 
+/** URL ?mac= is the source of truth for deep-linked device filters. */
+function applyRouteMacFilter(mac) {
+  const q = mac ? String(mac) : ''
+  searchInput.value = q
+  if (q) {
+    if (devicesStore.search === q) return
+    devicesStore.search = q
+    devicesStore.page = 1
+    devicesStore.fetchDevices()
+    return
+  }
+  if (devicesStore.search) {
+    devicesStore.clearSearch()
+    return
+  }
+  if (!devicesStore.items.length) {
+    devicesStore.fetchDevices()
+  }
+}
+
+watch(() => route.query.mac, applyRouteMacFilter, { immediate: true })
+
+function onSearchInput(val) {
+  devicesStore.setSearch(val)
+  if (!val.trim() && route.query.mac) {
+    router.replace({ path: '/devices' })
+  }
+}
+
 function onAllClick() {
   searchInput.value = ''
   devicesStore.filterTypes = []
+  if (route.query.mac) {
+    router.replace({ path: '/devices' })
+    return
+  }
   devicesStore.clearSearch()
 }
 
@@ -120,13 +154,6 @@ const filterOptions = deviceTypeOptions.map((value) => ({
   color: `var(--color-type-${value})`,
 }))
 
-onMounted(() => {
-  if (route.query.mac) {
-    searchInput.value = route.query.mac
-    devicesStore.setSearch(route.query.mac)
-  }
-  devicesStore.fetchDevices()
-})
 </script>
 
 <template>
@@ -162,7 +189,7 @@ onMounted(() => {
         :placeholder="$t('devices.searchPlaceholder')"
         clearable
         class="search-input"
-        @input="devicesStore.setSearch(searchInput)"
+        @input="onSearchInput"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
@@ -339,12 +366,35 @@ onMounted(() => {
 
 .search-input {
   width: 280px;
+  max-width: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .search-input {
+    width: 100%;
+  }
 }
 
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+@media (max-width: 767.98px) {
+  .filter-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--space-1);
+    margin: 0 calc(-1 * var(--space-1));
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
+  }
+
+  .filter-chips::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Device list (row layout, per DESIGN.md §9) */

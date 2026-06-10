@@ -13,6 +13,7 @@ export default {
   langChinese: '中文',
   langEnglish: 'English',
   goToRegister: 'No account? Register',
+  goToLogin: 'Already have an account? Sign in',
   forgotPassword: 'Forgot password?',
   forgotPasswordTitle: 'Reset Password',
   forgotPasswordDesc: 'Enter your email and we will send a reset link.',

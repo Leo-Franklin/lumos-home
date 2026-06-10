@@ -22,6 +22,7 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
 </script>
 
 <template>
+  <div class="table-scroll">
   <el-table v-loading="loading" :data="cameras" style="width: 100%">
     <el-table-column :label="$t('cameras.deviceMac')" prop="device_mac" width="160" />
     <el-table-column :label="$t('cameras.onvifHost')" width="170">
@@ -122,9 +123,22 @@ const emit = defineEmits(['edit', 'record', 'preview', 'more'])
       </template>
     </el-table-column>
   </el-table>
+  </div>
 </template>
 
 <style scoped>
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.table-scroll :deep(.el-table) {
+  min-width: 960px;
+}
 .rtsp-url {
   font-family: var(--font-mono, monospace);
   font-size: 11px;

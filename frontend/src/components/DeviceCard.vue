@@ -227,19 +227,54 @@ function typeBadgeStyle(t) {
   text-align: center;
 }
 
-/* 操作按钮 */
+/* 操作按钮：触屏设备始终可见，鼠标设备悬停显示 */
 .row-actions {
   display: flex;
   align-items: center;
   gap: 0;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--easing-standard);
+  opacity: 1;
 }
 
-.device-row:hover .row-actions,
-.device-row:focus-within .row-actions {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .row-actions {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--easing-standard);
+  }
+
+  .device-row:hover .row-actions,
+  .device-row:focus-within .row-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .device-row {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 52px;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .device-ip,
+  .type-badge {
+    display: none;
+  }
+
+  .name-block {
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .row-actions {
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--color-border-subtle);
+    margin-top: var(--space-1);
+  }
 }
 
 .row-actions .el-button {

@@ -3,7 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import BaseChart from '@/components/charts/BaseChart.vue'
 import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
@@ -25,10 +25,15 @@ import { useApiError } from '@/composables/useApiError'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const handleError = useApiError()
 
-function navigateToDevice(mac) {
-  router.push({ path: '/devices', query: { mac } })
+async function navigateToDevice(mac) {
+  // Push an unfiltered /devices entry first so browser back restores the full list.
+  if (route.path !== '/devices') {
+    await router.push('/devices')
+  }
+  await router.push({ path: '/devices', query: { mac } })
 }
 
 // ── ① Heatmap ──────────────────────────────────────────

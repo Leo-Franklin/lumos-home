@@ -302,7 +302,7 @@ watch(refreshTick, () => {
         </StatCard>
       </div>
 
-      <ActivityFeed :items="recentEvents" :max-height="420" :show-view-all="true" />
+      <ActivityFeed :items="recentEvents" :max-height="420" />
     </template>
   </div>
 </template>

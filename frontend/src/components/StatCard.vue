@@ -139,24 +139,42 @@ defineProps({
   font-weight: 500;
 }
 
-/* Variant colors for icon backgrounds */
+/* Variant colors — distinct accent per metric */
 .stat-card--members .stat-icon-wrap {
-  background: var(--color-primary-subtle);
+  background: color-mix(in srgb, var(--color-accent-members) 14%, transparent);
+}
+.stat-card--members .stat-icon {
+  color: var(--color-accent-members);
 }
 .stat-card--cameras .stat-icon-wrap {
-  background: var(--color-primary-subtle);
+  background: color-mix(in srgb, var(--color-accent-cameras) 14%, transparent);
+}
+.stat-card--cameras .stat-icon {
+  color: var(--color-accent-cameras);
 }
 .stat-card--devices .stat-icon-wrap {
-  background: var(--color-primary-subtle);
+  background: color-mix(in srgb, var(--color-accent-devices) 14%, transparent);
+}
+.stat-card--devices .stat-icon {
+  color: var(--color-accent-devices);
 }
 .stat-card--recordings .stat-icon-wrap {
-  background: var(--color-primary-subtle);
+  background: color-mix(in srgb, var(--color-accent-recordings) 14%, transparent);
+}
+.stat-card--recordings .stat-icon {
+  color: var(--color-accent-recordings);
 }
 .stat-card--unknown .stat-icon-wrap {
-  background: var(--color-primary-subtle);
+  background: color-mix(in srgb, var(--color-accent-unknown) 14%, transparent);
+}
+.stat-card--unknown .stat-icon {
+  color: var(--color-accent-unknown);
 }
 .stat-card--warn .stat-icon-wrap {
-  background: rgba(245, 158, 11, 0.15);
+  background: color-mix(in srgb, var(--color-accent-unknown-warn) 18%, transparent);
+}
+.stat-card--warn .stat-icon {
+  color: var(--color-accent-unknown-warn);
 }
 
 /* Animation */
