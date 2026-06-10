@@ -11,11 +11,13 @@ export default {
     5: 'Fri',
     6: 'Sat',
   },
-  // Calendar heatmap only renders Sun/Tue/Thu/Sat rows
   weekdayShort: {
     0: 'Sun',
+    1: 'Mon',
     2: 'Tue',
+    3: 'Wed',
     4: 'Thu',
+    5: 'Fri',
     6: 'Sat',
   },
   timeBands: {
@@ -41,6 +43,11 @@ export default {
     monthsFormat: '{m}',
     recordings: '{count} recordings',
     minutes: ' · {count} min',
+    activeDays: 'Active days',
+    totalRecordings: 'Total recordings',
+    peakDay: 'Peak day · {count}',
+    legendLess: 'Less',
+    legendMore: 'More · {count}/day',
   },
   size: {
     bytes: '{n} B',

@@ -399,4 +399,20 @@ onUnmounted(() => ro?.disconnect())
   color: var(--color-text-muted);
   letter-spacing: 0.04em;
 }
+
+@media (max-width: 767.98px) {
+  .hm-toolbar {
+    align-items: flex-start;
+  }
+  .hm-stats {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .hm-filters {
+    width: 100%;
+  }
+}
 </style>

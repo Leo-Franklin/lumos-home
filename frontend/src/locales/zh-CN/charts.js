@@ -11,11 +11,13 @@ export default {
     5: '周五',
     6: '周六',
   },
-  // 日历热力图只渲染 Sun/Tue/Thu/Sat 四行
   weekdayShort: {
     0: '日',
+    1: '一',
     2: '二',
+    3: '三',
     4: '四',
+    5: '五',
     6: '六',
   },
   timeBands: {
@@ -41,6 +43,11 @@ export default {
     monthsFormat: '{m}月',
     recordings: '{count} 条录像',
     minutes: ' · {count} 分钟',
+    activeDays: '有录像天数',
+    totalRecordings: '录像总数',
+    peakDay: '峰值日 · {count} 条',
+    legendLess: '少',
+    legendMore: '多 · {count} 条/天',
   },
   size: {
     bytes: '{n} 字节',
