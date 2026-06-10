@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
 
-from app.deps import CurrentUser, DBDep, NasSyncerDep, RecorderDep, StreamUser
+from app.deps import CurrentUser, DBDep, RecorderDep, StreamUser
 from app.domain.models.camera import RecordingPreset
 from app.domain.models.camera_event import (
     CameraEvent,
@@ -248,7 +248,7 @@ async def start_recording(
 
 @router.post('/{mac}/record/stop', status_code=status.HTTP_202_ACCEPTED)
 async def stop_recording(
-    mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep, nas_syncer: NasSyncerDep
+    mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep
 ):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
@@ -258,12 +258,10 @@ async def stop_recording(
     if not camera.is_recording:
         raise HTTPException(status_code=409, detail='该摄像头未在录制')
 
-    task = recorder.active.get(mac)
-    pending_row_id = task.recording_id if task else None
-    session_id = (task.session_recording_id or task.recording_id) if task else None
+    session = recorder.active.get(mac)
+    session_id = (session.session_recording_id or session.recording_id) if session else None
 
-    # 服务重启后内存中没有 task，兜底从数据库查最近一条卡住的记录
-    if pending_row_id is None and session_id is None:
+    if session_id is None:
         orphan_result = await db.execute(
             select(Recording)
             .where(Recording.camera_mac == mac, Recording.status == 'recording')
@@ -272,65 +270,35 @@ async def stop_recording(
         )
         orphan = orphan_result.scalar_one_or_none()
         if orphan:
-            pending_row_id = orphan.id
             session_id = orphan.recording_id or orphan.id
 
     try:
-        output_path = await recorder.stop_recording(mac)
+        await recorder.stop_recording(mac)
     except Exception as e:  # noqa: BLE001 — recorder 服务边界, 停止失败不应中断后续清理
         logger.error(f'停止录制异常 [{mac}]: {e}')
-        output_path = None
 
     camera.is_recording = False
-    # Recording.ended_at is a naive DateTime column; keep naive.
     ended_at = datetime.now()  # noqa: DTZ005
 
-    if pending_row_id:
-        rec_result = await db.execute(select(Recording).where(Recording.id == pending_row_id))
-        rec = rec_result.scalar_one_or_none()
-        if rec:
-            # 如果 output_path 存在且 status 尚未 completed，说明是首次手动停止此 segment
-            # 需要同步文件并更新状态。
-            # 如果 output_path 为 None（should_continue=False 路径中 active task 已由
-            # _monitor_loop 处理并 pop），且 rec.status 已是 'completed'（segment 已由
-            # monitor_loop 正确记录），则不应再次覆盖状态，避免将已完成的 segment 错误标记为 failed。
-            if output_path and output_path.exists() and rec.status != 'completed':
-                try:
-                    loop = asyncio.get_running_loop()
-                    dest = await loop.run_in_executor(
-                        None, lambda: nas_syncer.sync_file(output_path, mac)
-                    )
-                    rec.file_path = str(dest)
-                    rec.file_size = dest.stat().st_size if dest.exists() else None
-                except Exception as e:  # noqa: BLE001 — nas_syncer 服务边界, 同步失败回退到本地路径
-                    logger.error(f'手动停止后NAS同步失败 [{mac}]: {e}')
-                    rec.file_path = str(output_path)
-                    rec.file_size = output_path.stat().st_size if output_path.exists() else None
-                rec.status = 'completed'
-            elif not output_path or not output_path.exists():
-                # output_path 不存在：可能 session 已正常结束（should_continue=False 路径）
-                # 不覆盖 status，只在未 completed 时标记（防止冗余标记覆盖已正确处理的 segment）
-                if rec.status != 'completed':
-                    rec.status = 'failed'
-                    rec.error_msg = '录制文件不存在或过小，请检查摄像头RTSP连接是否正常'
-            rec.ended_at = ended_at
-            # 计算总 duration：使用 session_id 查询该录制会话下所有 segment 的 duration 总和
-            # （当 auto-continue 多 segment 时，task.started_at 已被新 segment 覆盖，
-            # 不能用于计算总时长，必须从数据库累加所有 segment 的 duration）
-            if session_id:
+    # Close linked timeline event; segment rows are persisted by recorder callbacks.
+    if session_id:
+        parent_result = await db.execute(select(Recording).where(Recording.id == session_id))
+        parent = parent_result.scalar_one_or_none()
+        if parent and parent.event_id:
+            ev_result = await db.execute(
+                select(CameraEvent).where(CameraEvent.id == parent.event_id)
+            )
+            event = ev_result.scalar_one_or_none()
+            if event and event.status == EventStatus.ACTIVE:
+                event.status = EventStatus.COMPLETED
+                event.ended_at = ended_at
                 segments_result = await db.execute(
                     select(Recording).where(Recording.recording_id == session_id)
                 )
-                all_segments = segments_result.scalars().all()
-                total_duration = sum(seg.duration or 0 for seg in all_segments)
-            else:
-                total_duration = 0
-            # 加上当前 segment 的时长
-            if rec.started_at:
-                current_duration = int((ended_at - rec.started_at).total_seconds())
-                rec.duration = total_duration + current_duration
-            else:
-                rec.duration = total_duration
+                total_duration = sum(
+                    seg.duration or 0 for seg in segments_result.scalars().all()
+                )
+                event.summary = f'手动录制，共 {total_duration}s'
 
     await db.commit()
     await ws_manager.broadcast(

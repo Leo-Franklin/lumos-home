@@ -13,7 +13,7 @@ from app.domain.services.nas_syncer import NasSyncer
 from app.domain.services.onvif_client import OnvifClient
 from app.domain.services.presence_domain import PresenceDomainService
 from app.domain.services.presence_service import PresenceService, presence_service
-from app.domain.services.recorder import Recorder, RecordingTask
+from app.domain.services.recorder import Recorder, RecordingSession, RecordingTask
 from app.domain.services.recording_domain import RecordingDomainService
 from app.domain.services.scanner import Scanner
 from app.domain.services.scheduler_service import SchedulerService, scheduler_service
@@ -39,6 +39,7 @@ __all__ = [
     'PresenceService',
     'presence_service',
     'Recorder',
+    'RecordingSession',
     'RecordingTask',
     'RecordingDomainService',
     'Scanner',

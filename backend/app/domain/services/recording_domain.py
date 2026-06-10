@@ -144,10 +144,21 @@ class RecordingDomainService:
         logger.info(
             f'录制完成 [{task.camera_mac}] id={session_id} seg={task.segment_index} 时长={duration}s'
         )
-        await self._ws_manager.broadcast(
-            'recording_completed',
-            {'camera_mac': task.camera_mac, 'recording_id': session_id},
-        )
+        if not keep_recording:
+            await self._ws_manager.broadcast(
+                'recording_completed',
+                {'camera_mac': task.camera_mac, 'recording_id': session_id},
+            )
+        else:
+            await self._ws_manager.broadcast(
+                'recording_segment_completed',
+                {
+                    'camera_mac': task.camera_mac,
+                    'recording_id': session_id,
+                    'segment_index': task.segment_index,
+                    'duration': duration,
+                },
+            )
 
     async def _probe_duration(self, path: Path) -> int | None:
         """Probe actual media duration via ffprobe. Returns None if unreachable or 0."""

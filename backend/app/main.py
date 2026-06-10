@@ -114,7 +114,6 @@ recorder.set_callbacks(
     on_complete=recording_domain.on_recording_complete,
     on_failed=recording_domain.on_recording_failed,
     should_continue=recording_domain.should_continue_recording,
-    create_next_recording=recording_domain.create_continued_recording,
 )
 
 
