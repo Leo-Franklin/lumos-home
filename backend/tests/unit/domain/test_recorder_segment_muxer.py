@@ -230,8 +230,19 @@ async def test_stop_recording_finalizes_last_partial_segment(tmp_path):
     recorder._on_complete_cb = on_complete
 
     fake_proc = _FakeProcess()
-    await recorder.start_recording(mac, 'rtsp://x', RecordingParams(segment_seconds=60))
-    recorder.active[mac].process = fake_proc
+    fake_proc.set_alive()
+
+    def popen_factory(*_args, **_kwargs):
+        return fake_proc
+
+    import app.domain.services.recorder as rec_mod
+
+    original_popen = rec_mod.subprocess.Popen
+    rec_mod.subprocess.Popen = popen_factory
+    try:
+        await recorder.start_recording(mac, 'rtsp://x', RecordingParams(segment_seconds=60))
+    finally:
+        rec_mod.subprocess.Popen = original_popen
 
     session = recorder.active[mac]
     prefix = session.output_pattern.name.replace('%03d', '')
