@@ -1,4 +1,6 @@
+import asyncio
 import os
+import time
 from pathlib import Path
 
 import pytest_asyncio
@@ -43,6 +45,52 @@ async def cleanup_recordings():
         await session.commit()
 
 
+def _sqlite_db_paths(db_path: Path) -> list[Path]:
+    return [db_path, Path(f'{db_path}-wal'), Path(f'{db_path}-shm')]
+
+
+def _dispose_cached_db_engines() -> None:
+    """Close app.database singleton engines so Windows can delete test.db."""
+    import app.database as db_module
+
+    engine = db_module._engine
+    if engine is None:
+        return
+    db_module._engine = None
+    db_module._AsyncSessionLocal = None
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(engine.dispose())
+    finally:
+        loop.close()
+
+
+def _try_remove_test_db(test_db_path: Path) -> bool:
+    """Remove test.db and SQLite sidecars. Returns False if the file stays locked."""
+    _dispose_cached_db_engines()
+    for attempt in range(5):
+        try:
+            for path in _sqlite_db_paths(test_db_path):
+                if path.exists():
+                    path.unlink()
+            return True
+        except PermissionError:
+            _dispose_cached_db_engines()
+            if attempt == 4:
+                return False
+            time.sleep(0.2 * (attempt + 1))
+    return False
+
+
+def _create_fresh_test_schema(sync_url: str) -> None:
+    from app.database import Base
+
+    engine = create_engine(sync_url, connect_args={'check_same_thread': False})
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    engine.dispose()
+
+
 def pytest_sessionstart(session):
     """Create test database tables once per session, before any test runs.
 
@@ -75,13 +123,15 @@ def pytest_sessionstart(session):
     settings = get_settings()
     Path('data').mkdir(exist_ok=True)
 
-    # Always start with a clean test database
     test_db_path = Path('data/test.db')
-    if test_db_path.exists():
-        test_db_path.unlink()
-
-    # Convert aiosqlite URL to sync sqlite URL for table creation
     sync_url = settings.database_url.replace('sqlite+aiosqlite:///', 'sqlite:///', 1)
+
+    if not _try_remove_test_db(test_db_path):
+        # Windows: another process (or a stale handle) may keep test.db open.
+        # Fall back to resetting schema in place instead of failing session start.
+        _create_fresh_test_schema(sync_url)
+        return
+
     engine = create_engine(sync_url, connect_args={'check_same_thread': False})
     Base.metadata.create_all(bind=engine)
     engine.dispose()
