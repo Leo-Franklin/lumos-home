@@ -1,7 +1,13 @@
 #!/usr/bin/env pwsh
-# pre-push.ps1 - Git push 前检查脚本
-# 用法: ./pre-push.ps1
-# 按 CI workflow 顺序执行所有检查，确保本地通过则线上也通过
+# pre-push.ps1 - 后端专用快捷脚本 (仅 backend 目录内使用)
+#
+# 仓库根目录的 ../pre-push.ps1 是完整版 (前端 + 后端 + contract)。
+# push 前请优先在仓库根目录运行:
+#   ../pre-push.ps1
+#   ../pre-push.ps1 -Fix          # 自动修复 ruff 问题后再检查
+#   ../pre-push.ps1 -InstallHook  # 安装 git pre-push hook
+#
+# 本脚本仅覆盖 backend CI 步骤,供在 backend/ 目录内快速检查时调用。
 
 $ErrorActionPreference = "Stop"
 

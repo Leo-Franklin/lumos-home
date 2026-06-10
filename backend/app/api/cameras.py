@@ -247,9 +247,7 @@ async def start_recording(
 
 
 @router.post('/{mac}/record/stop', status_code=status.HTTP_202_ACCEPTED)
-async def stop_recording(
-    mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep
-):
+async def stop_recording(mac: str, db: DBDep, _: CurrentUser, recorder: RecorderDep):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
@@ -295,9 +293,7 @@ async def stop_recording(
                 segments_result = await db.execute(
                     select(Recording).where(Recording.recording_id == session_id)
                 )
-                total_duration = sum(
-                    seg.duration or 0 for seg in segments_result.scalars().all()
-                )
+                total_duration = sum(seg.duration or 0 for seg in segments_result.scalars().all())
                 event.summary = f'手动录制，共 {total_duration}s'
 
     await db.commit()

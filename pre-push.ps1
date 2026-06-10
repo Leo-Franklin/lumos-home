@@ -2,21 +2,41 @@
 # pre-push.ps1 - Git push 前统一检查脚本 (前端 + 后端)
 #
 # 用法:
-#   ./pre-push.ps1
+#   ./pre-push.ps1              # 严格镜像 CI (不修改文件)
+#   ./pre-push.ps1 -Fix         # 先 ruff --fix + format,再跑检查
+#   ./pre-push.ps1 -InstallHook # 安装 git pre-push hook,之后每次 push 自动跑本脚本
 #
-# 按 CI workflow 顺序执行所有检查,确保本地通过则线上也通过。
-# 后端步骤风格参考 backend/pre-push.ps1;前端步骤对应 ci.yml 的 frontend job。
-# 任何一步失败,exit 1;全部通过则打印"Ready to push"。
+# 默认行为与 .github/workflows/ci.yml 一致,不自动改文件。
+# 若使用 -Fix 产生了未提交改动,脚本会失败并提示先 commit,避免"本地过了、CI 挂了"。
 #
-# 已知问题 (Windows + PowerShell only):
-#   pnpm lint (即 prettier --check .) 在 Windows PowerShell 下会报告 172 个
-#   false positive,但在 Linux/Git Bash 下正常。CI 跑在 ubuntu-latest,不受影响。
-#   因此 frontend lint 步骤在本地为 WARN (打印结果但不阻塞),其他步骤为硬 gate。
-#   真 gate 看 CI。
+# frontend/.prettierrc.json 使用 "endOfLine": "auto",Windows CRLF 与 Linux LF 均可通过 prettier --check。
+
+[CmdletBinding()]
+param(
+    [switch]$Fix,
+    [switch]$InstallHook,
+    [switch]$BackendOnly
+)
 
 $ErrorActionPreference = "Stop"
 
-# 必填环境变量 (后端 pytest 需要)
+$RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $RepoRoot
+
+if ($InstallHook) {
+    $hookPath = Join-Path $RepoRoot ".git/hooks/pre-push"
+    $hookBody = @"
+#!/bin/sh
+# Installed by pre-push.ps1 -InstallHook
+exec pwsh -NoProfile -File "$RepoRoot/pre-push.ps1"
+"@
+    $hookBody | Set-Content -Path $hookPath -Encoding utf8NoBOM
+    Write-Host "Installed git pre-push hook -> $hookPath" -ForegroundColor Green
+    Write-Host "Every 'git push' will now run ./pre-push.ps1 first." -ForegroundColor Green
+    exit 0
+}
+
+# 必填环境变量 (后端 pytest 需要,与 ci.yml 一致)
 $env:JWT_SECRET_KEY = 'test_secret_key_that_is_at_least_32_characters_long'
 $env:ADMIN_PASSWORD = 'testpassword_for_ci_only'
 $env:CORS_ALLOW_ORIGINS = 'http://localhost:5173'
@@ -24,142 +44,139 @@ $env:CORS_ALLOW_ORIGINS = 'http://localhost:5173'
 $script:failures = @()
 $script:warnings = @()
 
+function Test-RepoDirty {
+    param([string[]]$Paths)
+    Push-Location $RepoRoot
+    try {
+        $diff = git diff --name-only -- @Paths 2>$null
+        $untracked = git ls-files --others --exclude-standard -- @Paths 2>$null
+        return @($diff + $untracked | Where-Object { $_ })
+    } finally {
+        Pop-Location
+    }
+}
+
+function Invoke-Step {
+    param(
+        [string]$Label,
+        [scriptblock]$Action,
+        [switch]$WarnOnly
+    )
+    Write-Host "`n[$Label]" -ForegroundColor Cyan
+    & $Action
+    $exit = $LASTEXITCODE
+    if ($null -eq $exit) { $exit = 0 }
+    if ($exit -ne 0) {
+        if ($WarnOnly) {
+            $script:warnings += $Label
+            Write-Host "[WARN] $Label (exit=$exit)" -ForegroundColor Yellow
+        } else {
+            $script:failures += $Label
+            Write-Host "[FAIL] $Label (exit=$exit)" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "[OK] $Label" -ForegroundColor Green
+    }
+}
+
 Write-Host ""
 Write-Host "=== Pre-Push Checks (frontend + backend) ===" -ForegroundColor Cyan
+Write-Host "Repo: $RepoRoot" -ForegroundColor DarkGray
+if ($Fix) {
+    Write-Host "Mode: -Fix (auto-fix then verify)" -ForegroundColor Yellow
+} else {
+    Write-Host "Mode: strict CI mirror (no file changes)" -ForegroundColor DarkGray
+}
 
 # ── Backend ─────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "---- Backend ----" -ForegroundColor Magenta
 
-Push-Location backend
+Push-Location (Join-Path $RepoRoot "backend")
 try {
-    # 0. 自动修复 (先 lint fix + format,确保最后一次操作是干净的格式化)
-    Write-Host "`n[0/9 auto-fix (ruff)]" -ForegroundColor Cyan
-    uv run ruff check --fix app/ tests/
-    uv run ruff format app/ tests/
-    Write-Host "[OK] auto-fix" -ForegroundColor Green
+    if ($Fix) {
+        Invoke-Step "backend auto-fix (ruff)" {
+            uv run ruff check --fix app/ tests/
+            if ($LASTEXITCODE -ne 0) { return }
+            uv run ruff format app/ tests/
+        }
 
-    # 1. ruff check (匹配 ci.yml backend job: uv run ruff check app/ tests/)
-    Write-Host "`n[1/9 ruff check]" -ForegroundColor Cyan
-    uv run ruff check app/ tests/
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "1/9 ruff check"
-        Write-Host "[FAIL] ruff check (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] ruff check" -ForegroundColor Green
+        $dirty = Test-RepoDirty -Paths @(
+            "backend/app", "backend/tests"
+        )
+        if ($dirty.Count -gt 0) {
+            $script:failures += "backend uncommitted changes after -Fix"
+            Write-Host ""
+            Write-Host "[FAIL] -Fix modified files that are not committed:" -ForegroundColor Red
+            foreach ($f in $dirty) {
+                Write-Host "  - $f" -ForegroundColor Red
+            }
+            Write-Host "Stage and commit these changes, then re-run ./pre-push.ps1" -ForegroundColor Red
+        }
     }
 
-    # 2. ruff format check (匹配 ci.yml: uv run ruff format --check app/ tests/)
-    Write-Host "`n[2/9 ruff format]" -ForegroundColor Cyan
-    uv run ruff format --check app/ tests/
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "2/9 ruff format"
-        Write-Host "[FAIL] ruff format (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] ruff format" -ForegroundColor Green
+    Invoke-Step "backend ruff check" {
+        uv run ruff check app/ tests/
     }
 
-    # 3. mypy (匹配 ci.yml: uv run mypy app/)
-    Write-Host "`n[3/9 mypy]" -ForegroundColor Cyan
-    uv run mypy app/
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "3/9 mypy"
-        Write-Host "[FAIL] mypy (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] mypy" -ForegroundColor Green
+    Invoke-Step "backend ruff format" {
+        uv run ruff format --check app/ tests/
     }
 
-    # 4. pytest (匹配 ci.yml: uv run pytest tests/)
-    Write-Host "`n[4/9 pytest]" -ForegroundColor Cyan
-    uv run pytest tests/ -q
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "4/9 pytest"
-        Write-Host "[FAIL] pytest (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] pytest" -ForegroundColor Green
+    Invoke-Step "backend mypy" {
+        uv run mypy app/
+    }
+
+    Invoke-Step "backend pytest" {
+        uv run pytest tests/ -q
     }
 } finally {
     Pop-Location
 }
 
-# ── Frontend ────────────────────────────────────────────────────
-Write-Host ""
-Write-Host "---- Frontend ----" -ForegroundColor Magenta
+if (-not $BackendOnly) {
+    # ── Frontend ────────────────────────────────────────────────────
+    Write-Host ""
+    Write-Host "---- Frontend ----" -ForegroundColor Magenta
 
-Push-Location frontend
-try {
-    # 5. pnpm lint (匹配 ci.yml: pnpm lint = eslint . + prettier --check .)
-    # Windows PowerShell 下 prettier 会出 172 个 false positive,见头部说明
-    Write-Host "`n[5/9 pnpm lint] (WARN only on Windows; CI is the real gate)" -ForegroundColor Cyan
-    pnpm lint
-    if ($LASTEXITCODE -ne 0) {
-        $script:warnings += "5/9 pnpm lint"
-        Write-Host "[WARN] pnpm lint failed locally (likely Windows prettier false positive); CI is the real gate" -ForegroundColor Yellow
-    } else {
-        Write-Host "[OK] pnpm lint" -ForegroundColor Green
+    Push-Location (Join-Path $RepoRoot "frontend")
+    try {
+        Invoke-Step "frontend pnpm lint" {
+            pnpm lint
+        }
+
+        Invoke-Step "frontend pnpm test" {
+            pnpm test
+        }
+
+        Invoke-Step "frontend pnpm build" {
+            pnpm build
+        }
+    } finally {
+        Pop-Location
     }
 
-    # 6. pnpm test (匹配 ci.yml: pnpm test)
-    Write-Host "`n[6/9 pnpm test]" -ForegroundColor Cyan
-    pnpm test
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "6/9 pnpm test"
-        Write-Host "[FAIL] pnpm test (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] pnpm test" -ForegroundColor Green
+    # ── API contract (matches CI `contract` job) ──────────────────
+    Write-Host ""
+    Write-Host "---- API Contract ----" -ForegroundColor Magenta
+
+    Invoke-Step "contract check" {
+        python scripts/check_api_contract.py
+        if ($LASTEXITCODE -ne 0 -and (Test-Path "contract-report.txt")) {
+            Write-Host ""
+            Write-Host "--- contract-report.txt ---" -ForegroundColor Yellow
+            Get-Content "contract-report.txt" | Write-Host
+        }
     }
 
-    # 7. pnpm build (匹配 ci.yml: pnpm build)
-    Write-Host "`n[7/9 pnpm build]" -ForegroundColor Cyan
-    pnpm build
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "7/9 pnpm build"
-        Write-Host "[FAIL] pnpm build (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] pnpm build" -ForegroundColor Green
+    Invoke-Step "contract check unit tests" {
+        Push-Location (Join-Path $RepoRoot "backend")
+        try {
+            uv run python -m pytest ../scripts/tests/ -v --tb=short
+        } finally {
+            Pop-Location
+        }
     }
-} finally {
-    Pop-Location
-}
-
-# ── API contract (matches CI `contract` job) ──────────────────
-# Frontend section just left us at the repo root, which is exactly the
-# working directory CI uses (no `working-directory:` on that job). The
-# script is pure stdlib — no venv needed — and writes a human-readable
-# report to ./contract-report.txt (gitignored, see .gitignore line 71-72).
-Write-Host ""
-Write-Host "---- API Contract ----" -ForegroundColor Magenta
-
-# 8. Contract check (匹配 ci.yml: python scripts/check_api_contract.py)
-Write-Host "`n[8/9 contract check]" -ForegroundColor Cyan
-python scripts/check_api_contract.py
-if ($LASTEXITCODE -ne 0) {
-    $script:failures += "8/9 contract check"
-    Write-Host "[FAIL] contract check (exit=$LASTEXITCODE)" -ForegroundColor Red
-    if (Test-Path "contract-report.txt") {
-        Write-Host ""
-        Write-Host "--- contract-report.txt ---" -ForegroundColor Yellow
-        Get-Content "contract-report.txt" | Write-Host
-    }
-} else {
-    Write-Host "[OK] contract check" -ForegroundColor Green
-}
-
-# 9. Contract check unit tests (CI 不跑,本地做内部回归用:保护 _tokens/_matches
-# 这类内部 helper,任何改 scripts/check_api_contract.py 的人本地立即看到破坏)
-# pytest 装在 backend 的 venv 里 (uv sync --dev),借用它的环境跑。
-Write-Host "`n[9/9 contract check unit tests]" -ForegroundColor Cyan
-Push-Location backend
-try {
-    uv run python -m pytest ../scripts/tests/ -v --tb=short
-    if ($LASTEXITCODE -ne 0) {
-        $script:failures += "9/9 contract check unit tests"
-        Write-Host "[FAIL] contract check unit tests (exit=$LASTEXITCODE)" -ForegroundColor Red
-    } else {
-        Write-Host "[OK] contract check unit tests" -ForegroundColor Green
-    }
-} finally {
-    Pop-Location
 }
 
 # ── Summary ─────────────────────────────────────────────────────
@@ -178,7 +195,11 @@ if ($script:failures.Count -gt 0) {
         }
     }
     Write-Host ""
-    Write-Host "DO NOT push. Fix the failures above and re-run." -ForegroundColor Red
+    Write-Host "DO NOT push. Fix the failures above and re-run:" -ForegroundColor Red
+    Write-Host "  ./pre-push.ps1" -ForegroundColor Red
+    if (-not $Fix) {
+        Write-Host "  ./pre-push.ps1 -Fix   # auto-fix ruff issues, then re-check" -ForegroundColor DarkGray
+    }
     exit 1
 }
 
@@ -189,6 +210,5 @@ if ($script:warnings.Count -gt 0) {
     foreach ($w in $script:warnings) {
         Write-Host "  - $w" -ForegroundColor Yellow
     }
-    Write-Host "(CI will re-check these on Linux and is the real gate.)" -ForegroundColor Yellow
 }
 exit 0

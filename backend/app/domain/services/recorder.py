@@ -386,7 +386,9 @@ class Recorder:
 
     async def _handle_stalled_session(self, session: RecordingSession) -> None:
         mac = session.camera_mac
-        logger.warning(f'[{mac}] RTSP流中断（{STALL_THRESHOLD_SECONDS}s无数据写入），终止并尝试重启')
+        logger.warning(
+            f'[{mac}] RTSP流中断（{STALL_THRESHOLD_SECONDS}s无数据写入），终止并尝试重启'
+        )
 
         self._terminate_ffmpeg(session.process, mac)
         self.active.pop(mac, None)
@@ -447,12 +449,7 @@ class Recorder:
         session_age = (now - session.session_started_at).total_seconds()
         in_grace = session_age < STARTUP_GRACE_SECONDS
 
-        if (
-            not in_grace
-            and elapsed >= STALL_THRESHOLD_SECONDS
-            and grew == 0
-            and current_bytes > 0
-        ):
+        if not in_grace and elapsed >= STALL_THRESHOLD_SECONDS and grew == 0 and current_bytes > 0:
             await self._handle_stalled_session(session)
             return True
 
@@ -486,9 +483,7 @@ class Recorder:
                 # Finalize segments whose successor file has appeared
                 still_recording = await self._should_continue(mac)
                 for path in completed_segment_paths(session):
-                    await self._finalize_segment_path(
-                        session, path, keep_recording=still_recording
-                    )
+                    await self._finalize_segment_path(session, path, keep_recording=still_recording)
 
                 if not still_recording:
                     logger.info(f'[{mac}] is_recording=False，自动停止录制')

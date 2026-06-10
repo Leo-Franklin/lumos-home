@@ -1,7 +1,7 @@
 """stop_recording must finalize all segment files via on_complete callbacks."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 

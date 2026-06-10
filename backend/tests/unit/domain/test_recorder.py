@@ -1,7 +1,6 @@
 import asyncio
 import subprocess
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,7 +9,6 @@ from app.domain.services.recorder import (
     Recorder,
     RecordingParams,
     RecordingSession,
-    completed_segment_paths,
 )
 
 
@@ -52,9 +50,7 @@ class TestGracefulShutdown:
         proc = MagicMock()
         proc.poll.return_value = None
         proc.stdin = MagicMock()
-        proc.wait = MagicMock(
-            side_effect=[subprocess.TimeoutExpired('ffmpeg', 10), None]
-        )
+        proc.wait = MagicMock(side_effect=[subprocess.TimeoutExpired('ffmpeg', 10), None])
 
         Recorder._terminate_ffmpeg(proc, 'AA:BB:CC:DD:EE:FF')
 
@@ -143,7 +139,7 @@ async def test_monitor_finalizes_segment_when_next_file_appears(tmp_path, monkey
     recorder = Recorder(temp_dir=str(tmp_path))
     mac = 'AA:BB:CC:DD:EE:FF'
 
-    pattern = tmp_path / f'AA_BB_CC_DD_EE_FF_20260530_100000_seg%03d.mp4'
+    pattern = tmp_path / 'AA_BB_CC_DD_EE_FF_20260530_100000_seg%03d.mp4'
     seg0 = tmp_path / 'AA_BB_CC_DD_EE_FF_20260530_100000_seg000.mp4'
     seg1 = tmp_path / 'AA_BB_CC_DD_EE_FF_20260530_100000_seg001.mp4'
     seg0.write_bytes(b'x' * 20 * 1024)
@@ -232,6 +228,7 @@ async def test_stalled_session_restarts_with_monotonic_segment_index(tmp_path, m
     recorder._on_failed_cb = AsyncMock()
     recorder._should_continue_cb = AsyncMock(return_value=True)
     recorder._terminate_ffmpeg = MagicMock()
+
     async def fake_launch(*_args, **_kwargs):
         new_sess = RecordingSession(
             camera_mac=mac,

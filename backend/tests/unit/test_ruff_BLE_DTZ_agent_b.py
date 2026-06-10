@@ -45,12 +45,9 @@ def _run_ruff() -> str:
         text=True,
         check=False,
     )
-    # ruff prints errors to stdout when --output-format=concise; if all
-    # clean it prints "All checks passed!" — treat that as no violations.
-    out = result.stdout.strip()
-    if out.startswith('All checks passed'):
+    if result.returncode == 0:
         return ''
-    return out
+    return (result.stdout + result.stderr).strip()
 
 
 def test_app_api_has_no_BLE001_or_DTZ005():

@@ -13,7 +13,6 @@ from app.domain.services.recorder import (
     RecordingParams,
     RecordingSession,
     completed_segment_paths,
-    list_segment_files,
     segment_index_from_path,
 )
 
@@ -207,12 +206,16 @@ async def test_four_segments_produce_four_db_rows(tmp_path, db):
 
     async with AsyncSessionLocal() as verify:
         rows = (
-            await verify.execute(
-                select(Recording)
-                .where(Recording.camera_mac == mac, Recording.segment_index.isnot(None))
-                .order_by(Recording.segment_index)
+            (
+                await verify.execute(
+                    select(Recording)
+                    .where(Recording.camera_mac == mac, Recording.segment_index.isnot(None))
+                    .order_by(Recording.segment_index)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 4, f'Expected 4 segments, got {len(rows)}'
         assert [r.segment_index for r in rows] == [0, 1, 2, 3]
         assert len({r.file_path for r in rows}) == 4
