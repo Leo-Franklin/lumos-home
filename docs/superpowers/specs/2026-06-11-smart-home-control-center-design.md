@@ -1,20 +1,34 @@
 # Lumos Home 智能家庭控制中心 2.0 — 设计文档
 
 > **日期**: 2026-06-11
+> **状态**: Draft（待用户审阅）
 > **作者**: Claude (brainstorming 流程产出)
+> **基线**: 当前代码库已实现设备扫描、录制调度、DLNA、成员到家/离家联动（Phase A）、Frigate MQTT 桥接、`ws_manager` WebSocket 推送、Analytics API
 > **目标**: 把 Lumos Home 从「设备 / 录像管理后台」升级为「事件驱动的智能家庭控制中心」
-> **关联**: 已有 `docs/smart_home_tool_design_v3.md`、`docs/go2rtc-live-streaming-plan.md`、`docs/frigate_borrowing_execution_plan.md`
+> **关联**: `docs/smart_home_tool_design_v3.md`、`backend/docs/superpowers/specs/2026-04-29-smart-home-features-design.md`、`docs/go2rtc-live-streaming-plan.md`、`docs/frigate_borrowing_execution_plan.md`
 
 ---
 
-## 0. 概览(One-liner)
+## 0. 概览 (One-liner)
 
 Lumos Home 引入**事件驱动的智能化基座**:
-- **大脑** = Automation Engine:规则 + 触发器 + 动作
-- **触手** = Notification Center:邮件 + Webhook,聚合去噪
-- **脸面** = Digital Twin:three.js 3D 户型,实时反映自动化结果
+- **大脑** = Automation Engine：规则 + 触发器 + 条件 + 动作
+- **触手** = Notification Center：邮件 + Webhook，聚合去噪
+- **脸面** = Digital Twin：three.js 3D 户型，实时反映自动化结果
 
-**一次完整交付**;代码层面按 PR 顺序分阶段合入。
+**一次完整交付**；代码层面按 PR 顺序分阶段合入。
+
+### 0.1 现状与差距
+
+| 已有能力 | 缺口 |
+|---|---|
+| `ws_manager.broadcast()` 推送 15+ 种 WS 事件（`camera_offline`、`recording_completed` 等） | 模块间无统一事件总线；规则无法由用户配置 |
+| Phase A 硬编码联动（成员到家自动录制、陌生设备告警、摄像头掉线、录制后投屏） | 逻辑散落在各 service，不可视化、不可禁用单条规则 |
+| 前端 `notifications.js` store + Element Plus Toast | 无持久化通知历史、无渠道配置、无模板 |
+| FrigateBridge → `CameraEvent` 表 | 未发布到 Event Bus，Automation Engine 无法订阅 |
+| Analytics API + `HeatmapChart.vue`（2D） | 无 3D 空间绑定、无设备位置可视化 |
+
+本期在**不破坏既有行为**的前提下叠加规则引擎与通知中心；Phase A 硬编码逻辑保留，逐步提供等价的可配置规则作为迁移路径（见 §5.7）。
 
 ---
 
@@ -55,8 +69,8 @@ Lumos Home 引入**事件驱动的智能化基座**:
 │                              │                                      │
 │  ┌───────────────────────────▼──────────────────────────────┐      │
 │  │ Event Bus  (内部轻量 pub/sub,内存实现,Future 留 Redis)    │      │
-│  │   Topics: device.online, recording.start, motion.detect,  │      │
-│  │           rule.fired, notification.sent                   │      │
+│  │   Topics: camera_offline, recording_completed,            │      │
+│  │           motion.detect, rule.fired, notification.sent  │      │
 │  └──────────────────────────────────────────────────────────┘      │
 │                              │                                      │
 │  ┌───────────────────────────▼──────────────────────────────┐      │
@@ -68,9 +82,43 @@ Lumos Home 引入**事件驱动的智能化基座**:
 ```
 
 **关键设计点**:
-1. **Event Bus 内部使用,不上 Redis**:够用,后期可替换(为 A2 LLM 等铺路)
-2. **Actions 是后端抽象,内置实现 ≥4 种**:通知、设备控制、录制、Webhook
-3. **前端不直接订阅数据库,统一通过 WebSocket 接收事件**:保持单向流
+1. **Event Bus 内部使用，不上 Redis**：够用，后期可替换（为 LLM 管家等铺路）
+2. **Actions 是后端抽象，内置实现 ≥4 种**：通知、设备控制、录制、Webhook
+3. **前端不直接订阅数据库，统一通过 WebSocket 接收事件**：保持单向流
+4. **复用既有 `ws_manager`**：Event Bus 与 WebSocket 通过桥接层联通，不替换现有推送机制
+
+### 1.1 Event Bus 桥接（与既有 `ws_manager` 的关系）
+
+现有各 service 直接调用 `ws_manager.broadcast(event, data)`。本期**不改动**这些调用点，而是在 `ws_manager.broadcast()` 内增加可选钩子：
+
+```python
+# ws_manager.broadcast() 伪代码
+async def broadcast(self, event: str, data: dict):
+    # 1. 保持既有 WS 推送格式不变
+    message = {"event": event, "timestamp": ..., "data": data}
+    await self._send_to_all_connections(message)
+    # 2. 同步发布到内部 Event Bus（topic 与 event 名一致）
+    await event_bus.publish(event, data)
+```
+
+Automation Engine 的 `EventTrigger` 订阅 Event Bus；Digital Twin 和 Notification Center 继续消费既有 WS 格式，无需改动前端协议。
+
+### 1.2 事件目录（Event Catalog）
+
+Event Bus topic 与既有 WS `event` 字段**同名**，避免两套命名：
+
+| Topic / WS event | 发布者 | 典型 payload 字段 |
+|---|---|---|
+| `scan_completed` | `scanner/pipeline.py` | `online`, `offline`, `new` |
+| `unknown_device_detected` | `scanner/pipeline.py` | `mac`, `ip`, `hostname` |
+| `camera_online` / `camera_offline` | `camera_health.py` | `mac` |
+| `member_arrived` / `member_left` | `presence_service.py` | `member_id`, `name` |
+| `recording_started` / `recording_completed` / `recording_failed` | `recording_domain.py` | `camera_mac`, … |
+| `motion.detect` | `frigate_bridge.py`（**新增发布**） | `camera_mac`, `label`, `score` |
+| `rule.fired` | Automation Engine（**新增**） | `rule_id`, `rule_name` |
+| `notification.sent` / `notification.failed` | Notification Center（**新增**） | `channel_id`, `severity` |
+
+> **注意**：文档早期草稿中的 `device.online` / `recording.start` 为概念名，实现统一采用上表中的既有事件名。`motion.detect` 在 FrigateBridge 写入 `CameraEvent` 后额外 `event_bus.publish()`。
 
 ---
 
@@ -114,23 +162,35 @@ class Rule:
 
 | 类型 | 配置 | 触发时机 |
 |---|---|---|
-| `cron` | `{ "expr": "0 22 * * *" }` | APScheduler 定时 |
-| `device_event` | `{ "topic": "device.online", "filter": {"device_type":"camera"} }` | Event Bus 收到 |
-| `recording_event` | `{ "topic": "recording.start" \| "recording.end" }` | 同上 |
-| `motion_event` | `{ "camera_id": "...", "min_confidence": 0.7 }` | 接 M5 Frigate(预留) |
-| `manual` | (无配置) | 仅 API 触发,用作测试按钮 |
+| `cron` | `{ "expr": "0 22 * * *" }` | APScheduler 定时（与既有 `schedules` 模块共用 scheduler 实例，但规则独立存储于 `automation_rules` 表） |
+| `device_event` | `{ "topic": "camera_online" \| "camera_offline" \| "unknown_device_detected", "filter": {"device_type":"camera"} }` | Event Bus 收到对应 topic |
+| `recording_event` | `{ "topic": "recording_started" \| "recording_completed" \| "recording_failed", "filter": {"camera_mac":"..."} }` | 同上 |
+| `presence_event` | `{ "topic": "member_arrived" \| "member_left", "filter": {"member_id":"..."} }` | 同上 |
+| `motion_event` | `{ "camera_mac": "...", "labels": ["person","motion"], "min_confidence": 0.7 }` | FrigateBridge 发布 `motion.detect` 后触发 |
+| `manual` | (无配置) | 仅 API 触发，用作测试按钮 |
+
+### 2.2.1 内置 Condition 类型
+
+| 类型 | 配置 | 行为 |
+|---|---|---|
+| `time_window` | `{ "start": "22:00", "end": "07:00", "timezone": "Asia/Shanghai" }` | 仅在时段内执行（支持跨午夜） |
+| `device_state` | `{ "device_mac": "AA:BB:...", "field": "is_online", "op": "eq", "value": true }` | 触发时查 DB 快照 |
+| `event_field` | `{ "path": "label", "op": "in", "value": ["person","car"] }` | 对 trigger payload 做 JSONPath 过滤 |
+| `and` / `or` | `{ "conditions": [...] }` | 组合嵌套，最大深度 3 |
+
+所有 Condition 默认**空列表 = 恒真**（触发即执行）。
 
 ### 2.3 内置 Action 类型
 
 | 类型 | 配置示例 | 副作用 |
 |---|---|---|
 | `send_notification` | `{ "channel_id": "...", "template": "..." }` | 走 Notification Center |
-| `control_device` | `{ "device_id": "...", "command": {...} }` | 调 DeviceService(若设备支持) |
+| `control_device` | `{ "device_mac": "AA:BB:...", "command": {...} }` | 调 DeviceService（若设备支持；与既有 API 一致用 MAC 标识） |
 | `start_recording` | `{ "camera_id": "...", "duration_minutes": 30 }` | 调 Recorder |
 | `webhook` | `{ "url": "...", "method": "POST", "body": "..." }` | HTTP 出站 |
-| `chain_rule` | `{ "rule_id": "..." }` | 触发另一条规则(级联) |
+| `chain_rule` | `{ "rule_id": "..." }` | 触发另一条规则（级联，最大深度 3，Engine 检测环并拒绝执行） |
 
-### 2.4 持久化(新增 SQLite 表)
+### 2.4 持久化（新增 SQLite 表，共 8 张）
 
 ```sql
 CREATE TABLE automation_rules (
@@ -171,16 +231,27 @@ CREATE INDEX idx_rule_exec_rule_time ON rule_executions(rule_id, fired_at DESC);
 ### 2.6 REST API
 
 ```
-GET    /api/v1/automations                          # 列表(分页)
+GET    /api/v1/automations                          # 列表（分页）
 POST   /api/v1/automations                          # 创建
 GET    /api/v1/automations/{id}                     # 详情
 PATCH  /api/v1/automations/{id}                     # 更新
 DELETE /api/v1/automations/{id}                     # 删除
-POST   /api/v1/automations/{id}/test                # 手动触发(模拟),用于调试
+POST   /api/v1/automations/{id}/test                # 手动触发（模拟），用于调试
 GET    /api/v1/automations/{id}/executions          # 执行历史
-GET    /api/v1/automations/triggers                 # 可用 trigger 列表(元数据,前端表单用)
+GET    /api/v1/automations/triggers                 # 可用 trigger 列表（元数据，前端表单用）
 GET    /api/v1/automations/actions                  # 可用 action 列表
+GET    /api/v1/automations/conditions               # 可用 condition 列表
+POST   /api/v1/automations/inbound                  # 外部 webhook 入站（Frigate HTTP 等，见 §2.6.1）
 ```
+
+#### 2.6.1 入站 Webhook（`/automations/inbound`）
+
+供无法走 MQTT 的外部系统（或测试）推送事件到 Event Bus：
+
+- 鉴权：`X-Lumos-Token` header，值来自环境变量 `AUTOMATION_INBOUND_TOKEN`（可选，未配置则禁用此端点）
+- Body：`{ "topic": "motion.detect", "payload": { ... } }`
+- 行为：校验 topic 白名单 → `event_bus.publish()` → 202 Accepted
+- Frigate **首选路径**仍是既有 `FrigateBridgeService`（MQTT）；入站端点作为补充，不替代桥接
 
 ### 2.7 测试策略(TDD 强制)
 
@@ -234,10 +305,10 @@ class WebhookConfig:
 | 机制 | 行为 |
 |---|---|
 | 规则 cooldown | 同一规则 N 秒内不重复触发(已在 Rule 层实现) |
-| 全局静默时段 | `notification_settings.quiet_hours_start/end` 静默期间只入队不发,早晨批量推送摘要 |
+| 全局静默时段 | `notification_settings` 表的 `quiet_hours_start/end`；静默期间只入队不发，早晨批量推送摘要 |
 | 聚类折叠 | 同类型事件 5 分钟内 ≥3 条 → 合并为"摄像头 X 离线 3 次" |
 | 严重程度 | 每条通知有 `severity: info / warning / critical`,critical 必发,warning 看时段,info 默认聚合 |
-| 失败重试 | 渠道发送失败按指数退避重试 3 次,仍失败入 dead letter 表 |
+| 失败重试 | 渠道发送失败按指数退避重试 3 次（1s / 5s / 30s），仍失败将 `notification_log.status` 标为 `dead_letter` |
 
 ### 3.4 持久化(新增表)
 
@@ -273,13 +344,22 @@ CREATE TABLE notification_log (        -- 发送历史
 );
 CREATE INDEX idx_notif_log_created ON notification_log(created_at DESC);
 CREATE INDEX idx_notif_log_status ON notification_log(status);
+
+CREATE TABLE notification_settings (     -- 单行全局配置
+    id                  INTEGER PRIMARY KEY DEFAULT 1,
+    quiet_hours_start   TEXT,              -- "22:00" 或 NULL=不启用
+    quiet_hours_end     TEXT,              -- "07:00"
+    quiet_hours_tz      TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+    morning_digest_enabled BOOLEAN NOT NULL DEFAULT 1,
+    updated_at          TIMESTAMP NOT NULL
+);
 ```
 
 ### 3.5 加密
 
-- 渠道配置中的敏感字段(`password`, `api_key`)用 **Fernet(AES-128-CBC + HMAC)**
-- 主密钥走环境变量 `LUMOS_SECRET_KEY`(项目已有 `JWT_SECRET_KEY` 类似机制,沿用风格)
-- `.env.example` 增加占位
+- 渠道配置中的敏感字段（`password`、`api_key`）用 **Fernet（AES-128-CBC + HMAC）**
+- 主密钥：新增 `LUMOS_SECRET_KEY`（≥32 字符，与 `JWT_SECRET_KEY` 职责分离——JWT 签名 vs 配置加密）
+- `.env.example` 增加占位；启动时校验格式，与 `JWT_SECRET_KEY` 校验逻辑一致
 
 ### 3.6 REST API
 
@@ -302,8 +382,12 @@ PATCH  /api/v1/notifications/settings
 
 ### 3.7 WebSocket 推送
 
-新事件 topic: `notification.sent`,`notification.failed`
-前端全局通知中心订阅,实时弹 Toast + 累加红点。
+新增 WS event：`notification.sent`、`notification.failed`（格式与既有 `{event, timestamp, data}` 一致）。
+
+前端在**既有** `notifications.js` store 上扩展：
+- 保留现有 WS 事件处理（`camera_offline`、`scan_completed` 等）和 `useNotificationPreferences` 开关
+- 新增 `serverNotifications` 列表（来自 `notification_log` API）与未读计数
+- `NotificationCenter.vue`（铃铛 + Drawer）与 Toast 并存，不替换现有即时 Toast 行为
 
 ### 3.8 测试
 
@@ -339,24 +423,24 @@ CREATE TABLE digital_twins (
 
 CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
     id           TEXT PRIMARY KEY,
-    twin_id      TEXT REFERENCES digital_twins(id) ON DELETE CASCADE,
-    device_id    TEXT REFERENCES devices(id) ON DELETE CASCADE,
+    twin_id      TEXT NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    device_mac   TEXT NOT NULL REFERENCES devices(mac) ON DELETE CASCADE,
     position_x   REAL NOT NULL,
-    position_y   REAL NOT NULL,         -- 在房间内的归一化坐标(0-1)
+    position_y   REAL NOT NULL,         -- 在房间内的归一化坐标 (0–1)
     position_z   REAL NOT NULL,
     icon_type    TEXT,                  -- 设备类型图标
-    UNIQUE(twin_id, device_id)
+    UNIQUE(twin_id, device_mac)
 );
 ```
 
 ### 4.3 实时数据绑定
 
-- 前端订阅既有 WebSocket(项目已有 `/api/v1/ws`),过滤 topic:
-  - `device.online/offline` → 改变对应 3D 设备图标颜色(绿/灰)
-  - `motion.detect`(M5 Frigate)→ 在摄像头位置播放粒子环
-  - `rule.fired` → 短暂高亮被控设备(脉冲动画)
-- 离线状态:WebSocket 断线重连后,主动 `GET /devices` 拉一次快照
-- 用 `pinia` 缓存 twin state,组件只做渲染,不直接操作 three.js 场景外的状态
+- 前端订阅既有 WebSocket（`/api/v1/ws`），按 `msg.event` 过滤：
+  - `camera_online` / `camera_offline` → 改变对应 3D 设备图标颜色（绿/灰）
+  - `motion.detect`（FrigateBridge 新增发布）→ 在摄像头 binding 位置播放粒子环
+  - `rule.fired` → 短暂高亮被控设备（脉冲动画）
+- 离线状态：WebSocket 断线重连后，主动 `GET /api/v1/devices` 拉一次快照
+- 用 `pinia` 缓存 twin state，组件只做渲染，不直接操作 three.js 场景外的状态
 
 ### 4.4 视图与交互
 
@@ -377,7 +461,7 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 - 拖拽设备图标到 3D 空间 → 保存 binding
 - 上传/删除户型模型
 - 切换楼层(支持多层:z 轴偏移)
-- 时间滑块:回看过去 24h 的热力图(数据从 Analytics API 取)
+- 时间滑块：回看过去 24h 的热力图（数据从 `GET /api/v1/camera-events?event_type=external_frigate&since=24h` 取 Frigate 事件，经 `twin_device_bindings` 将 `camera_mac` 映射为 3D xz 坐标；若 P9 需要聚合接口，可新增 `GET /api/v1/analytics/motion-heatmap` 薄封装）
 
 ### 4.5 热力图实现
 
@@ -407,10 +491,11 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 ### 5.1 端到端数据流(以"摄像头检测到运动 → 通知 + 高亮 3D 摄像头"为例)
 
 ```
-[Frigate/M5]  --HTTP webhook-->  /api/v1/automations/inbound
-                                       │
-                                       ▼
-                                Event Bus.publish("motion.detect", payload)
+[Frigate MQTT] --> FrigateBridgeService --> CameraEvent 表
+                         │
+                         ▼
+              Event Bus.publish("motion.detect", payload)
+              （FrigateBridge 新增；HTTP inbound 为可选补充路径）
                                        │
               ┌────────────────────────┼────────────────────────┐
               ▼                        ▼                        ▼
@@ -496,9 +581,20 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 
 ### 5.6 迁移与回滚
 
-- 新增 4 张表,无既有表结构变更 → 升级无破坏
-- 自动化引擎注册失败时,`lifespan` 启动仅记 warning,不影响其他模块
-- 任何新功能模块都支持 `enabled=False` 关闭,降级到当前 Lumos Home 行为
+- 新增 **8 张表**（`automation_rules`、`rule_executions`、`notification_channels`、`notification_templates`、`notification_log`、`notification_settings`、`digital_twins`、`twin_device_bindings`），无既有表结构变更 → 升级无破坏
+- 自动化引擎注册失败时，`lifespan` 启动仅记 warning，不影响其他模块
+- 任何新功能模块都支持 `enabled=False` 关闭，降级到当前 Lumos Home 行为
+
+### 5.7 与 Phase A 硬编码联动的共存策略
+
+| Phase A 功能 | 既有实现位置 | 本期策略 |
+|---|---|---|
+| A1 成员到家/离家自动录制 | `presence_service._fire_event` | **保留**；后续提供等价 `presence_event` 规则模板，用户可选手动迁移 |
+| A2 陌生设备告警 | `scanner/pipeline.py` | **保留**；可提供默认规则「陌生设备 → send_notification」作为 opt-in 替代 |
+| A3 摄像头掉线检测 | `camera_health.py` | **保留**；规则引擎订阅同一 `camera_offline` topic，两者可并行 |
+| A4 录制后自动投屏 | `recording_domain.py` | **保留**；`start_recording` / DLNA action 可覆盖同类需求 |
+
+原则：**additive only**——新引擎不删除、不修改 Phase A 代码路径；避免「启用规则引擎后硬编码联动失效」的回归风险。迁移为可选、文档化的后续任务，不在 P0–P10 范围内。
 
 ---
 
@@ -506,7 +602,7 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 
 | 阶段 | 内容 | 估时 | 风险点 |
 |---|---|---|---|
-| **P0 基础** | Event Bus + 4 张表 migration + SQLAlchemy 模型 | 1d | 启动流程注入,确保不影响既有 lifespan |
+| **P0 基础** | Event Bus + ws_manager 桥接 + 8 张表 migration + SQLAlchemy 模型 | 1d | 启动流程注入，确保不影响既有 lifespan |
 | **P1 Engine 骨架** | Trigger/Action 接口 + CronTrigger + ManualTrigger + Webhook Action + RuleRegistry | 2d | 调度并发,需要用 lock 防止重复触发 |
 | **P2 持久化 + API** | automation_rules CRUD + 触发器元数据 API | 1d | Pydantic schema 严谨性 |
 | **P3 EventTrigger** | 设备/录像事件订阅,filter 评估 | 1d | Event Bus 语义定为**至少一次投递**(at-least-once),同一事件可能被处理多次,故 cooldown_seconds 是必要而非可选 |
@@ -541,7 +637,9 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 | GLTF 模型兼容 | 上传失败 → 3D 视图不可用 | 自动降级到 SVG 拉伸模式 |
 | Jinja2 模板被滥用 | 任意代码执行 | `SandboxedEnvironment` + 模板白名单 |
 | Webhook 出站打到内网 | SSRF | 内网段黑名单 + 可选白名单 |
-| Event Bus 内存实现崩溃 | 整个事件流中断 | 加 try/except,error 写 loguru;保证模块边界 |
+| Event Bus 内存实现崩溃 | 整个事件流中断 | 加 try/except，error 写 loguru；保证模块边界 |
+| `chain_rule` 循环引用 | 无限级联 | 最大深度 3 + 启动时环检测 |
+| Phase A 与规则引擎双触发 | 同一事件执行两次副作用 | cooldown + 文档说明共存策略；迁移后关闭硬编码 |
 | APScheduler 重启丢任务 | 计划规则漏触发 | 启动时 reload + 持久化作业(APScheduler 3.x JobStore) |
 | 3D 性能 | 浏览器卡顿 | `frameloop="demand"` + LOD + 顶点数上限 |
 
@@ -554,12 +652,21 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 - [ ] `pnpm build` 产出 frontend/ 可被 PyInstaller 打包
 - [ ] 端到端 Playwright 1 条通过(创建规则 → 触发 → 通知 → WS 推送)
 - [ ] 文档更新:`backend/README.md` / `frontend/README.md` / `installer/`
-- [ ] `.env.example` 增加 `LUMOS_SECRET_KEY` 等新环境变量
+- [ ] `.env.example` 增加 `LUMOS_SECRET_KEY`、`AUTOMATION_INBOUND_TOKEN` 等新环境变量
 - [ ] 跨平台检查:Windows + Docker 启动均 OK
 
 ---
 
-## 10. 相关文件清单(供 writing-plans 阶段细化)
+## 10. 修订记录
+
+| 日期 | 变更 |
+|---|---|
+| 2026-06-11 | 初稿（brainstorming 产出） |
+| 2026-06-11 | 审查修订：对齐既有 WS 事件名、补充 Event Bus 桥接与事件目录、补全 Condition/入站 API/`notification_settings` 表、修正表数量与文件路径、明确 Phase A 共存策略、修正 Frigate 数据流与 `device_mac` 外键 |
+
+---
+
+## 11. 相关文件清单（供 writing-plans 阶段细化）
 
 新增/修改:
 ```
@@ -578,7 +685,10 @@ backend/app/
 │   │   │   ├── motion_event.py
 │   │   │   └── manual.py
 │   │   ├── conditions/           # 新增
-│   │   │   └── time_window.py
+│   │   │   ├── time_window.py
+│   │   │   ├── device_state.py
+│   │   │   ├── event_field.py
+│   │   │   └── composite.py
 │   │   └── actions/              # 新增
 │   │       ├── send_notification.py
 │   │       ├── control_device.py
@@ -593,12 +703,15 @@ backend/app/
 │   │   ├── template_engine.py    # 新增
 │   │   ├── anti_spam.py          # 新增
 │   │   └── crypto.py             # 新增(Fernet 封装)
-│   └── event_bus.py              # 新增(轻量 pub/sub)
-├── models/                       # 新增 SQLAlchemy 模型
+│   └── event_bus.py              # 新增（轻量 pub/sub）
+├── domain/services/
+│   ├── ws_manager.py             # 修改：broadcast 内增加 event_bus.publish 钩子
+│   └── frigate_bridge.py         # 修改：写入 CameraEvent 后 publish motion.detect
+├── domain/models/                # 新增 SQLAlchemy 模型（遵循既有 domain/models 布局）
 │   ├── automation.py
 │   ├── notification.py
 │   └── digital_twin.py
-├── schemas/                      # 新增 Pydantic
+├── schemas/                      # 新增 Pydantic（与 api/ 同级）
 │   ├── automation.py
 │   ├── notification.py
 │   └── digital_twin.py
@@ -608,11 +721,11 @@ backend/app/
 frontend/src/
 ├── api/
 │   ├── automations.js            # 新增
-│   ├── notifications.js          # 新增
+│   ├── notificationChannels.js   # 新增（渠道/模板/日志 API，与 WS Toast store 分离）
 │   └── digitalTwins.js           # 新增
 ├── stores/
 │   ├── automations.js            # 新增
-│   ├── notifications.js          # 新增(可升级既有 notifications store)
+│   ├── notifications.js          # 修改：扩展既有 store，非新建
 │   └── digitalTwins.js           # 新增
 ├── views/
 │   ├── AutomationsView.vue       # 新增
