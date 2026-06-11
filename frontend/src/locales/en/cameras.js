@@ -3,7 +3,6 @@ export default {
   // CameraPlayer (from Task 8)
   streamLoadFailed:
     'Failed to load live stream, check if camera is online and RTSP address is correct',
-  hlsLoadFailed: 'HLS stream failed to load, please confirm transcoding is complete',
   errAborted: 'Loading aborted',
   errNetwork: 'Network error, unable to load video',
   errDecode: 'Video decode failed (possibly unsupported codec, e.g. H.265)',
@@ -67,7 +66,6 @@ export default {
   probeFirstStep: 'Step 1: Run ONVIF probe to get stream URL',
   livePreview: 'Live Preview',
   snapshot: 'Snapshot',
-  hlsLive: 'HLS Live',
   startRecord: 'Start Record',
   stopRecord: 'Stop Record',
   selectDevice: 'Select device',
@@ -104,9 +102,7 @@ export default {
   rtspUrlWritten: 'RTSP URL auto-set: {url}',
   liveTitle: 'Live Preview — {host}',
   snapshotTitle: 'Snapshot — {host}',
-  hlsTitle: 'HLS Live — {host}',
   snapshotFailed: 'Snapshot failed, camera may have no signal',
-  hlsStartFailed: 'HLS live failed to start',
   noRtspWarning: 'Camera has no RTSP address configured, please run ONVIF probe first',
   noRtsp: 'Camera has no RTSP address configured',
   recordStarted: 'Record started',

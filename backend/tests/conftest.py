@@ -12,6 +12,7 @@ os.environ['CORS_ALLOW_ORIGINS'] = 'http://localhost:5173'
 os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///./data/test.db'
 os.environ['GITHUB_CLIENT_ID'] = 'test_github_client_id'
 os.environ['GITHUB_CLIENT_SECRET'] = 'test_github_client_secret'
+os.environ['GO2RTC_ENABLED'] = 'false'
 
 
 def pytest_configure(config):

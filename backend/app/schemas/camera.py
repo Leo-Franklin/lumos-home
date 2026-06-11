@@ -50,6 +50,15 @@ class StartRecordingRequest(BaseModel):
     overrides: dict | None = None
 
 
+class LiveStreamOut(BaseModel):
+    mode: str  # mse | mjpeg_fallback
+    stream_name: str
+    status: str  # ready | unavailable
+    mse_ws_url: str | None = None
+    webrtc_url: str | None = None
+    mjpeg_url: str | None = None
+
+
 class CameraCreate(BaseModel):
     device_mac: str
     onvif_host: str

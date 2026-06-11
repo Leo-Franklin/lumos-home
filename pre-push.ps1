@@ -464,8 +464,8 @@ if (-not $BackendOnly) {
             Invoke-FrontendLintFix
         }
 
-        Invoke-Step -Label "frontend pnpm test" -Command "pnpm test" -LongRunning -Action {
-            pnpm test
+        Invoke-Step -Label "frontend pnpm test" -Action {
+            pnpm vitest run --reporter=dot
         } | Out-Null
 
         Invoke-Step -Label "frontend pnpm build" -Command "pnpm build" -LongRunning -Action {

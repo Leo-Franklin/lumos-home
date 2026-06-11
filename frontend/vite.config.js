@@ -70,8 +70,7 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, '../backend/frontend'),
     emptyOutDir: true,
-    // Largest legitimate chunk is the main bundle (Element Plus + Vue + d3
-    // ≈ 1.35 MB) and the code-split CameraPlayer (video.js ≈ 0.7 MB).
+    // Largest legitimate chunk is the main bundle (Element Plus + Vue + d3 ≈ 1.35 MB).
     // Default 500 kB is too aggressive for this stack; 1600 kB is the
     // minimum that silences the warning without hiding real bloat.
     chunkSizeWarningLimit: 1600,
@@ -84,10 +83,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-      },
-      '/hls': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+        ws: true,
       },
       '/ws': {
         target: 'ws://localhost:8000',

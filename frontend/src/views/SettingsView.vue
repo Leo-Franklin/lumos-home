@@ -33,8 +33,10 @@ import {
 import SettingsNav from '@/components/settings/SettingsNav.vue'
 import SettingsSection from '@/components/settings/SettingsSection.vue'
 import SettingsHealthPanel from '@/components/settings/SettingsHealthPanel.vue'
+import SettingsGo2RtcPanel from '@/components/settings/SettingsGo2RtcPanel.vue'
 import SettingsPreferencesPanel from '@/components/settings/SettingsPreferencesPanel.vue'
 import SettingsDataPanel from '@/components/settings/SettingsDataPanel.vue'
+import { getGo2RtcStatus } from '@/api/system'
 import { pickAppVersion } from '@/constants/appMeta'
 
 const { t } = useI18n()
@@ -84,6 +86,8 @@ function setupSectionObserver() {
 const health = ref(null)
 const healthLoading = ref(false)
 const healthError = ref('')
+const go2rtcStatus = ref(null)
+const go2rtcLoading = ref(false)
 
 async function fetchHealth() {
   healthLoading.value = true
@@ -106,6 +110,26 @@ async function fetchHealth() {
   } finally {
     healthLoading.value = false
   }
+}
+
+async function fetchGo2Rtc() {
+  go2rtcLoading.value = true
+  try {
+    const { data } = await getGo2RtcStatus()
+    go2rtcStatus.value = data
+  } catch (e) {
+    handleError(e)
+  } finally {
+    go2rtcLoading.value = false
+  }
+}
+
+async function refreshSystem() {
+  await Promise.all([fetchHealth(), fetchGo2Rtc()])
+}
+
+function onGo2RtcUpdated(data) {
+  go2rtcStatus.value = data
 }
 
 // ── User account ─────────────────────────────────────────────────
@@ -316,7 +340,7 @@ const headerSummary = computed(() => {
 })
 
 onMounted(() => {
-  fetchHealth()
+  refreshSystem()
   requestAnimationFrame(() => setupSectionObserver())
 })
 
@@ -348,7 +372,7 @@ watch(
           <span class="status-dot" />
           {{ connected ? $t('layout.connected') : $t('layout.disconnected') }}
         </span>
-        <el-button :icon="Refresh" :loading="healthLoading" @click="fetchHealth">
+        <el-button :icon="Refresh" :loading="healthLoading || go2rtcLoading" @click="refreshSystem">
           {{ $t('settings.refresh') }}
         </el-button>
       </div>
@@ -431,6 +455,12 @@ watch(
             :error="healthError"
             :connected="connected"
             :version="backendVersion"
+          />
+
+          <SettingsGo2RtcPanel
+            :status="go2rtcStatus"
+            :loading="go2rtcLoading"
+            @updated="onGo2RtcUpdated"
           />
 
           <div class="quick-links">

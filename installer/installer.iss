@@ -33,6 +33,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Source: "..\backend\dist\LumosHome\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; External tools (deployed at app root, not inside _internal)
 Source: "redist\ffmpeg.exe"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
+Source: "redist\go2rtc\*"; DestDir: "{app}\go2rtc"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "redist\nmap\*"; DestDir: "{app}\nmap"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Npcap installer (temp, for silent install)
 Source: "redist\npcap.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall

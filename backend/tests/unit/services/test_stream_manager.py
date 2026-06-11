@@ -4,7 +4,7 @@ TDD: each test describes one behavior of StreamManager. The launcher and
 readiness callable are injected so we never spawn real ffmpeg in tests.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -205,76 +205,3 @@ async def test_can_restart_after_stop():
 
     assert info.state is StreamState.RUNNING
     assert info.pid == 22
-
-
-@pytest.mark.asyncio
-async def test_start_hls_uses_ffmpeg_command_and_m3u8_readiness(tmp_path):
-    """start_hls builds the canonical ffmpeg HLS command, polls for index.m3u8,
-    and updates the HLS base dir on the StreamManager so the static-mount
-    endpoint can serve files."""
-    from app.domain.services.stream_manager import StreamManager, StreamState
-
-    mgr = StreamManager(max_concurrent=4, hls_base=tmp_path)
-
-    fake_proc = MagicMock()
-    fake_proc.pid = 777
-    fake_proc.poll.return_value = None
-    fake_proc.terminate = MagicMock()
-    fake_proc.kill = MagicMock()
-    fake_proc.wait = MagicMock()
-
-    with patch('app.domain.services.stream_manager.subprocess.Popen', return_value=fake_proc):
-        info = await mgr.start_hls(
-            'AA:BB:CC:DD:EE:01',
-            rtsp_url='rtsp://camera/stream',
-            timeout=2.0,
-            poll_interval=0.01,
-            is_ready=lambda: True,  # test injection: ready immediately
-        )
-
-    assert info.state is StreamState.RUNNING
-    assert info.pid == 777
-    assert mgr.hls_dir_for('AA:BB:CC:DD:EE:01') == tmp_path / 'AA-BB-CC-DD-EE-01'
-    # StreamManager must track this stream as a normal one (so stop works)
-    assert mgr.get('AA:BB:CC:DD:EE:01').state is StreamState.RUNNING
-
-
-@pytest.mark.asyncio
-async def test_start_hls_cleans_output_dir_before_launch(tmp_path):
-    """Pre-existing m3u8 segments from a previous run must be removed
-    so the new stream starts from a clean playlist."""
-    from app.domain.services.stream_manager import StreamManager
-
-    mgr = StreamManager(max_concurrent=4, hls_base=tmp_path)
-    cam_dir = tmp_path / 'AA-BB-CC-DD-EE-01'
-    cam_dir.mkdir(parents=True)
-    (cam_dir / 'index.m3u8').write_text('stale playlist')
-    (cam_dir / 'old_segment.ts').write_text('stale')
-
-    fake_proc = MagicMock()
-    fake_proc.pid = 1
-    fake_proc.poll.return_value = None
-    fake_proc.terminate = MagicMock()
-    fake_proc.kill = MagicMock()
-    fake_proc.wait = MagicMock()
-
-    with patch('app.domain.services.stream_manager.subprocess.Popen', return_value=fake_proc):
-        info = await mgr.start_hls(
-            'AA:BB:CC:DD:EE:01',
-            rtsp_url='rtsp://camera/stream',
-            timeout=2.0,
-            poll_interval=0.02,
-            is_ready=lambda: True,
-        )
-
-    assert info.state.value == 'running'  # type: ignore[attr-defined]
-    # After start, no leftover segment from the old run should remain
-    assert not (cam_dir / 'old_segment.ts').exists()
-
-
-@pytest.mark.asyncio
-async def test_hls_dir_for_unknown_camera_returns_none(tmp_path):
-    from app.domain.services.stream_manager import StreamManager
-
-    mgr = StreamManager(max_concurrent=4, hls_base=tmp_path)
-    assert mgr.hls_dir_for('AA:BB:CC:DD:EE:FF') is None

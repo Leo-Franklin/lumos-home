@@ -67,7 +67,13 @@ class Settings(BaseSettings):
     network_range: str = 'auto'
     scan_interval_seconds: int = 60
     presence_poll_interval_seconds: int = 30
+    presence_away_confirm_count: int = 3  # consecutive "no device answered" polls required to fire 'left' (asymmetric debounce: 'arrived' stays 1-shot)
     camera_health_interval_seconds: int = 60  # A3: camera probe interval
+    # Consecutive probes required to flip is_online. Defaults debounce brief
+    # network blips and service-restart probe races so the UI doesn't
+    # oscillate between online/offline every minute.
+    camera_health_fail_threshold: int = 2
+    camera_health_success_threshold: int = 2
     server_port: int = 8000  # A4: for constructing DLNA media URLs
 
     # Camera
@@ -132,6 +138,13 @@ class Settings(BaseSettings):
     mqtt_frigate_username: str = ''
     mqtt_frigate_password: str = ''
     mqtt_frigate_topic_prefix: str = 'frigate'
+
+    # go2rtc — low-latency live streaming + RTSP restream hub
+    go2rtc_enabled: bool = False
+    go2rtc_api_url: str = 'http://127.0.0.1:1984'
+    go2rtc_rtsp_url: str = 'rtsp://127.0.0.1:8554'
+    go2rtc_config_path: str = str(_data_dir / 'go2rtc.yaml')
+    go2rtc_binary: str = ''
 
     @field_validator('jwt_secret_key')
     @classmethod

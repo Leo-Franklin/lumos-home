@@ -5,7 +5,7 @@ import { useDevicesStore } from '@/stores/devices'
 import { useDLNAStore } from '@/stores/dlna'
 import { useCameraActions } from '@/composables/useCameraActions'
 import { Plus } from '@element-plus/icons-vue'
-import CameraPlayer from '@/components/CameraPlayer.vue'
+import LivePlayer from '@/components/LivePlayer.vue'
 import CameraTable from '@/components/cameras/CameraTable.vue'
 import CameraFormDialog from '@/components/cameras/CameraFormDialog.vue'
 import CameraProbeDialog from '@/components/cameras/CameraProbeDialog.vue'
@@ -34,7 +34,7 @@ const {
   closeProbeDialog,
   applyProbeStream,
   liveDialog,
-  liveUrl,
+  liveMac,
   liveTitle,
   openLive,
   closeLive,
@@ -44,11 +44,6 @@ const {
   takeSnapshotAction,
   closeSnapshot,
   downloadSnapshot,
-  hlsDialog,
-  hlsTitle,
-  hlsSrc,
-  openHlsLive,
-  closeHlsLive,
   toggleRecord,
   presetDialog,
   presetCam,
@@ -86,12 +81,10 @@ function handleProbeApply(selection) {
 function handlePreviewCommand(cmd, row) {
   if (cmd === 'live') openLive(row)
   else if (cmd === 'snapshot') takeSnapshotAction(row)
-  else if (cmd === 'hls') openHlsLive(row)
 }
 
 function handleMoreCommand(cmd, row) {
   if (cmd === 'snapshot') takeSnapshotAction(row)
-  else if (cmd === 'hls') openHlsLive(row)
   else if (cmd === 'probe') openProbeDialog(row)
   else if (cmd === 'presets') openPresets(row)
   else if (cmd === 'delete')
@@ -125,7 +118,6 @@ function handleKeydown(e) {
   // 优先取消最后打开的 dialog
   if (recordDialog.value) closeRecordDialog()
   else if (presetDialog.value) closePresets()
-  else if (hlsDialog.value) closeHlsLive()
   else if (liveDialog.value) closeLive()
   else if (snapshotDialog.value) closeSnapshot()
   else if (formDialog.value?.open) closeFormDialog()
@@ -189,7 +181,7 @@ onUnmounted(() => {
       :destroy-on-close="true"
       @close="closeLive"
     >
-      <CameraPlayer v-if="liveDialog && liveUrl" mode="live" :src="liveUrl" />
+      <LivePlayer v-if="liveDialog && liveMac" :mac="liveMac" />
     </el-dialog>
 
     <el-dialog
@@ -205,17 +197,6 @@ onUnmounted(() => {
         <el-button @click="snapshotDialog = false">{{ $t('common.close') }}</el-button>
         <el-button type="primary" @click="downloadSnapshot">{{ $t('common.download') }}</el-button>
       </template>
-    </el-dialog>
-
-    <el-dialog
-      v-if="hlsDialog"
-      v-model="hlsDialog"
-      :title="hlsTitle"
-      width="720px"
-      :destroy-on-close="true"
-      @close="closeHlsLive"
-    >
-      <CameraPlayer v-if="hlsDialog && hlsSrc" mode="hls" :src="hlsSrc" />
     </el-dialog>
 
     <CameraPresetDialog

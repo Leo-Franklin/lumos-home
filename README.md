@@ -23,7 +23,8 @@ lumos-home/
 ├── installer/               Windows installer pipeline
 │   ├── build.ps1            One-click build: pnpm build → copy → PyInstaller → Inno Setup
 │   ├── installer.iss        Inno Setup script
-│   └── redist/              Bundled external tools (ffmpeg.exe, nmap/, npcap.exe)
+│   ├── fetch-go2rtc.ps1     Download go2rtc.exe into redist (M5)
+│   └── redist/              Bundled external tools (ffmpeg.exe, go2rtc/, nmap/, npcap.exe)
 ├── docs/
 │   └── smart_home_tool_design_v3.md   Original design document
 ├── docker-compose.yml       Container deployment (NAS-oriented)
@@ -73,6 +74,14 @@ pwsh installer/build.ps1
 
 Prerequisites: Node.js ≥ 20, Python 3.11 + `uv`, PyInstaller, Inno Setup 6
 (`iscc` in PATH), and the redistributables in `installer/redist/`.
+
+Download installer redistributables (ffmpeg, nmap, go2rtc, npcap):
+
+```powershell
+pwsh installer/fetch-redist.ps1
+# or one-shot build with auto-fetch:
+pwsh installer/build.ps1 -FetchRedist
+```
 
 ## API contract
 

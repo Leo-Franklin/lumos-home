@@ -5,7 +5,6 @@ import {
   Search,
   VideoPlay,
   Camera,
-  VideoCamera,
   VideoPause,
   VideoCameraFilled,
   Setting,
@@ -81,7 +80,7 @@ function isRecordDisabled(row) {
       </el-table-column>
       <el-table-column
         :label="$t('cameras.actions')"
-        min-width="200"
+        min-width="280"
         align="center"
         class-name="action-cell"
         label-class-name="action-cell"
@@ -138,18 +137,21 @@ function isRecordDisabled(row) {
               </span>
             </el-tooltip>
             <el-tooltip
-              :content="isMediaReady(row) ? $t('cameras.livePreview') : $t('cameras.noRtspWarning')"
+              :content="isMediaReady(row) ? '' : $t('cameras.noRtspWarning')"
+              :disabled="isMediaReady(row)"
               :show-after="400"
             >
               <span class="action-btn-trigger">
                 <el-button
-                  class="action-btn action-btn--live"
+                  class="action-btn action-btn--live action-btn--labeled"
                   size="small"
                   :icon="VideoPlay"
                   :aria-label="$t('cameras.livePreview')"
                   :disabled="!isMediaReady(row)"
                   @click="emit('preview', 'live', row)"
-                />
+                >
+                  {{ $t('cameras.livePreview') }}
+                </el-button>
               </span>
             </el-tooltip>
             <el-tooltip :content="$t('cameras.moreActions')" :show-after="400">
@@ -167,10 +169,6 @@ function isRecordDisabled(row) {
                       <el-dropdown-item command="snapshot" :disabled="!isMediaReady(row)">
                         <el-icon aria-hidden="true"><Camera /></el-icon>
                         {{ $t('cameras.snapshot') }}
-                      </el-dropdown-item>
-                      <el-dropdown-item command="hls" :disabled="!isMediaReady(row)">
-                        <el-icon aria-hidden="true"><VideoCamera /></el-icon>
-                        {{ $t('cameras.hlsLive') }}
                       </el-dropdown-item>
                       <el-dropdown-item command="presets" :disabled="!isMediaReady(row)">
                         <el-icon aria-hidden="true"><Setting /></el-icon>
@@ -195,15 +193,12 @@ function isRecordDisabled(row) {
 <style scoped>
 .table-scroll {
   width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  /* 由 el-table 自带的 body-wrapper 处理横向滚动，
+     外层只负责圆角裁剪，避免双滚动条。 */
+  overflow: hidden;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-}
-
-.table-scroll :deep(.el-table) {
-  min-width: 960px;
 }
 .rtsp-url {
   font-family: var(--font-mono, monospace);
@@ -362,6 +357,19 @@ function isRecordDisabled(row) {
 .action-btn--live:hover {
   background: var(--color-primary-subtle);
   color: var(--color-primary);
+}
+
+.action-btn--labeled {
+  width: auto;
+  min-width: 28px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.action-btn--labeled :deep(.el-icon) {
+  margin: 0;
 }
 
 .action-btn--record {

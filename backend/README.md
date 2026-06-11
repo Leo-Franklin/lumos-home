@@ -123,7 +123,7 @@ graph TB
 |------|------|
 | **用户认证** | 邮箱注册/验证、JWT Bearer Token 登录、密码找回与重置、管理员账户自动引导 |
 | **设备管理** | 局域网设备扫描（Scapy + nmap），在线状态跟踪，分页查询，支持 14 种设备类型自动识别 |
-| **摄像头管理** | ONVIF 发现与配置，实时流地址（RTSP/HTTP），MJPEG 代理，HLS 实时流，摄像头健康检查 |
+| **摄像头管理** | ONVIF 发现与配置，go2rtc 低延迟直播（MSE/WebRTC，MJPEG 兜底），RTSP restream 录制，摄像头健康检查 |
 | **录制调度** | ffmpeg 分段录制，APScheduler 定时任务，录制预设（preset），调度覆盖参数，自动录制触发（成员到家/离家） |
 | **NAS 同步** | 本地存储 / Docker 挂载 / SMB 三种模式，录制完成后自动同步，支持 SMB 协议推送 |
 | **DLNA 投屏** | SSDP 发现局域网 MediaRenderer，媒体文件上传，推送播放，控制播放/暂停/停止 |
@@ -194,6 +194,18 @@ cp .env.example .env
 | `RECORDING_TEMP_DIR` | `/tmp/recordings` | ffmpeg 临时输出目录 |
 | `RECORDING_SEGMENT_SECONDS` | `1800` | 单段录制时长（秒），默认 30 分钟 |
 | `RECORDING_RETENTION_DAYS` | `30` | 录制文件保留天数 |
+
+**go2rtc 直播（可选）：**
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `GO2RTC_ENABLED` | `false` | 启用 go2rtc 适配层；Windows 安装包检测到内置二进制时可自动开启 |
+| `GO2RTC_API_URL` | `http://127.0.0.1:1984` | go2rtc HTTP API（外部 sidecar 或内置进程） |
+| `GO2RTC_RTSP_URL` | `rtsp://127.0.0.1:8554` | go2rtc RTSP restream 基址（录制共用） |
+| `GO2RTC_CONFIG_PATH` | `./data/go2rtc.yaml` | 内置 runner 生成的配置文件路径 |
+| `GO2RTC_BINARY` | — | 可选：显式指定 go2rtc 可执行文件 |
+
+开发环境需单独运行 go2rtc 并监听 `1984`，或在设置页开启后确认 API 状态为「可连接」。未启用或不可达时，实时预览降级为 MJPEG。
 
 **NAS 存储（可选）：**
 
@@ -295,9 +307,9 @@ smart_home/backend/
 │   │
 │   ├── api/                 # API 路由层
 │   │   ├── auth.py          # 认证（注册/登录/验证邮箱/密码找回）
-│   │   ├── system.py        # 健康检查 & 仪表盘
+│   │   ├── system.py        # 健康检查、go2rtc 设置、仪表盘
 │   │   ├── devices.py       # 设备管理 & 扫描
-│   │   ├── cameras.py       # 摄像头管理、MJPEG/HLS 流、预设管理
+│   │   ├── cameras.py       # 摄像头管理、go2rtc live/MJPEG、预设管理
 │   │   ├── recordings.py    # 录制记录、流媒体播放、下载
 │   │   ├── schedules.py     # 录制调度（cron）
 │   │   ├── members.py       # 家庭成员、设备绑定、在线日志
@@ -384,7 +396,6 @@ smart_home/backend/
 │   ├── app.log              # 日志文件（10 MB 轮转，保留 7 天）
 │   ├── recordings/          # 录制文件存储（local 模式）
 │   │   └── tmp/             # ffmpeg 录制临时目录
-│   ├── hls/                 # HLS 流媒体分片
 │   └── dlna_media/          # DLNA 上传媒体文件
 │
 ├── docs/                    # 文档
@@ -421,6 +432,8 @@ smart_home/backend/
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/health` | 健康检查（数据库/ffmpeg/NAS 可写性/版本/运行时长；降级时返回 503） |
+| GET | `/api/v1/go2rtc` | go2rtc 状态（启用、API 连通性、runner、candidates） |
+| PUT | `/api/v1/go2rtc` | 更新 go2rtc 运行时设置（启用/禁用、candidates） |
 | GET | `/api/v1/dashboard` | 仪表盘摘要（成员/摄像头/设备/录制今日统计） |
 
 ### 设备
@@ -448,10 +461,13 @@ smart_home/backend/
 | POST | `/api/v1/cameras/{mac}/probe` | ONVIF 发现（获取设备信息/profiles/RTSP 地址） |
 | POST | `/api/v1/cameras/{mac}/record/start` | 开始 ffmpeg 录制（支持 preset/overrides） |
 | POST | `/api/v1/cameras/{mac}/record/stop` | 停止录制并同步 NAS |
-| GET | `/api/v1/cameras/{mac}/stream/mjpeg` | MJPEG 实时代理流 |
+| GET | `/api/v1/cameras/{mac}/live` | 直播信息（mode、MSE/WebRTC/MJPEG URL；启用时同步 stream） |
+| WS | `/api/v1/cameras/{mac}/live/ws?token=` | MSE 流 WebSocket 代理（JWT `?token=`） |
+| POST | `/api/v1/cameras/{mac}/live/webrtc?token=` | WebRTC SDP 代理 |
+| GET | `/api/v1/cameras/{mac}/stream/mjpeg?token=` | MJPEG 兜底流（JWT `?token=`） |
 | GET | `/api/v1/cameras/{mac}/snapshot` | 获取单帧 JPEG 快照 |
-| POST | `/api/v1/cameras/{mac}/live/start` | 启动 HLS 实时流（等待 m3u8 就绪最多 30 秒） |
-| DELETE | `/api/v1/cameras/{mac}/live/stop` | 停止 HLS 流并删除分片 |
+| POST | `/api/v1/cameras/{mac}/live/start` | **已废弃**（410 Gone，改用 go2rtc live） |
+| DELETE | `/api/v1/cameras/{mac}/live/stop` | **已废弃**（410 Gone） |
 | GET | `/api/v1/cameras/{mac}/presets` | 查询录制预设列表 |
 | POST | `/api/v1/cameras/{mac}/presets` | 创建录制预设 |
 | PUT | `/api/v1/cameras/{mac}/presets/{preset_id}` | 更新录制预设 |

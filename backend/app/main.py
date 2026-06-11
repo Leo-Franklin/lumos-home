@@ -8,9 +8,10 @@ from pathlib import Path
 from pathlib import Path as _Path
 from urllib.parse import urlparse, urlunparse
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from sqlalchemy import select
@@ -40,6 +41,13 @@ from app.domain.services.frigate_bridge import (
     FrigateBridgeConfig,
     FrigateBridgeService,
 )
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter, Go2RtcConfig
+from app.domain.services.go2rtc_runner import (
+    Go2RtcRunner,
+    resolve_go2rtc_binary,
+    should_start_embedded_runner,
+    write_go2rtc_config,
+)
 from app.domain.services.mqtt_service import MqttConfig, MqttService
 from app.domain.services.presence_domain import PresenceDomainService
 from app.domain.services.presence_service import presence_service
@@ -53,7 +61,9 @@ settings = get_settings()
 if is_packaged():
     _exe_dir = _Path(sys.executable).parent
     os.environ['PATH'] = (
-        os.pathsep.join([str(_exe_dir / 'nmap'), str(_exe_dir / 'ffmpeg')])
+        os.pathsep.join(
+            [str(_exe_dir / 'nmap'), str(_exe_dir / 'ffmpeg'), str(_exe_dir / 'go2rtc')]
+        )
         + os.pathsep
         + os.environ.get('PATH', '')
     )
@@ -69,8 +79,20 @@ logger.add(
     'data/app.log', level=settings.log_level, rotation='10 MB', retention='7 days', encoding='utf-8'
 )
 
-recorder = Recorder(settings.recording_temp_dir)
-stream_manager = StreamManager(max_concurrent=8, hls_base=Path('data/hls'))
+stream_manager = StreamManager(max_concurrent=8)
+_go2rtc_http = httpx.AsyncClient()
+_go2rtc_runner = Go2RtcRunner()
+_go2rtc_binary = resolve_go2rtc_binary(explicit=settings.go2rtc_binary)
+_go2rtc_enabled = settings.go2rtc_enabled or (is_packaged() and _go2rtc_binary is not None)
+go2rtc_adapter = Go2RtcAdapter(
+    config=Go2RtcConfig(
+        enabled=_go2rtc_enabled,
+        api_base=settings.go2rtc_api_url,
+        rtsp_base=settings.go2rtc_rtsp_url,
+    ),
+    http_client=_go2rtc_http,
+)
+recorder = Recorder(settings.recording_temp_dir, go2rtc_adapter=go2rtc_adapter)
 # Strong-reference bag for background tasks spawned by the Frigate callback
 _frigate_bg_tasks: set[asyncio.Task] = set()
 mqtt_service = MqttService(
@@ -250,9 +272,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:  # noqa: BLE001 — one bad schedule must not abort the rest of the recovery loop
             logger.warning(f'恢复调度任务 schedule_{sched["id"]} 失败: {e}')
     logger.info(f'已从数据库恢复 {len(enabled_schedules)} 个调度任务')
-    camera_health_checker = CameraHealthChecker(settings.camera_health_interval_seconds)
+    camera_health_checker = CameraHealthChecker(
+        interval=settings.camera_health_interval_seconds,
+        fail_threshold=settings.camera_health_fail_threshold,
+        success_threshold=settings.camera_health_success_threshold,
+        recorder=recorder,
+    )
     await recorder.start_monitor()
     presence_service._poll_interval = settings.presence_poll_interval_seconds
+    presence_service._away_confirm_count = settings.presence_away_confirm_count
     await presence_service.start(
         auto_start_cb=presence_domain.auto_start_recording,
         auto_stop_cb=presence_domain.auto_stop_recording,
@@ -263,6 +291,18 @@ async def lifespan(app: FastAPI):
     app.state.nas_syncer = nas_syncer
     app.state.presence_service = presence_service
     app.state.stream_manager = stream_manager
+    app.state.go2rtc_adapter = go2rtc_adapter
+    app.state.go2rtc_runner = _go2rtc_runner
+    app.state.go2rtc_binary = _go2rtc_binary
+    if should_start_embedded_runner(go2rtc_enabled=_go2rtc_enabled, binary=_go2rtc_binary):
+        cfg_path = write_go2rtc_config(Path(settings.go2rtc_config_path))
+        # should_start_embedded_runner only returns True when binary is not None
+        # — narrow the type for mypy.
+        assert _go2rtc_binary is not None
+        _go2rtc_runner.start(binary=_go2rtc_binary, config_path=cfg_path)
+        logger.info('go2rtc 已启用（内置 runner）')
+    elif _go2rtc_enabled:
+        logger.info('go2rtc 已启用（外部进程 / sidecar，跳过内置 runner）')
     app.state.mqtt_service = mqtt_service
     app.state.frigate_bridge = frigate_bridge
     # Start the Frigate bridge if enabled. The real paho client is constructed
@@ -295,6 +335,8 @@ async def lifespan(app: FastAPI):
         _shutdown_event.set()
     frigate_bridge.stop()
     mqtt_service.disconnect()
+    _go2rtc_runner.stop()
+    await _go2rtc_http.aclose()
     await stream_manager.stop_all()
     await camera_health_checker.stop()
     await recorder.stop_monitor()
@@ -311,6 +353,9 @@ app = FastAPI(
     openapi_url='/api/openapi.json',
     lifespan=lifespan,
 )
+app.state.go2rtc_adapter = go2rtc_adapter
+app.state.go2rtc_runner = _go2rtc_runner
+app.state.go2rtc_binary = _go2rtc_binary
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
@@ -333,24 +378,6 @@ app.include_router(auth.router, prefix=P)
 app.include_router(ws.router)
 _Path('data/dlna_media').mkdir(parents=True, exist_ok=True)
 app.mount('/dlna-media', StaticFiles(directory='data/dlna_media'), name='dlna-media')
-_HLS_BASE = _Path('data/hls')
-_HLS_BASE.mkdir(parents=True, exist_ok=True)
-
-
-@app.get('/hls/{path:path}', include_in_schema=False)
-async def serve_hls_file(path: str):
-    parts = path.split('/', 1)
-    if len(parts) != 2:
-        raise HTTPException(status_code=404, detail='HLS file not found')
-    mac, filename = parts
-    file_path = _HLS_BASE / mac.replace(':', '-') / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail='HLS file not found')
-    return FileResponse(
-        str(file_path),
-        media_type='application/vnd.apple.mpegurl' if filename.endswith('.m3u8') else 'video/MP2T',
-    )
-
 
 if is_packaged():
     _frontend_dir = _Path(getattr(sys, '_MEIPASS', '.')) / 'frontend'

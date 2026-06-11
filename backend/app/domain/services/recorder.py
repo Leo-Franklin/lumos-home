@@ -19,6 +19,8 @@ from pathlib import Path
 
 from loguru import logger
 
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter, mac_to_stream_name
+
 # Stream stall: no bytes written to the active segment for this long → restart session
 STALL_THRESHOLD_SECONDS = 90
 # Frigate allows ~90s for ffmpeg to produce the first segment after start
@@ -144,9 +146,10 @@ def completed_segment_paths(session: RecordingSession) -> list[Path]:
 
 
 class Recorder:
-    def __init__(self, temp_dir: str):
+    def __init__(self, temp_dir: str, go2rtc_adapter: Go2RtcAdapter | None = None):
         self.temp_dir = Path(temp_dir).resolve()
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self._go2rtc = go2rtc_adapter
         self.active: dict[str, RecordingSession] = {}
         self._monitor_task: asyncio.Task | None = None
         self._on_complete_cb = None
@@ -168,10 +171,18 @@ class Recorder:
             self._monitor_task.cancel()
             logger.info('RecordingMonitor 已停止')
 
+    async def _resolve_recording_rtsp_url(self, camera_mac: str, camera_rtsp_url: str) -> str:
+        if self._go2rtc is None or not self._go2rtc.config.enabled:
+            return camera_rtsp_url
+        stream_name = mac_to_stream_name(camera_mac)
+        await self._go2rtc.ensure_stream(stream_name, camera_rtsp_url)
+        return self._go2rtc.restream_url(stream_name)
+
     async def start_recording(self, camera_mac: str, rtsp_url: str, params: RecordingParams) -> str:
         if camera_mac in self.active:
             raise RuntimeError(f'摄像头 {camera_mac} 已在录制中')
 
+        rtsp_url = await self._resolve_recording_rtsp_url(camera_mac, rtsp_url)
         session = await self._launch_session(camera_mac, rtsp_url, params)
         logger.info(f'启动录制: {camera_mac} → {session.output_pattern}')
         return str(session.output_pattern)

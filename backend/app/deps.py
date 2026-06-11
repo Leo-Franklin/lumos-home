@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import verify_token
 from app.config import get_settings
 from app.database import get_db
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter
 from app.domain.services.recorder import Recorder
 from app.services.nas_syncer import NasSyncer
 
@@ -31,7 +32,7 @@ async def get_current_user(
 
 async def get_stream_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    token: str | None = None,
+    token: Annotated[str | None, Query()] = None,
 ) -> str:
     """Accept Bearer header OR ?token= query param — for endpoints used directly in <video>/<img> src."""
     raw = credentials.credentials if credentials else token
@@ -57,6 +58,14 @@ def get_nas_syncer(request: Request) -> NasSyncer:
     return request.app.state.nas_syncer
 
 
+def get_go2rtc_adapter(request: Request) -> Go2RtcAdapter:
+    adapter: Go2RtcAdapter | None = getattr(request.app.state, 'go2rtc_adapter', None)
+    if adapter is None:
+        raise HTTPException(status_code=503, detail='Go2rtcAdapter not initialized')
+    return adapter
+
+
 CurrentUser = Annotated[str, Depends(get_current_user)]
 RecorderDep = Annotated[Recorder, Depends(get_recorder)]
 NasSyncerDep = Annotated[NasSyncer, Depends(get_nas_syncer)]
+Go2RtcDep = Annotated[Go2RtcAdapter, Depends(get_go2rtc_adapter)]

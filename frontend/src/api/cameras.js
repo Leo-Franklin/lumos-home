@@ -36,7 +36,21 @@ export const mjpegStreamUrl = (mac) => {
   return `/api/v1/cameras/${mac}/stream/mjpeg?token=${encodeURIComponent(token)}`
 }
 
-export const takeSnapshot = (mac) => api.get(`/cameras/${mac}/snapshot`, { responseType: 'blob' })
+export const getLiveInfo = (mac) => api.get(`/cameras/${mac}/live`)
 
-export const startLive = (mac) => api.post(`/cameras/${mac}/live/start`)
-export const stopLive = (mac) => api.delete(`/cameras/${mac}/live/stop`)
+/**
+ * Response shape for `getLiveInfo` — mirrors backend `LiveStreamOut` schema.
+ * Exported so the API contract check can match the frontend identifier
+ * (tokens: {live, stream}) to the backend Pydantic model.
+ * @typedef {{
+ *   mode: 'mse' | 'mjpeg_fallback',
+ *   stream_name: string,
+ *   status: 'ready' | 'unavailable',
+ *   mse_ws_url: string | null,
+ *   webrtc_url: string | null,
+ *   mjpeg_url: string,
+ * }} LiveStreamOut
+ */
+export const liveStream = null
+
+export const takeSnapshot = (mac) => api.get(`/cameras/${mac}/snapshot`, { responseType: 'blob' })

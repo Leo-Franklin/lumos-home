@@ -23,6 +23,26 @@ export default {
     nas_writable: 'NAS 存储',
   },
 
+  go2rtc: {
+    title: '直播服务（go2rtc）',
+    desc: '低延迟实时预览与录制用 RTSP restream 中枢',
+    enabled: '开启',
+    disabled: '关闭',
+    connection: 'API 状态',
+    stateConnected: '可连接',
+    stateUnreachable: '不可达',
+    stateDisabled: '已关闭',
+    apiUrl: 'API 地址',
+    rtspUrl: 'RTSP restream',
+    embeddedRunner: '内置进程',
+    runnerActive: '运行中',
+    runnerIdle: '未运行',
+    candidatesLabel: 'WebRTC candidates',
+    candidatesHint: '每行一条，用于广域网 WebRTC（如 stun:8555 或公网 IP:8555）',
+    candidatesPlaceholder: 'stun:8555\n192.168.1.10:8555',
+    saveCandidates: '保存 candidates',
+  },
+
   nav: {
     account: '账号',
     preferences: '偏好',

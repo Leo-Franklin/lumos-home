@@ -11,14 +11,11 @@ import {
   startRecord,
   stopRecord,
   takeSnapshot,
-  startLive,
-  stopLive,
   listPresets,
   createPreset,
   updatePreset,
   deletePreset,
   setDefaultPreset,
-  mjpegStreamUrl,
 } from '@/api/cameras'
 import { emptyPresetForm, emptyOverrides, buildOverridesPayload } from '@/constants/recordingParams'
 
@@ -177,9 +174,9 @@ export function useCameraActions() {
     probeCam.value = null
   }
 
-  // ── Live (MJPEG) ────────────────────────────────────────────────
+  // ── Live (go2rtc / MJPEG) ───────────────────────────────────────
   const liveDialog = ref(false)
-  const liveUrl = ref('')
+  const liveMac = ref('')
   const liveTitle = ref('')
 
   function openLive(cam) {
@@ -188,12 +185,12 @@ export function useCameraActions() {
       return
     }
     liveTitle.value = t('cameras.liveTitle', { host: cam.onvif_host })
-    liveUrl.value = mjpegStreamUrl(cam.device_mac)
+    liveMac.value = cam.device_mac
     liveDialog.value = true
   }
 
   function closeLive() {
-    liveUrl.value = ''
+    liveMac.value = ''
   }
 
   // ── Snapshot ────────────────────────────────────────────────────
@@ -233,44 +230,6 @@ export function useCameraActions() {
     a.href = snapshotUrl.value
     a.download = `snapshot_${Date.now()}.jpg`
     a.click()
-  }
-
-  // ── HLS Live ────────────────────────────────────────────────────
-  const hlsDialog = ref(false)
-  const hlsTitle = ref('')
-  const hlsSrc = ref('')
-  const hlsStarting = ref(false)
-  let hlsMac = ''
-
-  async function openHlsLive(cam) {
-    if (!cam.rtsp_url) {
-      ElMessage.warning(t('cameras.noRtspWarning'))
-      return
-    }
-    hlsStarting.value = true
-    hlsMac = cam.device_mac
-    try {
-      await startLive(cam.device_mac)
-      hlsTitle.value = t('cameras.hlsTitle', { host: cam.onvif_host })
-      hlsSrc.value = mjpegStreamUrl(cam.device_mac)
-      hlsDialog.value = true
-    } catch (e) {
-      handleError(e, 'cameras.hlsStartFailed')
-    } finally {
-      hlsStarting.value = false
-    }
-  }
-
-  async function closeHlsLive() {
-    hlsSrc.value = ''
-    if (hlsMac) {
-      try {
-        await stopLive(hlsMac)
-      } catch {
-        /* ignore */
-      }
-      hlsMac = ''
-    }
   }
 
   // ── Quick record toggle (from row action) ───────────────────────
@@ -452,9 +411,9 @@ export function useCameraActions() {
     openProbeDialog,
     closeProbeDialog,
     applyProbeStream,
-    // live (mjpeg)
+    // live
     liveDialog,
-    liveUrl,
+    liveMac,
     liveTitle,
     openLive,
     closeLive,
@@ -466,13 +425,6 @@ export function useCameraActions() {
     takeSnapshotAction,
     closeSnapshot,
     downloadSnapshot,
-    // hls
-    hlsDialog,
-    hlsTitle,
-    hlsSrc,
-    hlsStarting,
-    openHlsLive,
-    closeHlsLive,
     // quick record toggle
     toggleRecord,
     // presets

@@ -1,21 +1,17 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref } from 'vue'
 import { Warning } from '@element-plus/icons-vue'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 const props = defineProps({
   src: { type: String, required: true },
-  mode: { type: String, default: 'recorded' }, // 'recorded' | 'live' | 'hls'
+  mode: { type: String, default: 'recorded' }, // 'recorded' | 'live'
 })
 
 const error = ref('')
 const loading = ref(true)
-const hlsRef = ref(null)
-let vjsPlayer = null
 
 function onError(e) {
   loading.value = false
@@ -32,66 +28,13 @@ function onError(e) {
   }
   error.value = msgs[code] || t('cameras.errGeneric', { code })
 }
-
-function initVjs(src) {
-  if (!hlsRef.value || !src) return
-  if (vjsPlayer) {
-    vjsPlayer.src({ src, type: 'application/x-mpegURL' })
-    vjsPlayer.play().catch(() => {})
-    loading.value = false
-    return
-  }
-  vjsPlayer = videojs(hlsRef.value, {
-    autoplay: 'muted',
-    muted: true,
-    controls: true,
-    fluid: true,
-    sources: [{ src, type: 'application/x-mpegURL' }],
-    html5: { vhs: { overrideNative: true } },
-  })
-  vjsPlayer.on('ready', () => {
-    loading.value = false
-  })
-  vjsPlayer.on('error', () => {
-    error.value = t('cameras.hlsLoadFailed')
-    loading.value = false
-  })
-}
-
-watch(
-  () => props.src,
-  (src) => {
-    error.value = ''
-    loading.value = true
-    if (props.mode === 'hls') nextTick(() => initVjs(src))
-  },
-)
-
-onMounted(() => {
-  if (props.mode === 'hls') nextTick(() => initVjs(props.src))
-})
-
-onUnmounted(() => {
-  if (vjsPlayer) {
-    vjsPlayer.dispose()
-    vjsPlayer = null
-  }
-})
 </script>
 
 <template>
   <div style="position: relative; background: #000; border-radius: 4px; overflow: hidden">
-    <!-- HLS 播放：video.js -->
-    <div v-if="mode === 'hls'">
-      <video
-        ref="hlsRef"
-        class="video-js vjs-default-skin"
-        style="width: 100%; max-height: 480px"
-      />
-    </div>
     <!-- 实时预览：MJPEG img -->
     <img
-      v-else-if="mode === 'live'"
+      v-if="mode === 'live'"
       :src="src"
       style="width: 100%; max-height: 480px; display: block; object-fit: contain"
       @load="loading = false"
@@ -110,7 +53,7 @@ onUnmounted(() => {
     />
 
     <div
-      v-if="loading && !error && mode !== 'hls'"
+      v-if="loading && !error"
       style="
         position: absolute;
         inset: 0;

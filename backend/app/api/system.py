@@ -2,18 +2,27 @@ import asyncio
 import subprocess
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import exists, func, not_, select
 
 from app.config import get_settings
 from app.deps import CurrentUser, DBDep
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter
+from app.domain.services.go2rtc_runner import (
+    Go2RtcRunner,
+    read_webrtc_candidates,
+    should_start_embedded_runner,
+    write_go2rtc_config,
+)
 from app.models.camera import Camera
 from app.models.device import Device
 from app.models.member import Member, MemberDevice
 from app.models.recording import Recording
+from app.schemas.go2rtc_settings import Go2RtcSettingsUpdate, Go2RtcStatusOut
 
 router = APIRouter()
 _start_time = time.time()
@@ -72,6 +81,79 @@ async def health_check(request: Request):
     )
     status_code = 200 if all_ok else 503
     return JSONResponse(content=response_data.model_dump(), status_code=status_code)
+
+
+def _go2rtc_state(request: Request) -> tuple[Go2RtcAdapter, Go2RtcRunner | None, Path | None]:
+    adapter: Go2RtcAdapter | None = getattr(request.app.state, 'go2rtc_adapter', None)
+    if adapter is None:
+        raise HTTPException(status_code=503, detail='Go2rtcAdapter not initialized')
+    runner: Go2RtcRunner | None = getattr(request.app.state, 'go2rtc_runner', None)
+    binary: Path | None = getattr(request.app.state, 'go2rtc_binary', None)
+    return adapter, runner, binary
+
+
+async def _build_go2rtc_status(
+    adapter: Go2RtcAdapter,
+    runner: Go2RtcRunner | None,
+    binary: Path | None,
+) -> Go2RtcStatusOut:
+    settings = get_settings()
+    cfg_path = Path(settings.go2rtc_config_path)
+    connected = await adapter.ping() if adapter.config.enabled else False
+    has_binary = binary is not None and await asyncio.to_thread(binary.is_file)
+    candidates = await asyncio.to_thread(read_webrtc_candidates, cfg_path)
+    return Go2RtcStatusOut(
+        enabled=adapter.config.enabled,
+        connected=connected,
+        embedded_runner=runner.is_running() if runner is not None else False,
+        has_embedded_binary=has_binary,
+        api_url=adapter.config.api_base,
+        rtsp_url=adapter.config.rtsp_base,
+        webrtc_candidates=candidates,
+    )
+
+
+@router.get('/go2rtc', response_model=Go2RtcStatusOut, tags=['system'])
+async def get_go2rtc_status(request: Request, _: CurrentUser) -> Go2RtcStatusOut:
+    adapter, runner, binary = _go2rtc_state(request)
+    return await _build_go2rtc_status(adapter, runner, binary)
+
+
+@router.put('/go2rtc', response_model=Go2RtcStatusOut, tags=['system'])
+async def update_go2rtc_settings(
+    body: Go2RtcSettingsUpdate,
+    request: Request,
+    _: CurrentUser,
+) -> Go2RtcStatusOut:
+    adapter, runner, binary = _go2rtc_state(request)
+    settings = get_settings()
+    cfg_path = Path(settings.go2rtc_config_path)
+
+    if body.enabled is not None:
+        adapter.config.enabled = body.enabled
+        if not body.enabled and runner is not None and runner.is_running():
+            runner.stop()
+        elif should_start_embedded_runner(go2rtc_enabled=body.enabled, binary=binary):
+            candidates = read_webrtc_candidates(cfg_path)
+            write_go2rtc_config(cfg_path, webrtc_candidates=candidates or None)
+            if runner is not None:
+                # should_start_embedded_runner only returns True when binary is not None
+                # — narrow the type for mypy.
+                assert binary is not None
+                runner.start(binary=binary, config_path=cfg_path)
+
+    if body.webrtc_candidates is not None:
+        write_go2rtc_config(cfg_path, webrtc_candidates=body.webrtc_candidates)
+        if (
+            adapter.config.enabled
+            and runner is not None
+            and runner.is_running()
+            and binary is not None
+        ):
+            runner.stop()
+            runner.start(binary=binary, config_path=cfg_path)
+
+    return await _build_go2rtc_status(adapter, runner, binary)
 
 
 @router.get('/dashboard', tags=['system'])

@@ -2,7 +2,6 @@
 export default {
   // CameraPlayer (from Task 8)
   streamLoadFailed: '实时画面加载失败，请检查摄像头是否在线及 RTSP 地址是否正确',
-  hlsLoadFailed: 'HLS 流加载失败，请确认转码已完成',
   errAborted: '加载被中止',
   errNetwork: '网络错误，无法加载视频',
   errDecode: '视频解码失败（可能是不支持的编码格式，如 H.265）',
@@ -57,7 +56,6 @@ export default {
   probeFirstStep: '第一步：ONVIF 探测以获取流地址',
   livePreview: '实时预览',
   snapshot: '截图',
-  hlsLive: 'HLS 直播',
   startRecord: '开始录制',
   stopRecord: '停止录制',
   selectDevice: '选择设备',
@@ -93,9 +91,7 @@ export default {
   rtspUrlWritten: '已自动写入 RTSP URL：{url}',
   liveTitle: '实时预览 — {host}',
   snapshotTitle: '截图 — {host}',
-  hlsTitle: 'HLS 直播 — {host}',
   snapshotFailed: '截图失败，摄像头可能无信号',
-  hlsStartFailed: 'HLS 直播启动失败',
   noRtspWarning: '该摄像头未配置 RTSP 地址，请先点击「ONVIF 探测」自动获取',
   noRtsp: '该摄像头未配置 RTSP 地址',
   recordStarted: '已发送开始录制指令',

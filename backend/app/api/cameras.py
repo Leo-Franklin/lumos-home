@@ -3,14 +3,17 @@ import subprocess
 import threading
 import uuid
 from datetime import datetime
+from typing import Annotated
 from urllib.parse import urlparse, urlunparse
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, WebSocket, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
 
-from app.deps import CurrentUser, DBDep, RecorderDep, StreamUser
+from app.auth import verify_token
+from app.config import get_settings
+from app.deps import CurrentUser, DBDep, Go2RtcDep, RecorderDep, StreamUser
 from app.domain.models.camera import RecordingPreset
 from app.domain.models.camera_event import (
     CameraEvent,
@@ -18,15 +21,17 @@ from app.domain.models.camera_event import (
     EventStatus,
     EventType,
 )
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter, mac_to_stream_name
+from app.domain.services.go2rtc_proxy import proxy_go2rtc_websocket
 from app.domain.services.mqtt_service import MqttService
 from app.domain.services.recorder import RecordingParams
-from app.domain.services.stream_manager import StreamManager
 from app.models.camera import Camera
 from app.models.recording import Recording
 from app.schemas.camera import (
     CameraCreate,
     CameraOut,
     CameraUpdate,
+    LiveStreamOut,
     RecordingPresetCreate,
     RecordingPresetUpdate,
     StartRecordingRequest,
@@ -49,11 +54,12 @@ async def list_cameras(db: DBDep, _: CurrentUser):
 
 
 @router.post('', response_model=CameraOut, status_code=status.HTTP_201_CREATED)
-async def create_camera(body: CameraCreate, db: DBDep, _: CurrentUser):
+async def create_camera(body: CameraCreate, db: DBDep, _: CurrentUser, adapter: Go2RtcDep):
     camera = Camera(**body.model_dump())
     db.add(camera)
     await db.commit()
     await db.refresh(camera)
+    await _sync_go2rtc_stream(adapter, camera)
     return camera
 
 
@@ -68,32 +74,38 @@ async def get_camera(mac: str, db: DBDep, _: CurrentUser):
 
 
 @router.put('/{mac}', response_model=CameraOut)
-async def update_camera(mac: str, body: CameraUpdate, db: DBDep, _: CurrentUser):
+async def update_camera(
+    mac: str, body: CameraUpdate, db: DBDep, _: CurrentUser, adapter: Go2RtcDep
+):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail='摄像头未配置')
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
         setattr(camera, field, value)
     await db.commit()
     await db.refresh(camera)
+    if updates.keys() & {'rtsp_url', 'onvif_user', 'onvif_password'}:
+        await _sync_go2rtc_stream(adapter, camera)
     return camera
 
 
 @router.delete('/{mac}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_camera(mac: str, db: DBDep, _: CurrentUser):
+async def delete_camera(mac: str, db: DBDep, _: CurrentUser, adapter: Go2RtcDep):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail='摄像头未配置')
+    await _remove_go2rtc_stream(adapter, mac)
     await db.delete(camera)
     await db.commit()
 
 
 @router.post('/{mac}/probe')
-async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
+async def probe_camera(mac: str, db: DBDep, _: CurrentUser, http_request: Request):
     mac = mac.upper()
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
@@ -125,6 +137,9 @@ async def probe_camera(mac: str, db: DBDep, _: CurrentUser):
         if auto_url and not camera.rtsp_url:
             camera.rtsp_url = auto_url
             await db.commit()
+            adapter: Go2RtcAdapter | None = getattr(http_request.app.state, 'go2rtc_adapter', None)
+            if adapter is not None:
+                await _sync_go2rtc_stream(adapter, camera)
 
         return {'device_info': info, 'profiles': profiles, 'auto_set_rtsp_url': auto_url}
     except TimeoutError:
@@ -318,6 +333,18 @@ def _rtsp_with_creds(camera: Camera) -> str:
     return url
 
 
+async def _sync_go2rtc_stream(adapter: Go2RtcAdapter, camera: Camera) -> None:
+    if not adapter.config.enabled or not camera.rtsp_url:
+        return
+    await adapter.ensure_stream(mac_to_stream_name(camera.device_mac), _rtsp_with_creds(camera))
+
+
+async def _remove_go2rtc_stream(adapter: Go2RtcAdapter, mac: str) -> None:
+    if not adapter.config.enabled:
+        return
+    await adapter.remove_stream(mac_to_stream_name(mac))
+
+
 async def _mjpeg_generate(rtsp_url: str):
     """Async generator: reads RTSP via FFmpeg and yields multipart/x-mixed-replace frames.
     Uses subprocess.Popen + thread to avoid asyncio.create_subprocess_exec which requires
@@ -460,46 +487,102 @@ async def snapshot_camera(mac: str, db: DBDep, _: CurrentUser):
     return Response(content=completed.stdout, media_type='image/jpeg')
 
 
-# ── HLS live stream ───────────────────────────────────────────
+# ── go2rtc live stream ───────────────────────────────────────────
 
 
-def _get_stream_manager(request: Request) -> StreamManager:
-    sm: StreamManager | None = getattr(request.app.state, 'stream_manager', None)
-    if sm is None:
-        raise HTTPException(status_code=503, detail='StreamManager not initialized')
-    return sm
-
-
-@router.post('/{mac}/live/start', status_code=status.HTTP_202_ACCEPTED)
-async def start_live(mac: str, db: DBDep, _: CurrentUser, request: Request):
-    mac = mac.upper()
+async def _get_camera_or_404(db: DBDep, mac: str) -> Camera:
     result = await db.execute(select(Camera).where(Camera.device_mac == mac))
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail='摄像头未配置')
+    return camera
+
+
+@router.get('/{mac}/live', response_model=LiveStreamOut)
+async def get_live_info(mac: str, db: DBDep, _: CurrentUser, adapter: Go2RtcDep) -> LiveStreamOut:
+    mac = mac.upper()
+    camera = await _get_camera_or_404(db, mac)
     if not camera.rtsp_url:
         raise HTTPException(
             status_code=422, detail='摄像头 rtsp_url 未设置，请先通过 ONVIF 探测配置 RTSP 地址'
         )
-    sm = _get_stream_manager(request)
-    info = sm.get(mac)
-    if info.state in ('starting', 'running'):
-        return {'message': '直播已在运行', 'state': info.state}
-    rtsp_url = _rtsp_with_creds(camera)
-    try:
-        await sm.start_hls(mac, rtsp_url)
-    except (RuntimeError, TimeoutError) as e:
-        logger.error(f'HLS 启动失败 [{mac}]: {e}')
-        raise HTTPException(status_code=500, detail=f'HLS 直播启动失败: {e}') from e
-    return {'message': 'HLS 直播已启动', 'state': sm.get(mac).state}
+    stream_name = mac_to_stream_name(mac)
+    if adapter.config.enabled:
+        await adapter.ensure_stream(stream_name, _rtsp_with_creds(camera))
+        if not await adapter.ping():
+            info = adapter.build_live_info(mac)
+            return LiveStreamOut(
+                mode='mjpeg_fallback',
+                stream_name=info.stream_name,
+                status='unavailable',
+                mjpeg_url=info.mjpeg_url,
+            )
+    info = adapter.build_live_info(mac)
+    return LiveStreamOut(
+        mode=info.mode,
+        stream_name=info.stream_name,
+        status=info.status,
+        mse_ws_url=info.mse_ws_url,
+        webrtc_url=info.webrtc_url,
+        mjpeg_url=info.mjpeg_url,
+    )
 
 
-@router.delete('/{mac}/live/stop', status_code=status.HTTP_202_ACCEPTED)
-async def stop_live(mac: str, _: CurrentUser, request: Request):
+@router.websocket('/{mac}/live/ws')
+async def live_ws_proxy(
+    websocket: WebSocket,
+    mac: str,
+    token: Annotated[str | None, Query()] = None,
+):
+    settings = get_settings()
+    raw = token
+    if not raw:
+        await websocket.close(code=4401)
+        return
+    if verify_token(raw, settings.jwt_secret_key) is None:
+        await websocket.close(code=4401)
+        return
+    adapter: Go2RtcAdapter | None = getattr(websocket.app.state, 'go2rtc_adapter', None)
+    if adapter is None or not adapter.config.enabled:
+        await websocket.close(code=4503)
+        return
+    stream_name = mac_to_stream_name(mac.upper())
+    await proxy_go2rtc_websocket(websocket, adapter.go2rtc_ws_url(stream_name))
+
+
+@router.post('/{mac}/live/webrtc')
+async def live_webrtc_proxy(
+    mac: str,
+    request: Request,
+    db: DBDep,
+    _: StreamUser,
+    adapter: Go2RtcDep,
+):
     mac = mac.upper()
-    sm = _get_stream_manager(request)
-    await sm.stop(mac)
-    return {'message': 'HLS 直播已停止'}
+    await _get_camera_or_404(db, mac)
+    if not adapter.config.enabled:
+        raise HTTPException(status_code=503, detail='go2rtc 未启用')
+    stream_name = mac_to_stream_name(mac)
+    body = await request.body()
+    content_type = request.headers.get('content-type', 'application/json')
+    resp = await adapter.post_webrtc(stream_name, body, content_type)
+    media_type = resp.headers.get('content-type')
+    return Response(content=resp.content, status_code=resp.status_code, media_type=media_type)
+
+
+# ── HLS live stream (removed) ─────────────────────────────────
+
+_HLS_LIVE_REMOVED = 'HLS 直播已移除，后续将改用 go2rtc 低延迟直播'
+
+
+@router.post('/{mac}/live/start', deprecated=True)
+async def start_live_removed(mac: str, _: CurrentUser):
+    raise HTTPException(status_code=410, detail=_HLS_LIVE_REMOVED)
+
+
+@router.delete('/{mac}/live/stop', deprecated=True)
+async def stop_live_removed(mac: str, _: CurrentUser):
+    raise HTTPException(status_code=410, detail=_HLS_LIVE_REMOVED)
 
 
 # ── Recording Presets ───────────────────────────────────────────

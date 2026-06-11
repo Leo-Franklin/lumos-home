@@ -14,9 +14,8 @@ import {
   deletePreset,
   setDefaultPreset,
   mjpegStreamUrl,
+  getLiveInfo,
   takeSnapshot,
-  startLive,
-  stopLive,
 } from '@/api/cameras'
 
 const mockGet = vi.hoisted(() => vi.fn())
@@ -154,24 +153,17 @@ describe('cameras API', () => {
     expect(url).toBe(`/api/v1/cameras/${mac}/stream/mjpeg?token=${encodeURIComponent('my-token')}`)
   })
 
+  it('getLiveInfo sends GET /cameras/:mac/live', async () => {
+    const mac = 'AA:BB:CC:DD:EE:FF'
+    mockGet.mockResolvedValue({ data: { mode: 'mse', stream_name: 'AA-BB-CC-DD-EE-FF' } })
+    await getLiveInfo(mac)
+    expect(mockGet).toHaveBeenCalledWith(`/cameras/${mac}/live`)
+  })
+
   it('takeSnapshot sends GET /cameras/:mac/snapshot with blob responseType', async () => {
     const mac = 'AA:BB:CC:DD:EE:FF'
     mockGet.mockResolvedValue({ data: new Blob() })
     await takeSnapshot(mac)
     expect(mockGet).toHaveBeenCalledWith(`/cameras/${mac}/snapshot`, { responseType: 'blob' })
-  })
-
-  it('startLive sends POST /cameras/:mac/live/start', async () => {
-    const mac = 'AA:BB:CC:DD:EE:FF'
-    mockPost.mockResolvedValue({})
-    await startLive(mac)
-    expect(mockPost).toHaveBeenCalledWith(`/cameras/${mac}/live/start`)
-  })
-
-  it('stopLive sends DELETE /cameras/:mac/live/stop', async () => {
-    const mac = 'AA:BB:CC:DD:EE:FF'
-    mockDelete.mockResolvedValue({})
-    await stopLive(mac)
-    expect(mockDelete).toHaveBeenCalledWith(`/cameras/${mac}/live/stop`)
   })
 })

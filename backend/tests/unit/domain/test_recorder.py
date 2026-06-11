@@ -5,11 +5,25 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.domain.services.go2rtc_adapter import Go2RtcAdapter, Go2RtcConfig
 from app.domain.services.recorder import (
     Recorder,
     RecordingParams,
     RecordingSession,
 )
+
+
+def _make_go2rtc_adapter(*, enabled: bool = True) -> tuple[Go2RtcAdapter, AsyncMock]:
+    client = AsyncMock()
+    adapter = Go2RtcAdapter(
+        config=Go2RtcConfig(
+            enabled=enabled,
+            api_base='http://127.0.0.1:1984',
+            rtsp_base='rtsp://127.0.0.1:8554',
+        ),
+        http_client=client,
+    )
+    return adapter, client
 
 
 class TestRecordingParams:
@@ -23,6 +37,51 @@ class TestRecordingParams:
 
     def test_fps_or_default_null(self):
         assert RecordingParams().fps_or_default() == 25
+
+
+class TestResolveRecordingRtspUrl:
+    @pytest.mark.asyncio
+    async def test_returns_camera_url_when_go2rtc_disabled(self, tmp_path):
+        adapter, client = _make_go2rtc_adapter(enabled=False)
+        recorder = Recorder(temp_dir=str(tmp_path), go2rtc_adapter=adapter)
+        mac = 'AA:BB:CC:DD:EE:01'
+        camera_url = 'rtsp://192.168.1.100:554/stream'
+
+        resolved = await recorder._resolve_recording_rtsp_url(mac, camera_url)
+
+        assert resolved == camera_url
+        client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_returns_camera_url_without_adapter(self, tmp_path):
+        recorder = Recorder(temp_dir=str(tmp_path))
+        camera_url = 'rtsp://192.168.1.100:554/stream'
+
+        resolved = await recorder._resolve_recording_rtsp_url('AA:BB:CC:DD:EE:01', camera_url)
+
+        assert resolved == camera_url
+
+    @pytest.mark.asyncio
+    async def test_ensures_stream_and_returns_restream_when_enabled(self, tmp_path):
+        adapter, client = _make_go2rtc_adapter(enabled=True)
+        list_resp = MagicMock(status_code=200)
+        list_resp.json.return_value = {}
+        put_resp = MagicMock(status_code=200)
+        client.get.return_value = list_resp
+        client.put.return_value = put_resp
+
+        recorder = Recorder(temp_dir=str(tmp_path), go2rtc_adapter=adapter)
+        mac = 'AA:BB:CC:DD:EE:01'
+        camera_url = 'rtsp://192.168.1.100:554/stream'
+
+        resolved = await recorder._resolve_recording_rtsp_url(mac, camera_url)
+
+        assert resolved == 'rtsp://127.0.0.1:8554/AA-BB-CC-DD-EE-01'
+        client.put.assert_awaited_once_with(
+            'http://127.0.0.1:1984/api/streams',
+            params={'src': camera_url, 'name': 'AA-BB-CC-DD-EE-01'},
+            timeout=10.0,
+        )
 
 
 class TestBuildFFmpegCmd:
@@ -41,6 +100,41 @@ class TestBuildFFmpegCmd:
         assert '-timeout' in cmd or '-stimeout' in cmd
         assert 'movflags' not in cmd
         assert str(pattern) in cmd
+
+
+@pytest.mark.asyncio
+async def test_start_recording_uses_restream_url_when_go2rtc_enabled(tmp_path):
+    adapter, client = _make_go2rtc_adapter(enabled=True)
+    list_resp = MagicMock(status_code=200)
+    list_resp.json.return_value = {}
+    client.get.return_value = list_resp
+    client.put.return_value = MagicMock(status_code=200)
+
+    recorder = Recorder(temp_dir=str(tmp_path), go2rtc_adapter=adapter)
+    mac = 'AA:BB:CC:DD:EE:01'
+    camera_url = 'rtsp://192.168.1.100:554/stream'
+    captured_cmd: list[str] = []
+
+    def popen_factory(cmd, **_kwargs):
+        captured_cmd.extend(cmd)
+        proc = MagicMock()
+        proc.poll.return_value = None
+        proc.stdin = MagicMock()
+        proc.stderr = MagicMock(read=MagicMock(return_value=b''))
+        return proc
+
+    import app.domain.services.recorder as rec_mod
+
+    original_popen = rec_mod.subprocess.Popen
+    rec_mod.subprocess.Popen = popen_factory
+    try:
+        await recorder.start_recording(mac, camera_url, RecordingParams(segment_seconds=60))
+    finally:
+        rec_mod.subprocess.Popen = original_popen
+
+    assert 'rtsp://127.0.0.1:8554/AA-BB-CC-DD-EE-01' in captured_cmd
+    assert camera_url not in captured_cmd
+    assert recorder.active[mac].rtsp_url == 'rtsp://127.0.0.1:8554/AA-BB-CC-DD-EE-01'
 
 
 class TestGracefulShutdown:

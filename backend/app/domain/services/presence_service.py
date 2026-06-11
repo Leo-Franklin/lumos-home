@@ -15,13 +15,18 @@ from app.services.ws_manager import ws_manager
 
 
 class PresenceService:
-    def __init__(self, poll_interval: int = 30):
+    def __init__(self, poll_interval: int = 30, away_confirm_count: int = 3):
         self._poll_interval = poll_interval
+        self._away_confirm_count = away_confirm_count
         self._task: asyncio.Task | None = None
         self._initialized = False
         self._auto_start_cb = None  # async (camera_mac: str) -> None
         self._auto_stop_cb = None  # async (camera_mac: str) -> None
         self._bg_tasks: set[asyncio.Task] = set()
+        # Per-member counter of consecutive "no bound device answered" polls.
+        # Used to debounce 'left' events: phones in deep sleep / WiFi roaming
+        # routinely miss a single ICMP — only fire 'left' after N consecutive misses.
+        self._away_streak: dict[int, int] = {}
 
     async def start(self, auto_start_cb=None, auto_stop_cb=None):
         self._auto_start_cb = auto_start_cb
@@ -129,12 +134,29 @@ class PresenceService:
                     return
                 if not self._initialized:
                     member.is_home = is_home
+                    # Seed the streak so a freshly-initialized "absent" state
+                    # doesn't get an immediate 'left' fire on the very next cycle.
+                    self._away_streak[member_id] = 0
                     await session.commit()
                     return
-                if is_home == snap['is_home']:
-                    await session.commit()
+                # Asymmetric debounce:
+                #   - 'arrived' is 1-shot (snappy response when the user comes home)
+                #   - 'left' requires self._away_confirm_count consecutive misses
+                #     (filters single-ICMP misses from sleeping phones / WiFi handoffs)
+                if is_home:
+                    self._away_streak[member_id] = 0
+                    if snap['is_home']:
+                        await session.commit()
+                    else:
+                        await self._fire_event(session, member, True, triggered_mac)
                     return
-                await self._fire_event(session, member, is_home, triggered_mac)
+                # is_home is False: increment streak, only fire on threshold crossing
+                self._away_streak[member_id] = self._away_streak.get(member_id, 0) + 1
+                if snap['is_home'] and self._away_streak[member_id] >= self._away_confirm_count:
+                    self._away_streak[member_id] = 0
+                    await self._fire_event(session, member, False, None)
+                else:
+                    await session.commit()
 
         except Exception as e:  # noqa: BLE001 — one member's failure must not abort the batch
             logger.warning(f'检测成员 {snap.get("name", snap.get("id"))} 失败: {e}')

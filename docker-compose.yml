@@ -1,16 +1,28 @@
 services:
+  # Low-latency live + RTSP restream hub (host network shares 1984/8554/8555 with lumos-home)
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    network_mode: host
+
   lumos-home:
     build:
       context: backend
       dockerfile: Dockerfile
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      - go2rtc
     volumes:
       - /volume1/Backup/cameras:/nas/cameras
       - /tmp/lumos-home-recordings:/tmp/recordings
       - ./backend/data:/app/data
     env_file:
       - backend/.env
+    environment:
+      GO2RTC_ENABLED: "true"
+      GO2RTC_API_URL: http://127.0.0.1:1984
+      GO2RTC_RTSP_URL: rtsp://127.0.0.1:8554
     cap_add:
       - NET_ADMIN
       - NET_RAW

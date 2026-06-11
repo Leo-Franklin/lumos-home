@@ -23,6 +23,26 @@ export default {
     nas_writable: 'NAS storage',
   },
 
+  go2rtc: {
+    title: 'Live streaming (go2rtc)',
+    desc: 'Low-latency camera preview and RTSP restream for recording',
+    enabled: 'On',
+    disabled: 'Off',
+    connection: 'API status',
+    stateConnected: 'Reachable',
+    stateUnreachable: 'Unreachable',
+    stateDisabled: 'Disabled',
+    apiUrl: 'API URL',
+    rtspUrl: 'RTSP restream',
+    embeddedRunner: 'Embedded process',
+    runnerActive: 'Running',
+    runnerIdle: 'Stopped',
+    candidatesLabel: 'WebRTC candidates',
+    candidatesHint: 'One entry per line — for LAN/WAN WebRTC (e.g. stun:8555 or public IP:8555)',
+    candidatesPlaceholder: 'stun:8555\n192.168.1.10:8555',
+    saveCandidates: 'Save candidates',
+  },
+
   nav: {
     account: 'Account',
     preferences: 'Preferences',

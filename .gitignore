@@ -33,6 +33,10 @@ backend/frontend/
 # --- Installer build output ---
 installer/output/
 installer/*.exe
+installer/redist/ffmpeg.exe
+installer/redist/npcap.exe
+installer/redist/go2rtc/go2rtc.exe
+installer/redist/nmap/
 
 # --- Editor / IDE ---
 .idea/
