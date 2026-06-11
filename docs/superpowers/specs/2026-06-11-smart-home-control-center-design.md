@@ -79,6 +79,9 @@ Lumos Home 引入**事件驱动的智能化基座**:
 ### 2.1 核心抽象
 
 ```python
+from typing import ClassVar, Protocol
+from dataclasses import dataclass
+
 # 触发器:何时激活规则
 class Trigger(Protocol):
     async def evaluate(self, ctx: TriggerContext) -> bool: ...
@@ -89,9 +92,9 @@ class Trigger(Protocol):
 class Condition(Protocol):
     async def check(self, ctx: RuleContext) -> bool: ...
 
-# 动作:执行什么
+# 动作:执行什么 — type 由具体子类声明,Registry 用它来反序列化 ActionSpec
 class Action(Protocol):
-    type: str  # "send_notification" / "control_device" / "start_recording" / "webhook"
+    type: ClassVar[str]  # 子类必须声明,例如 "send_notification" / "control_device"
     async def execute(self, ctx: RuleContext) -> ActionResult: ...
 
 # 规则:把三者串起来
@@ -159,8 +162,9 @@ CREATE INDEX idx_rule_exec_rule_time ON rule_executions(rule_id, fired_at DESC);
 ### 2.5 调度与并发
 
 - `RuleRegistry` 启动时从 DB 加载所有 enabled 规则,根据 `trigger.type` 分发到对应适配器
-- `CronTrigger` 用 **APScheduler 3.10.x**(项目已选,与既有 Schedule 模块共用)
+- `CronTrigger` 用 **APScheduler 3.10.x**(项目已选,与既有 Schedule 模块共用,JobStore 用 SQLAlchemyJobStore 持久化到 SQLite)
 - `EventTrigger` 订阅 Event Bus,filter 在收到事件时同步评估(内存轻量)
+- **Event Bus 投递语义:at-least-once**。同一事件可能因发布者重试被处理多次,所有 Trigger/Action 实现必须幂等,配合 `cooldown_seconds` 抑制重复副作用
 - **单规则执行串行**;不同规则并行;`cooldown_seconds` 抑制同一规则短时间重复触发
 - 失败 Action 单独记录,不影响其他 Action(`gather` 语义)
 
@@ -387,8 +391,8 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 ### 4.6 路由与菜单
 
 - 路由:`/twins` 和 `/twins/:id`
-- 在 `SettingsView` 顶部增加一个 "Digital Twin" 入口
-- 不放在侧边栏一级菜单 — Twin 是 Dashboard 的升级版,只在 Dashboard 加 "3D 视图" 按钮跳转
+- 入口:**Dashboard 顶部加 "3D 视图" 按钮**跳转(主入口),`SettingsView` 顶部加次级链接(管理多个 Twin 户型)
+- 不放在侧边栏一级菜单 — Twin 是 Dashboard 的升级版,不是日常功能
 
 ### 4.7 测试
 
@@ -505,7 +509,7 @@ CREATE TABLE twin_device_bindings (   -- 设备在 3D 空间的位置
 | **P0 基础** | Event Bus + 4 张表 migration + SQLAlchemy 模型 | 1d | 启动流程注入,确保不影响既有 lifespan |
 | **P1 Engine 骨架** | Trigger/Action 接口 + CronTrigger + ManualTrigger + Webhook Action + RuleRegistry | 2d | 调度并发,需要用 lock 防止重复触发 |
 | **P2 持久化 + API** | automation_rules CRUD + 触发器元数据 API | 1d | Pydantic schema 严谨性 |
-| **P3 EventTrigger** | 设备/录像事件订阅,filter 评估 | 1d | Event Bus 消息顺序,需要明确 at-least-once 语义 |
+| **P3 EventTrigger** | 设备/录像事件订阅,filter 评估 | 1d | Event Bus 语义定为**至少一次投递**(at-least-once),同一事件可能被处理多次,故 cooldown_seconds 是必要而非可选 |
 | **P4 Notification 渠道** | Email + Webhook 实现 + 模板 + 重试 + dead letter | 2d | SMTP 兼容性、SSL 验证、模板沙箱 |
 | **P5 Notification API** | channels/templates/log/settings 接口 + WS 推送 | 1d | — |
 | **P6 前端 Automations** | Pinia store + 规则编辑表单 + 列表 + 测试按钮 | 2d | 表单动态生成(根据 trigger/action schema) |
@@ -565,8 +569,8 @@ backend/app/
 │   └── notifications.py          # 新增
 ├── domain/
 │   ├── automation/
-│   │   ├── engine.py             # 新增
-│   │   ├── rule_registry.py      # 新增
+│   │   ├── engine.py             # 新增:Engine 编排 Trigger→Condition→Action
+│   │   ├── registry.py           # 新增:RuleRegistry(加载/启停规则)
 │   │   ├── triggers/             # 新增
 │   │   │   ├── cron.py
 │   │   │   ├── device_event.py
